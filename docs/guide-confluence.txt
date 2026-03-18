@@ -70,9 +70,9 @@ Claude Code가 마켓플레이스를 등록하면 이 저장소를 로컬에 클
 내부 동작: marketplace.json의 plugins 배열에서 jira-report를 찾고, source 경로(./plugins/jira-report)에 있는 파일들을 로컬 Claude Code 환경에 복사합니다.
 
   • jira-report — plugin.json의 name 값 (플러그인 이름)
-  • madup-plugins — marketplace.json의 name 값 (마켓플레이스 이름)
+  • my-project-plugins — marketplace.json의 name 값 (마켓플레이스 이름)
 
-ℹ 마켓플레이스 등록 없이 install 명령어를 실행하면, madup-plugins라는 마켓플레이스를 찾을 수 없어 설치에 실패합니다.
+ℹ 마켓플레이스 등록 없이 install 명령어를 실행하면, my-project-plugins라는 마켓플레이스를 찾을 수 없어 설치에 실패합니다.
 
 
 2.3 스킬 실행

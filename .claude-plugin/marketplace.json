@@ -1,5 +1,5 @@
 {
-  "name": "madup-plugins",
+  "name": "my-project-plugins",
   "plugins": [
     {
       "name": "jira-report",

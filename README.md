@@ -11,14 +11,14 @@
 
 2. 플러그인 설치
 ```bash
-/plugin install <plugin-name>@madup-plugins
+/plugin install <plugin-name>@my-project-plugins
 ```
 
 3. 플러그인 업데이트 (변경사항 반영)
 ```bash
 /plugin marketplace update
 /plugin uninstall <plugin-name>
-/plugin install <plugin-name>@madup-plugins
+/plugin install <plugin-name>@my-project-plugins
 ```
 
 ## 등록된 플러그인

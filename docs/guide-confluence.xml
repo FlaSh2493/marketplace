@@ -82,7 +82,7 @@
 
 <ul>
   <li><code>jira-report</code> — <code>plugin.json</code>의 <code>name</code> 값 (플러그인 이름)</li>
-  <li><code>madup-plugins</code> — <code>marketplace.json</code>의 <code>name</code> 값 (마켓플레이스 이름)</li>
+  <li><code>my-project-plugins</code> — <code>marketplace.json</code>의 <code>name</code> 값 (마켓플레이스 이름)</li>
 </ul>
 
 <ac:structured-macro ac:name="note">

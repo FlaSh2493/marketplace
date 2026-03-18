@@ -78,7 +78,7 @@ plugins/<plugin-name>/
   "version": "0.1.0",
   "author": {
     "name": "이름",
-    "email": "email@madup.com"
+    "email": "email@example.com"
   }
 }
 ```
