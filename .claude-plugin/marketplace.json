@@ -1,10 +1,6 @@
 {
-  "name": "my-project-plugins",
+  "name": "flash-plugins",
   "plugins": [
-    {
-      "name": "jira-report",
-      "path": "plugins/jira-report"
-    },
     {
       "name": "gh-sub",
       "path": "plugins/gh-sub"
