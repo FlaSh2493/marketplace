@@ -1,0 +1,500 @@
+<ac:structured-macro ac:name="toc">
+  <ac:parameter ac:name="maxLevel">3</ac:parameter>
+</ac:structured-macro>
+
+<hr />
+
+<h1>1. 소개</h1>
+
+<h2>마켓플레이스란?</h2>
+
+<p>내 프로젝트 팀이 Claude Code 플러그인을 <strong>공유하고 설치</strong>할 수 있는 중앙 저장소입니다.</p>
+
+<h2>동작 원리</h2>
+
+<p>마켓플레이스의 실체는 <strong>GitHub 저장소</strong>입니다. 별도의 서버나 패키지 레지스트리가 아니라, 저장소 루트의 <code>.claude-plugin/marketplace.json</code> 파일이 마켓플레이스 역할을 합니다.</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[GitHub 저장소 (<your-account>/marketplace)
+└── .claude-plugin/marketplace.json   ← 이 파일이 플러그인 목록을 정의
+└── plugins/                          ← 실제 플러그인 코드가 위치]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p>Claude Code가 마켓플레이스를 등록하면 이 저장소를 로컬에 클론하고, <code>marketplace.json</code>의 <code>plugins</code> 배열을 읽어 설치 가능한 플러그인 목록을 파악합니다.</p>
+
+<h2>접근 제어 — 인가되지 않은 사용자</h2>
+
+<p>마켓플레이스의 접근 권한은 <strong>GitHub 저장소 권한</strong>으로 결정됩니다.</p>
+
+<table>
+  <tr><th>상황</th><th>결과</th></tr>
+  <tr><td><strong>저장소 접근 권한 있음</strong> (조직 멤버 등)</td><td>마켓플레이스 등록·플러그인 설치 가능</td></tr>
+  <tr><td><strong>저장소 접근 권한 없음</strong></td><td><code>marketplace add</code> 단계에서 실패 — 저장소를 클론할 수 없으므로 플러그인 목록 자체를 가져올 수 없음</td></tr>
+  <tr><td><strong>저장소 읽기 전용</strong> (Read 권한)</td><td>플러그인 설치는 가능하나, PR을 통한 기여는 Write 권한 필요</td></tr>
+</table>
+
+<ac:structured-macro ac:name="info">
+  <ac:rich-text-body>
+    <p><strong>GitHub 저장소에 접근할 수 없는 사용자는 마켓플레이스의 어떤 기능도 사용할 수 없습니다.</strong> 별도의 인증 시스템은 없으며, 모든 접근 제어는 GitHub이 담당합니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>용어 정리</h2>
+
+<table>
+  <tr><th>용어</th><th>설명</th></tr>
+  <tr><td><strong>마켓플레이스</strong></td><td>플러그인 목록을 관리하는 GitHub 저장소. <code>marketplace.json</code>이 핵심</td></tr>
+  <tr><td><strong>플러그인</strong></td><td>하나 이상의 스킬을 묶은 패키지. <code>plugin.json</code>으로 메타데이터 정의</td></tr>
+  <tr><td><strong>스킬</strong></td><td>사용자가 실행할 수 있는 개별 기능 단위. <code>SKILL.md</code>로 정의</td></tr>
+  <tr><td><strong>슬래시 명령어</strong></td><td><code>/플러그인명:스킬명</code> 형태로 스킬을 직접 호출하는 방법</td></tr>
+</table>
+
+<hr />
+
+<h1>2. 빠른 시작</h1>
+
+<h2>2.1 마켓플레이스 등록</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin marketplace add <your-account>/marketplace]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: Claude Code가 <code><your-account>/marketplace</code> GitHub 저장소를 로컬에 클론합니다. 이 과정에서 <strong>GitHub 인증</strong>이 필요하며, 저장소 접근 권한이 없으면 클론에 실패하고 등록이 거부됩니다.</p>
+
+<ac:structured-macro ac:name="warning">
+  <ac:rich-text-body>
+    <p>인가되지 않은 사용자는 이 단계에서 차단됩니다. <code>git clone</code>이 실패하면 "저장소에 접근할 수 없습니다"와 같은 에러가 발생합니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<p>등록이 완료되면 Claude Code는 <code>marketplace.json</code>을 읽어 사용 가능한 플러그인 목록을 인식합니다.</p>
+
+<h2>2.2 플러그인 설치</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin install jira-report@my-project-plugins]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: <code>marketplace.json</code>의 <code>plugins</code> 배열에서 <code>jira-report</code>를 찾고, <code>source</code> 경로(<code>./plugins/jira-report</code>)에 있는 파일들을 로컬 Claude Code 환경에 복사합니다.</p>
+
+<ul>
+  <li><code>jira-report</code> — <code>plugin.json</code>의 <code>name</code> 값 (플러그인 이름)</li>
+  <li><code>madup-plugins</code> — <code>marketplace.json</code>의 <code>name</code> 값 (마켓플레이스 이름)</li>
+</ul>
+
+<ac:structured-macro ac:name="note">
+  <ac:rich-text-body>
+    <p>마켓플레이스 등록 없이 <code>install</code> 명령어를 실행하면, <code>my-project-plugins</code>라는 마켓플레이스를 찾을 수 없어 설치에 실패합니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>2.3 스킬 실행</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/jira-report:create]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: Claude Code가 설치된 <code>jira-report</code> 플러그인의 <code>skills/create/SKILL.md</code> 파일을 읽고, 그 안의 지시사항에 따라 동작을 수행합니다.</p>
+
+<ul>
+  <li><code>jira-report</code> — 플러그인 이름 (<code>plugin.json</code>의 <code>name</code>)</li>
+  <li><code>create</code> — 스킬 <strong>디렉토리명</strong> (<code>skills/create/</code>)</li>
+</ul>
+
+<ac:structured-macro ac:name="tip">
+  <ac:rich-text-body>
+    <p>스킬은 슬래시 명령어로 직접 호출하는 것 외에도, Claude가 대화 맥락에서 <code>description</code>을 보고 <strong>자동으로 실행</strong>할 수도 있습니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>2.4 설치 확인</h2>
+
+<p>설치된 플러그인은 Claude Code의 슬래시 명령어 자동완성에서 확인할 수 있습니다. <code>/jira-report</code>를 입력하면 사용 가능한 스킬 목록이 표시됩니다.</p>
+
+<hr />
+
+<h1>3. 등록된 플러그인 목록</h1>
+
+<p>현재 마켓플레이스에 등록된 플러그인:</p>
+
+<table>
+  <tr><th>플러그인</th><th>설명</th><th>명령어</th><th>버전</th></tr>
+  <tr><td><code>jira-report</code></td><td>JIRA 분기별 Kanban 티켓 목록 및 스토리포인트 리포트</td><td><code>/jira-report:create</code></td><td>0.1.0</td></tr>
+</table>
+
+<h2>jira-report 사용 예시</h2>
+
+<p><code>/jira-report:create</code> 실행 시 자연어로 요청할 수 있습니다:</p>
+
+<ul>
+  <li>"이번 분기 내 리포트 만들어줘" → 현재 분기, 현재 사용자 기준으로 자동 실행</li>
+  <li>"2025년 Q1 IET 프로젝트 홍길동 리포트" → 모든 옵션이 추론되어 바로 실행</li>
+  <li>"지난 분기 리포트" → 지난 분기 + 현재 사용자 기준, 프로젝트만 자동 감지</li>
+</ul>
+
+<ac:structured-macro ac:name="warning">
+  <ac:rich-text-body>
+    <p>이 스킬은 JIRA/Confluence REST API를 사용합니다. 환경 변수(<code>JIRA_API_TOKEN</code> 등)가 설정되어 있지 않으면 설정 안내를 출력하고 종료합니다. API 토큰이 유효하지 않은 사용자는 JIRA/Confluence 데이터에 접근할 수 없습니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<hr />
+
+<h1>4. 플러그인 업데이트 및 관리</h1>
+
+<h2>4.1 변경사항 반영 3단계</h2>
+
+<p>마켓플레이스에 있는 플러그인이 업데이트되었을 때, 로컬에 반영하려면 <strong>세 단계를 모두</strong> 수행해야 합니다.</p>
+
+<h3>1단계: 마켓플레이스 업데이트</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin marketplace update]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: 로컬에 클론된 마켓플레이스 저장소에서 <code>git pull</code>을 실행하여 원격의 최신 변경사항을 가져옵니다. 이 시점에서도 GitHub 접근 권한이 확인됩니다.</p>
+
+<h3>2단계: 기존 플러그인 제거</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin uninstall jira-report]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: 로컬 Claude Code 환경에 설치된 플러그인 파일을 삭제합니다.</p>
+
+<h3>3단계: 플러그인 재설치</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin install jira-report@my-project-plugins]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: 업데이트된 마켓플레이스에서 최신 플러그인 파일을 다시 복사합니다.</p>
+
+<h2>4.2 주의사항</h2>
+
+<ac:structured-macro ac:name="warning">
+  <ac:rich-text-body>
+    <ul>
+      <li><strong>uninstall 없이 install만 하면 변경사항이 반영되지 않을 수 있습니다.</strong> 반드시 제거 후 재설치하세요.</li>
+      <li><strong>marketplace update만 하고 재설치를 생략하면</strong> 로컬에 설치된 플러그인은 이전 버전 그대로입니다. 마켓플레이스 저장소는 업데이트되었지만, 설치된 파일은 별도이기 때문입니다.</li>
+    </ul>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>4.3 플러그인 제거</h2>
+
+<p>더 이상 사용하지 않는 플러그인은 uninstall로 제거합니다:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin uninstall jira-report]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr />
+
+<h1>5. 플러그인 만들기 (기여 가이드)</h1>
+
+<p>새로운 플러그인을 만들어 마켓플레이스에 기여하는 방법입니다.</p>
+
+<h2>접근 권한 요구사항</h2>
+
+<ac:structured-macro ac:name="info">
+  <ac:rich-text-body>
+    <p>플러그인을 기여하려면 마켓플레이스 GitHub 저장소에 <strong>Write 권한</strong>이 필요합니다. Read 권한만으로는 플러그인을 사용할 수 있지만 기여(PR 제출)는 불가합니다. 조직 외부 사용자는 Fork → PR 방식도 사용할 수 있으나, 리뷰어가 merge해야 반영됩니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>5.1 디렉토리 구조</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[plugins/my-plugin/
+├── .claude-plugin/
+│   └── plugin.json          ← 플러그인 메타데이터 (필수)
+├── skills/                  ← 스킬 디렉토리 (필수)
+│   └── my-skill/
+│       └── SKILL.md         ← 스킬 정의 파일
+├── agents/                  (선택) 에이전트 정의
+├── hooks/                   (선택) 훅 스크립트
+└── .mcp.json                (선택) MCP 서버 설정]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<ac:structured-macro ac:name="note">
+  <ac:rich-text-body>
+    <p><code>.claude-plugin/</code> 안에는 <code>plugin.json</code>만 둡니다. skills, agents, hooks는 플러그인 루트에 위치합니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>5.2 plugin.json 작성법</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[{
+  "name": "my-plugin",
+  "description": "플러그인 설명",
+  "version": "0.1.0",
+  "author": {
+    "name": "이름",
+    "email": "email@example.com"
+  }
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<table>
+  <tr><th>필드</th><th>설명</th></tr>
+  <tr><td><code>name</code></td><td>플러그인 고유 이름. 슬래시 명령어의 콜론 앞에 사용됨 (<code>/name:skill</code>)</td></tr>
+  <tr><td><code>description</code></td><td>플러그인의 기능 요약</td></tr>
+  <tr><td><code>version</code></td><td>시맨틱 버전 (예: <code>0.1.0</code>)</td></tr>
+  <tr><td><code>author</code></td><td>작성자 정보. <code>name</code>과 <code>email</code> 포함</td></tr>
+</table>
+
+<h2>5.3 SKILL.md 작성법</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">yaml</ac:parameter>
+  <ac:plain-text-body><![CDATA[---
+name: my-plugin-create
+description: 무언가를 생성합니다. Claude가 자동 실행 여부를 판단할 때 이 설명을 참고합니다.
+---
+
+여기에 스킬의 지시 내용을 작성합니다.
+Claude가 이 내용을 읽고 동작을 수행합니다.]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>frontmatter 필드 역할:</strong></p>
+
+<table>
+  <tr><th>필드</th><th>역할</th><th>예시</th></tr>
+  <tr><td><code>name</code></td><td>스킬 검색·목록에서 사용자에게 표시되는 이름</td><td><code>jira-report-create</code></td></tr>
+  <tr><td><code>description</code></td><td>Claude가 대화 맥락에서 자동 실행 여부를 판단하는 기준</td><td>"JIRA 리포트를 생성합니다"</td></tr>
+</table>
+
+<p><strong>본문</strong>: Claude에게 주는 지시사항입니다. REST API 호출 방법, 실행 흐름, 오류 처리 등을 구체적으로 기술합니다.</p>
+
+<h2>5.4 marketplace.json 등록</h2>
+
+<p><code>.claude-plugin/marketplace.json</code>의 <code>plugins</code> 배열에 새 플러그인을 추가합니다:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[{
+  "plugins": [
+    {
+      "name": "my-plugin",
+      "source": "./plugins/my-plugin",
+      "description": "플러그인 설명",
+      "version": "0.1.0",
+      "category": "카테고리"
+    }
+  ]
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: Claude Code는 <code>install</code> 명령 실행 시 이 배열에서 <code>name</code>으로 플러그인을 찾고, <code>source</code> 경로를 기준으로 파일을 복사합니다. 여기에 등록되지 않은 플러그인은 <code>plugins/</code> 디렉토리에 존재하더라도 설치할 수 없습니다.</p>
+
+<h2>5.5 README.md 업데이트</h2>
+
+<p>두 곳을 업데이트해야 합니다:</p>
+
+<p><strong>1) 등록된 플러그인 테이블에 행 추가:</strong></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">markdown</ac:parameter>
+  <ac:plain-text-body><![CDATA[| `my-plugin` | 플러그인 설명 | `/my-plugin:my-skill` | 0.1.0 |]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>2) 플러그인 설치 섹션에 설치 명령어 추가:</strong></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[/plugin install my-plugin@my-project-plugins]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<h2>5.6 체크리스트</h2>
+
+<p>커밋 전 아래 항목을 모두 확인하세요. Pre-commit 훅이 자동으로 검증하지만, 미리 확인하면 반려를 줄일 수 있습니다.</p>
+
+<ac:task-list>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body><code>skills/&lt;name&gt;/SKILL.md</code> 구조를 따르는가 (<code>commands/</code> 사용 금지)</ac:task-body></ac:task>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body>SKILL.md에 YAML frontmatter(<code>name</code>, <code>description</code>)가 있는가</ac:task-body></ac:task>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body><code>plugin.json</code>의 name, description, version, author가 정확한가</ac:task-body></ac:task>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body><code>marketplace.json</code>의 plugins 배열에 등록했는가</ac:task-body></ac:task>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body>README.md 플러그인 테이블에 추가했는가</ac:task-body></ac:task>
+  <ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body>README.md 설치 섹션에 명령어를 추가했는가</ac:task-body></ac:task>
+</ac:task-list>
+
+<hr />
+
+<h1>6. 스킬 이름 규칙</h1>
+
+<p>스킬의 이름은 <strong>세 곳</strong>에서 각기 다른 역할을 합니다:</p>
+
+<table>
+  <tr><th>결정하는 값</th><th>역할</th><th>예시</th></tr>
+  <tr><td><code>skills/</code> 하위 <strong>디렉토리명</strong></td><td>슬래시 명령어 (콜론 뒤)</td><td><code>/jira-report:create</code> ← 디렉토리가 <code>create</code></td></tr>
+  <tr><td>SKILL.md의 <strong><code>name</code> 필드</strong></td><td>스킬 검색·목록 표시명</td><td>검색 시 <code>jira-report-create</code>로 표시</td></tr>
+  <tr><td>SKILL.md의 <strong><code>description</code> 필드</strong></td><td>Claude 자동 실행 판단</td><td>맥락에 맞으면 자동으로 스킬 실행</td></tr>
+</table>
+
+<h2>작성 권장사항</h2>
+
+<ul>
+  <li><strong>디렉토리명</strong>: 짧고 간결하게 — <code>create</code>, <code>view</code>, <code>sync</code>, <code>delete</code></li>
+  <li><strong>name 필드</strong>: 플러그인명을 포함하여 명확하게 — <code>jira-report-create</code>, <code>jira-report-delete</code></li>
+  <li><strong>description 필드</strong>: Claude가 이해할 수 있도록 기능을 명확히 서술</li>
+</ul>
+
+<h2>예시: jira-report 플러그인</h2>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[plugins/jira-report/
+└── skills/
+    └── create/              ← 디렉토리명 → /jira-report:create
+        └── SKILL.md
+            name: jira-report-create       ← 검색 시 표시
+            description: JIRA 분기별 ...    ← 자동 실행 판단]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr />
+
+<h1>7. 자동 검증 시스템</h1>
+
+<p>마켓플레이스는 <strong>두 단계</strong>의 자동 검증으로 플러그인 품질을 보장합니다.</p>
+
+<h2>7.1 Pre-commit Hook (로컬 검증)</h2>
+
+<p><code>.claude/settings.json</code>에 등록된 PreToolUse 훅이 <code>git commit</code> 명령을 감지하면 자동으로 실행됩니다.</p>
+
+<p><strong>내부 동작</strong>: Claude Code가 Bash 도구로 <code>git commit</code>을 실행하려 할 때, <code>.claude/hooks/pre-commit-validate.sh</code> 스크립트가 먼저 실행됩니다. 검증에 실패하면 <code>permissionDecision: "deny"</code>를 반환하여 <strong>커밋 자체를 차단</strong>합니다.</p>
+
+<p><strong>검증 항목:</strong></p>
+
+<table>
+  <tr><th>검증</th><th>설명</th></tr>
+  <tr><td><code>commands/</code> 미사용</td><td>레거시 <code>commands/</code> 디렉토리가 존재하면 차단</td></tr>
+  <tr><td>스킬 구조</td><td><code>skills/&lt;name&gt;/SKILL.md</code> 형태가 아니면 차단 (느슨한 .md 파일 감지)</td></tr>
+  <tr><td>frontmatter 검증</td><td>SKILL.md에 <code>name</code>, <code>description</code> 필드가 없으면 차단</td></tr>
+  <tr><td>marketplace.json 등록</td><td><code>plugins/</code> 내 플러그인이 marketplace.json에 없으면 차단</td></tr>
+  <tr><td>README.md 문서화</td><td>플러그인이 README.md에 언급되지 않으면 차단</td></tr>
+</table>
+
+<p><strong>검증 실패 시 대응:</strong></p>
+
+<p>훅이 커밋을 차단하면 에러 메시지에 구체적인 문제가 표시됩니다:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[커밋 전 검증 실패:
+- plugins/my-plugin/commands/ 디렉토리가 존재합니다. skills/로 대체해야 합니다.
+- plugins/my-plugin/skills/my-skill/SKILL.md frontmatter에 description 필드가 없습니다.]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p>각 에러를 수정한 후 다시 커밋하면 됩니다.</p>
+
+<ac:structured-macro ac:name="tip">
+  <ac:rich-text-body>
+    <p>이 훅은 <code>.claude/settings.json</code>에 정의되어 있으므로, 저장소를 클론하면 별도 설정 없이 자동으로 적용됩니다. 팀 전체에 동일한 검증 규칙이 적용되는 구조입니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>7.2 CI/CD — GitHub Actions (원격 검증)</h2>
+
+<p>PR을 제출하면 <code>.github/workflows/validate.yml</code>이 자동으로 실행됩니다.</p>
+
+<p><strong>트리거 조건</strong>: <code>plugins/**</code> 또는 <code>.claude-plugin/marketplace.json</code> 파일이 변경된 PR</p>
+
+<p><strong>검증 단계:</strong></p>
+
+<ol>
+  <li><code>claude plugin validate .</code> — Claude Code 공식 유효성 검증</li>
+  <li><code>marketplace.json</code> JSON 문법 검증</li>
+  <li>모든 <code>plugin.json</code> 파일의 JSON 문법 검증</li>
+</ol>
+
+<ac:structured-macro ac:name="info">
+  <ac:rich-text-body>
+    <p><strong>접근 제어와의 관계</strong>: CI 검증은 GitHub Actions가 실행하므로, PR을 제출할 수 있는 사용자(Write 권한 또는 Fork)만 이 검증을 트리거할 수 있습니다. CI 통과 여부와 무관하게, 최종 merge 권한은 저장소 관리자에게 있습니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<hr />
+
+<h1>8. 설정 파일 이해하기</h1>
+
+<h2>8.1 settings.json — 팀 공유 설정</h2>
+
+<p><strong>파일 위치</strong>: <code>.claude/settings.json</code><br />
+<strong>커밋 여부</strong>: O (저장소에 포함)</p>
+
+<p>팀 전체에 적용되는 설정을 담습니다. 현재는 pre-commit 검증 훅이 등록되어 있습니다:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-validate.sh"
+          }
+        ]
+      }
+    ]
+  }
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>내부 동작</strong>: Claude Code가 Bash 도구를 사용할 때마다 이 훅이 실행됩니다. 훅 스크립트 내부에서 <code>git commit</code> 명령인지 판별한 후, 커밋이 아니면 즉시 통과시킵니다.</p>
+
+<ac:structured-macro ac:name="tip">
+  <ac:rich-text-body>
+    <p>저장소를 클론/풀 받으면 별도 설정 없이 바로 적용됩니다. 팀원이 개별적으로 훅을 설치할 필요가 없습니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>8.2 settings.local.json — 개인 설정</h2>
+
+<p><strong>파일 위치</strong>: <code>.claude/settings.local.json</code><br />
+<strong>커밋 여부</strong>: X (<code>.gitignore</code>에 포함 — <strong>절대 커밋하지 않습니다</strong>)</p>
+
+<p>개인 권한 설정, 로컬 환경 설정 등 개인에게만 해당하는 내용을 담습니다. 예를 들어, 특정 bash 명령어의 자동 허용 등을 설정할 수 있습니다.</p>
+
+<ac:structured-macro ac:name="warning">
+  <ac:rich-text-body>
+    <p>API 토큰 등 민감한 정보를 <code>settings.local.json</code>의 <code>env</code>에 저장하면 Claude Code가 환경 변수로 인식합니다. 이 파일은 로컬에만 존재하므로 토큰이 외부에 노출되지 않습니다.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h2>8.3 병합 동작</h2>
+
+<p>Claude Code는 두 설정 파일을 <strong>자동으로 병합(merge)</strong> 하여 사용합니다:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[settings.json (팀 공유)  +  settings.local.json (개인)  →  최종 설정]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<ul>
+  <li>서로 다른 키: 두 파일의 설정이 모두 적용됩니다</li>
+  <li>같은 키가 충돌: <code>settings.local.json</code>이 우선합니다</li>
+</ul>
+
+<p><strong>실무 예시:</strong></p>
+
+<table>
+  <tr><th>설정</th><th>파일</th><th>이유</th></tr>
+  <tr><td>Pre-commit 검증 훅</td><td><code>settings.json</code></td><td>팀 전체 적용</td></tr>
+  <tr><td>개인 bash 명령어 허용</td><td><code>settings.local.json</code></td><td>개인 환경 차이</td></tr>
+  <tr><td>API 토큰 (env)</td><td><code>settings.local.json</code></td><td>민감 정보 보호</td></tr>
+</table>
