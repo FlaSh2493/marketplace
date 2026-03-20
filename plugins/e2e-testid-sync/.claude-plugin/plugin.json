@@ -1,0 +1,9 @@
+{
+  "name": "e2e-testid-sync",
+  "description": "E2E 테스트용 data-testid 및 aria-busy 속성을 React(TSX/JSX) 코드베이스에 주입하고 관리하는 플러그인.",
+  "version": "0.1.0",
+  "author": {
+    "name": "flash2493",
+    "email": "flash0211@naver.com"
+  }
+}

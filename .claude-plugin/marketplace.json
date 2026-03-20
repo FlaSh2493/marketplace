@@ -4,6 +4,11 @@
     {
       "name": "gh-sub",
       "path": "plugins/gh-sub"
+    },
+    {
+      "name": "e2e-testid-sync",
+      "path": "plugins/e2e-testid-sync"
     }
+
   ]
 }
