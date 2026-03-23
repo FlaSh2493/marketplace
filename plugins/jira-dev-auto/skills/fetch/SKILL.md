@@ -1,64 +1,52 @@
 ---
 name: jira-fetch
-description: MCP(Atlassian)으로 Jira 티켓을 조회하고 로컬 캐시에 저장합니다.
+description: 현재 활성 스프린트에서 본인의 이슈와 댓글을 조회합니다. (프로젝트 자동 감지 및 Direct API 사용)
 ---
 
-이 스킬은 Jira에서 티켓 목록을 가져와 로컬 캐시에 저장하고, 사용자가 작업할 티켓을 선택하도록 합니다.
+이 스킬은 Jira REST API를 직접 호출하여 현재 활성 스프린트(`openSprints()`)에서 본인(`currentUser()`)에게 할당된 이슈 목록과 댓글을 조회합니다. 다중 프로젝트가 감지될 경우 사용자가 선택할 수 있도록 합니다.
 
 ## 사전 조건
-- `jira-init` 완료 (워크스페이스 경로 확인)
-- `.claude/settings.yaml`의 `jira.project_key` 또는 `jira.default_jql` 설정
+- 환경 변수 설정: `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`
+- 설정되지 않은 경우 안내 메시지를 출력하고 종료합니다.
 
 ## 작업 (Tasks)
 
-1. **JQL 구성**: `settings.yaml`의 `jira.default_jql` 사용.
-   - 미설정 시 기본값: `assignee = currentUser() AND status != Done ORDER BY priority DESC`
-
-2. **MCP 조회** (Atlassian MCP):
-   - `mcp__atlassian__jira_search` 로 이슈 목록 조회
-   - 필드: `key, summary, status, priority, assignee, labels, components`
-
-3. **목록 캐시 저장** (CLI):
+1. **인증 준비** (CLI):
    ```bash
-   # .docs/work/{workspace}/_cache/issue-list.json 에 저장
+   # JIRA 인증용 Base64 헤더 생성
+   JIRA_CREDENTIALS=$(echo -n "${JIRA_USERNAME}:${JIRA_API_TOKEN}" | base64)
    ```
 
-4. **티켓 선택** (ask_user):
-   - 조회된 티켓 목록을 번호와 함께 나열
-   - "작업할 티켓을 선택하세요 (번호 또는 키, 다중 선택 가능):"
+2. **프로젝트 자동 감지** (CLI/curl):
+   - JQL: `sprint in openSprints() AND assignee = currentUser()`
+   - 현재 본인의 활성 이슈들을 검색하여 고유한 **프로젝트 키 목록**을 추출합니다.
+   - **결과 처리**:
+     - 프로젝트 **1개** → 자동 선택 및 알림.
+     - 프로젝트 **2개 이상** → 목록 표시 후 사용자에게 선택 요청 (`ask_user`).
+     - 프로젝트 **0개** → "현재 활성 스프린트에 할당된 이슈가 없습니다." 안내 후 종료.
 
-5. **상세 조회** (Atlassian MCP, 선택된 티켓만):
-   - `mcp__atlassian__jira_get_issue` 로 각 티켓 상세 조회
-   - 필드: `summary, description, status, priority, assignee, labels, components, linkedIssues, subtasks, comments`
+3. **기타 조회 옵션** (필요시):
+   - 특정 보드(Board) 정보가 필요한 경우, 선택된 프로젝트의 Kanban 보드 목록을 조회하여 필터링할 수 있습니다.
 
-6. **스냅샷 생성** (CLI, 각 티켓):
-   ```bash
-   # 필드별 sha256 해시 생성
-   # .docs/work/{workspace}/_cache/{KEY}.snapshot.json 저장
-   ```
-   스냅샷 구조:
-   ```json
-   {
-     "ticket_key": "PROJ-123",
-     "fetched_at": "<ISO8601>",
-     "pinned_at": null,
-     "content_hash": {
-       "summary": "<sha256>",
-       "description": "<sha256>",
-       "comments_digest": "<sha256>",
-       "priority": "<sha256>",
-       "status": "<sha256>"
-     },
-     "data": { }
-   }
-   ```
+4. **상세 이슈 및 댓글 조회** (CLI/curl):
+   - 선택된 프로젝트에 대해 JQL 실행: `project = "{PROJECT_KEY}" AND sprint in openSprints() AND assignee = currentUser()`
+   - 파라미터: `fields=key,summary,status,comment,priority`
+   - API 호출:
+     ```bash
+     curl -s \
+       -H "Authorization: Basic ${JIRA_CREDENTIALS}" \
+       -H "Content-Type: application/json" \
+       "${JIRA_URL}/rest/api/3/search?jql=project%3D%22${PROJECT_KEY}%22%20AND%20sprint%20in%20openSprints()%20AND%20assignee%3DcurrentUser()&fields=key,summary,status,comment,priority"
+     ```
 
-7. **_index.yaml 갱신** (CLI): 선택된 티켓 키 목록 추가
+5. **출력 및 캐시** (CLI):
+   - 터미널에 다음 정보를 출력합니다:
+     - **이슈 키 및 제목**
+     - **현재 상태**
+     - **댓글 내역**: 각 이슈에 달린 모든 댓글의 작성자와 내용을 요약 표시합니다.
+   - 결과를 `.docs/work/{workspace}/_cache/issue-list.json`에 저장합니다.
 
-## 출력
-- `.docs/work/{workspace}/_cache/issue-list.json`
-- `.docs/work/{workspace}/_cache/{KEY}.snapshot.json` (선택된 티켓 수만큼)
-- `.docs/work/{workspace}/_index.yaml` (tickets 배열 갱신)
-
-## 다음 단계
-티켓 선택 완료 후 `jira-analyze` 스킬로 도메인 분류를 진행한다.
+## 핵심 규칙
+- **Direct API**: 모든 요청은 `curl` 또는 `fetch`를 이용한 직접 HTTP 호출 방식을 사용합니다.
+- **프로젝트 선택**: 여러 프로젝트에 걸쳐 이슈가 있을 경우 반드시 사용자의 확인을 거칩니다.
+- **댓글 우선**: 단순히 이슈 목록만 가져오는 것이 아니라, 대화 흐름 파악을 위해 `comment` 데이터를 반드시 함께 확보합니다.
