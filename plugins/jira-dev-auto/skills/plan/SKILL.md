@@ -26,35 +26,21 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
    - base_branch: `settings.yaml`의 `git.base_branch`
    - 브랜치명 형식: `feat/{KEY}-{summary-slug}`
 
-4. **plan.yaml 생성** (CLI):
-   경로: `.docs/work/{workspace}/{domain}/{KEY}/plan.yaml`
-   ```yaml
-   ticket: PROJ-123
-   domain: auth
-   execution_mode: sub_agent
-   branch: feat/PROJ-123-auth-login
-   base_branch: develop
-   group_id: 1
-   group_mode: parallel
-   depends_on: []
-   worktree_path: .docs/work/worktrees/PROJ-123
-   estimated_complexity: medium
-   ```
-
-5. **사용자 검토** (ask_user):
-   계획 요약 표시:
-   ```
-   그룹 1 (병렬): PROJ-123(auth), PROJ-456(payment)
-   그룹 2 (순차, 그룹1 완료 후): PROJ-789(api)
-   실행 방식: sub_agent
-   ```
-  - **선택 UI** 제공 (`[1] 승인`, `[2] 수정 요청`, `[3] 거부`, `[자유 입력] 피드백`)
-  - 번호를 선택하거나 자유롭게 의견을 적을 수 있음을 안내합니다.
-
-6. **수정 요청 시**: 피드백 반영 후 4번부터 재실행
+4. **하이브리드 plan.md 생성** (CLI):
+   - 경로: `.docs/work/{workspace}/{domain}/{KEY}/plan.md`
+   - **구성**:
+     - **[사람용 상세 섹션]**:
+       - `# [KEY] 티켓 제목`
+       - `## 1. 구현 목표 (Goal)`: 비즈니스 가치 및 최종 상태
+       - `## 2. 세부 구현 접근 방식 (Detailed Approach)`: 단계별 로직, 알고리즘, 패턴
+       - `## 3. 수정 및 생성 대상 파일 (Files)`: 구체적인 파일 경로 및 변경 내역
+       - `## 4. 검증 전략 (Verification)`: 단위 테스트 항목, 통합 테스트 항목, Edge Case
+     - **[에이전트 전용 섹션]**:
+       - `## Agent Specs (Do Not Edit)`
+       - YAML 코드 블록: `ticket`, `domain`, `execution_mode`, `branch`, `base_branch`, `worktree_path`, `files_to_modify`, `scripts` (test/build) 등
 
 ## 출력
-- `.docs/work/{workspace}/{domain}/{KEY}.plan.yaml` (각 티켓)
+- `.docs/work/{workspace}/{domain}/{KEY}/plan.md`
 
 ## 다음 단계
-승인 후 `jira-implement` 스킬로 구현을 시작한다.
+계획 수립 완료 후 `jira-approve` 스킬을 통해 각 티켓의 계획을 개별적으로 검토하고 승인한다.

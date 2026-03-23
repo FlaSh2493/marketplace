@@ -10,7 +10,7 @@ allowed-tools: bash_tool, create_file, str_replace, view
 
 ## 입력 (Input)
 - `{KEY}/requirement.yaml`: 구현 스펙 (7항목)
-- `{KEY}/plan.yaml`의 해당 task 섹션: worktree 경로, 브랜치명
+- `{KEY}/plan.md` 내의 **YAML 코드 블록**: worktree 경로, 브랜치명 등 상세 설정
 - `references/commit-convention.md`: 커밋 메시지 규칙
 
 **절대 받지 않는 것**: 다른 티켓 requirement, 전체 프로젝트 소스, 대화 히스토리
