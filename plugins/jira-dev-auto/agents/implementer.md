@@ -47,7 +47,7 @@ allowed-tools: bash_tool, create_file, write_to_file, str_replace, view, task_bo
    "번호를 선택하거나 실행할 명령어를 직접 입력해주세요." 문구 사용.
 
 2. **대상 파일 확인** (CLI):
-   `requirement.yaml`의 `technical_spec.files` 목록을 view로 확인
+   `task_boundary(Mode: "EXECUTION", TaskStatus: "Viewing target files", ...)` 호출 → `requirement.yaml`의 `technical_spec.files` 목록을 view로 확인
 
 3. **코드 작성**:
    - `technical_spec.apis`: API 엔드포인트/함수 시그니처 기준
