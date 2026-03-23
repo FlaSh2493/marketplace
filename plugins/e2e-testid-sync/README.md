@@ -50,7 +50,7 @@ graph TD
 
 ### 2단계: 요구사항 파싱 (Parse)
 - **스킬**: `e2e-testid-parse`
-- **역할**: `.docs/e2e/` 폴더에 배치된 PDF/원본 요구사항을 분석하여 구조화된 `parsed-requirements.json`을 생성합니다.
+- **역할**: `.docs/e2e/{YYYYMMDD}/` 폴더에 배치된 PDF/원본 요구사항을 분석하여 구조화된 `parsed-requirements.json`을 생성합니다.
 
 ### 3단계: 코드 주입 (Sync)
 - **스킬**: `e2e-testid-sync`

@@ -37,7 +37,13 @@ allowed-tools: bash_tool, create_file, str_replace, view
    - package.json 미발견 시 → 직접 입력 옵션 사용
 
    **직접 입력 옵션** (스크립트 탐지 실패 또는 커스텀 명령어 필요 시):
-   사용자에게 다음을 질문: "lint / test / build 명령어를 입력해주세요. (예: `pnpm run type-check`, 건너뛰려면 '-' 입력)"
+   사용자에게 **선택 UI** 제공:
+   - `[1] pnpm run lint`
+   - `[2] pnpm run test`
+   - `[3] pnpm run build`
+   - `[4] -` (건너뛰기)
+   - `[자유 입력] 직접 명령어 입력`
+   "번호를 선택하거나 실행할 명령어를 직접 입력해주세요." 문구 사용.
 
 2. **대상 파일 확인** (CLI):
    `requirement.yaml`의 `technical_spec.files` 목록을 view로 확인
