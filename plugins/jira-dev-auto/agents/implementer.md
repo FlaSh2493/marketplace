@@ -1,7 +1,7 @@
 ---
 name: jira-implementer
 description: 개별 Jira 티켓 코드 구현 전담 서브에이전트. 최소 컨텍스트로 독립적으로 실행됩니다.
-allowed-tools: bash_tool, create_file, str_replace, view
+allowed-tools: bash_tool, create_file, write_to_file, str_replace, view, task_boundary
 ---
 
 ## 역할 (Role)
@@ -18,7 +18,7 @@ allowed-tools: bash_tool, create_file, str_replace, view
 ## 작업 순서
 
 1. **환경 확인 (EXECUTION)**:
-   `task_boundary` 호출 → worktree 이동 및 환경 확인
+   `task_boundary(Mode: "EXECUTION", TaskName: "Implementing {KEY}", TaskStatus: "Checking environment", ...)` 호출 → worktree 이동 및 환경 확인
    ```bash
    cd {worktree_path}
    ls src/ && node --version && pnpm --version
