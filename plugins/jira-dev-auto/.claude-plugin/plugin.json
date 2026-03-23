@@ -1,0 +1,9 @@
+{
+  "name": "jira-dev-auto",
+  "description": "Jira 티켓을 조회하여 분석·구현·병합까지 전체 개발 생명주기를 자동화하는 Claude Code 플러그인.",
+  "version": "0.1.0",
+  "author": {
+    "name": "flash2493",
+    "email": "flash0211@naver.com"
+  }
+}
