@@ -66,22 +66,17 @@ LLM   → 분석/생성이 필요할 때만 (최소 컨텍스트)
 ```
 프로젝트 루트/
 ├── .docs/
-│   └── {workspace}/              # /jira init 시 생성
-│       ├── _index.yaml
-│       ├── _cache/
-│       │   ├── PROJ-123.snapshot.json
-│       │   ├── PROJ-123.latest.json
-│       │   └── PROJ-123.diff.json
-│       └── {domain}/
-│           ├── PROJ-123.requirement.yaml
-│           ├── PROJ-123.plan.yaml
-│           └── PROJ-123.status.yaml
+│   └── work/
+│       ├── {workspace}/          # docs 영역 (/jira init 시 생성)
+│       │   ├── _index.yaml
+│       │   ├── _cache/
+│       │   └── {domain}/
+│       └── worktrees/            # worktrees 영역
+│           └── PROJ-123/
 ├── .claude/
 │   ├── skills/                   # references/ 파일들을 복사
 │   ├── commands/                 # 명령어 정의
 │   └── settings.yaml
-└── ../worktrees/
-    └── PROJ-123/
 ```
 
 ## 서브에이전트

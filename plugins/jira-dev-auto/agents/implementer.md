@@ -71,7 +71,7 @@ allowed-tools: bash_tool, create_file, str_replace, view
 
 7. **status.yaml 갱신** (CLI):
    ```bash
-   # .docs/{workspace}/{domain}/{KEY}.status.yaml 갱신
+   # .docs/work/{workspace}/{domain}/{KEY}.status.yaml 갱신
    ```
    ```yaml
    status: completed

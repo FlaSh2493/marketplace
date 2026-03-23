@@ -27,7 +27,7 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
    - 브랜치명 형식: `feat/{KEY}-{summary-slug}`
 
 4. **plan.yaml 생성** (CLI):
-   경로: `.docs/{workspace}/{domain}/{KEY}.plan.yaml`
+   경로: `.docs/work/{workspace}/{domain}/{KEY}.plan.yaml`
    ```yaml
    ticket: PROJ-123
    domain: auth
@@ -37,7 +37,7 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
    group_id: 1
    group_mode: parallel
    depends_on: []
-   worktree_path: ../worktrees/PROJ-123
+   worktree_path: .docs/work/worktrees/PROJ-123
    estimated_complexity: medium
    ```
 
@@ -53,7 +53,7 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
 6. **수정 요청 시**: 피드백 반영 후 4번부터 재실행
 
 ## 출력
-- `.docs/{workspace}/{domain}/{KEY}.plan.yaml` (각 티켓)
+- `.docs/work/{workspace}/{domain}/{KEY}.plan.yaml` (각 티켓)
 
 ## 다음 단계
 승인 후 `jira-implement` 스킬로 구현을 시작한다.

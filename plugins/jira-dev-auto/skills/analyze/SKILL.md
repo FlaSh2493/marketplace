@@ -6,7 +6,7 @@ description: 코드베이스 구조와 Jira 티켓을 분석하여 도메인 그
 이 스킬은 CLI로 코드베이스 구조를 추출한 뒤 LLM으로 도메인 분류와 의존성을 분석합니다.
 
 ## 사전 조건
-- `jira-fetch` 완료 (`.docs/{workspace}/_cache/{KEY}.snapshot.json` 존재)
+- `jira-fetch` 완료 (`.docs/work/{workspace}/_cache/{KEY}.snapshot.json` 존재)
 - `references/domain-mapping.md` 판단 기준 로드
 
 ## 작업 (Tasks)
@@ -29,7 +29,7 @@ description: 코드베이스 구조와 Jira 티켓을 분석하여 도메인 그
    - 출력: 도메인 간 의존 순서
 
 5. **도메인 그룹 파일 생성** (CLI):
-   `.docs/{workspace}/_index.yaml` 갱신:
+   `.docs/work/{workspace}/_index.yaml` 갱신:
    ```yaml
    domains:
      auth:
@@ -52,7 +52,7 @@ description: 코드베이스 구조와 Jira 티켓을 분석하여 도메인 그
 - 티켓: summary + labels + components만 전달 (description 제외)
 
 ## 출력
-- `.docs/{workspace}/_index.yaml` (domains 섹션 추가)
+- `.docs/work/{workspace}/_index.yaml` (domains 섹션 추가)
 
 ## 다음 단계
 분류 완료 후 `jira-refine` 스킬로 티켓별 요구사항 정제를 진행한다.

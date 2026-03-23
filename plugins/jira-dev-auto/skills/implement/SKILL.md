@@ -97,7 +97,7 @@ description: worktree를 생성하고 코드·테스트를 작성한 뒤 빌드 
 
 ## 출력
 - 커밋된 코드 (각 worktree)
-- `.docs/{workspace}/{domain}/{KEY}.status.yaml`
+- `.docs/work/{workspace}/{domain}/{KEY}.status.yaml`
 
 ## 다음 단계
-구현 완료 후 `jira-merge` 스킬로 병합을 진행한다.
+구현 완료 후 오케스트레이터가 `jira-merge` 스킬로 병합을 진행한다.
