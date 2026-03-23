@@ -26,21 +26,15 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
    - base_branch: `settings.yaml`의 `git.base_branch`
    - 브랜치명 형식: `feat/{KEY}-{summary-slug}`
 
-4. **하이브리드 plan.md 생성** (CLI):
-   - 경로: `.docs/work/{workspace}/{domain}/{KEY}/plan.md`
-   - **구성**:
-     - **[사람용 상세 섹션]**:
-       - `# [KEY] 티켓 제목`
-       - `## 1. 구현 목표 (Goal)`: 비즈니스 가치 및 최종 상태
-       - `## 2. 세부 구현 접근 방식 (Detailed Approach)`: 단계별 로직, 알고리즘, 패턴
-       - `## 3. 수정 및 생성 대상 파일 (Files)`: 구체적인 파일 경로 및 변경 내역
-       - `## 4. 검증 전략 (Verification)`: 단위 테스트 항목, 통합 테스트 항목, Edge Case
-     - **[에이전트 전용 섹션]**:
-       - `## Agent Specs (Do Not Edit)`
-       - YAML 코드 블록: `ticket`, `domain`, `execution_mode`, `branch`, `base_branch`, `worktree_path`, `files_to_modify`, `scripts` (test/build) 등
+4. **계획 문서화** (CLI):
+   - **`implementation_plan.md`**에 현재 티켓의 계획을 추가합니다 (Orchestrator가 취합).
+   - **영구 보관**: 승인된 최종 계획을 `.docs/work/{workspace}/{domain}/{KEY}/plan.md`에 저장합니다 (하이브리드 포맷 유지).
+     - **사람용**: 상세한 마크다운 설명
+     - **에이전트용**: YAML 코드 블록 (에이전트 스펙)
 
 ## 출력
-- `.docs/work/{workspace}/{domain}/{KEY}/plan.md`
+- `implementation_plan.md` (업데이트)
+- `.docs/work/{workspace}/{domain}/{KEY}/plan.md` (영구 보관용)
 
 ## 다음 단계
-계획 수립 완료 후 `jira-approve` 스킬을 통해 각 티켓의 계획을 개별적으로 검토하고 승인한다.
+Orchestrator가 `notify_user`를 통해 전체 `implementation_plan.md`에 대한 승인을 요청합니다.

@@ -17,7 +17,8 @@ allowed-tools: bash_tool, create_file, str_replace, view
 
 ## 작업 순서
 
-1. **worktree 이동 및 환경 확인** (CLI):
+1. **환경 확인 (EXECUTION)**:
+   `task_boundary` 호출 → worktree 이동 및 환경 확인
    ```bash
    cd {worktree_path}
    ls src/ && node --version && pnpm --version

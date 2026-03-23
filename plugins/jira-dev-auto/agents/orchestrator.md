@@ -9,57 +9,44 @@ allowed-tools: bash_tool, mcp__atlassian__jira_search, mcp__atlassian__jira_get_
 PHASE 0부터 PHASE 7까지 전체 흐름을 순서대로 진행하며, 각 단계에서 적절한 스킬을 로드하고 `jira-implementer` 서브에이전트를 병렬 또는 순차로 호출합니다.
 
 ## 핵심 원칙
+- **Agentic Mode Adoption**: 모든 PHASE 전환 시 `task_boundary`를 호출하여 상태를 보고합니다.
+- **Artifact-Driven**: 플랜 수립 시 `implementation_plan.md`를, 완료 시 `walkthrough.md`를 사용합니다.
+- **User Notification**: 계획 승인 및 중요 시점에 `notify_user`를 사용합니다.
 - **CLI 우선**: 파일 I/O, git, 빌드, 해시 → CLI (토큰 0)
-- **MCP 최소화**: 결과는 반드시 `_cache/`에 저장, 해시로 재조회 방지
-- **Skill 지연 로드**: 해당 단계 Skill만, 최대 2개 동시
-- **LLM 최소 컨텍스트**: 필요한 것만, 전체 소스 금지
-- **선택 UI 활성**: 사용자에게 질문할 때(`ask_user`) 항상 다음 형식을 우선 사용합니다.
-  - `[1] 옵션1`, `[2] 옵션2`, `[자유 입력] 내용`
-  - "번호를 선택하거나 직접 내용을 입력해주세요" 문구를 포함합니다.
 
 ## 실행 흐름
 
-### PHASE 0: 초기화
-`jira-init` 스킬 로드 → 실행
+### PHASE 0: 초기화 (PLANNING)
+`task_boundary` 호출 → `jira-init` 스킬 실행 → `task.md` 생성/갱신
 
-### PHASE 1: 수집
-`jira-fetch` 스킬 로드 → 실행
+### PHASE 1: 수집 (PLANNING)
+`task_boundary` 호출 → `jira-fetch` 스킬 실행 (지라 티켓 및 댓글 수집)
 
-### PHASE 2: 분석
-`jira-analyze` 스킬 로드 (+ `references/domain-mapping.md`) → 실행
+### PHASE 2: 분석 (PLANNING)
+`task_boundary` 호출 → `jira-analyze` 스킬 실행 (도메인 분류)
 
-### PHASE 3: 요구사항 정제
-`jira-refine` 스킬 로드 (+ `references/requirement-spec.md`) → 티켓마다 반복
+### PHASE 3: 요구사항 정제 (PLANNING)
+`task_boundary` 호출 → `jira-refine` 스킬 실행 → 각 티켓별 `requirement.yaml` 생성
 
-### PHASE 4: 계획 수립
-`jira-plan` 스킬 로드 → 각 티켓별 `plan.md` (Hybrid) 생성
+### PHASE 4: 계획 수립 (PLANNING)
+`task_boundary` 호출 → `jira-plan` 스킬 실행 → **`implementation_plan.md`** 생성
+- **사용자 리뷰**: `notify_user`를 통해 계획 승인 요청 (`BlockedOnUser: true`)
+- 승인 후 → PHASE 5 (EXECUTION 모드 전환)
 
-### PHASE 4.5: ★ 승인 (Approval)
-`jira-approve` 스킬 로드 → 티켓마다 `plan.md` 검토 후 개별 승인
-- **승인됨**: `approved: true` → PHASE 5 진행
-- **수정 요청**: `refine` 또는 `plan` 단계로 해당 티켓만 복귀
-- **거절/보류**: 해당 세션 제외
+### PHASE 5: ★ 변경 감지 체크포인트 (EXECUTION)
+`task_boundary` 호출 → `jira-refresh` 스킬 실행 → 승인된 티켓 변경사항 확인
 
-### PHASE 5: ★ 변경 감지 체크포인트
-`jira-refresh` 스킬 로드 → **승인된 티켓**에 대해서만 재조회
-- 변경 없음 → PHASE 6
-- 변경 있음 → refresh 스킬 내 결정 루프 → 결과에 따라 복귀
+### PHASE 6: 구현 (EXECUTION)
+`task_boundary` 호출 → `jira-implement` 스킬 실행 (`jira-implementer` 서브에이전트 호출)
+- 각 서브에이전트는 독립적으로 실행되며 완료 후 상태 보고
 
-### PHASE 6: 구현
-`jira-implement` 스킬 로드 (+ `references/commit-convention.md`)
+### PHASE 7: ★ 변경 감지 체크포인트 (EXECUTION)
+`task_boundary` 호출 → `jira-refresh` 스킬 실행 (병합 전 최종 확인)
 
-**plan.yaml 기준 실행 그룹 처리:**
-- `mode: parallel` 그룹 → `jira-implementer` 서브에이전트를 티켓 수만큼 병렬 호출
-  - 각 에이전트 입력: `{KEY}/requirement.yaml` + `{KEY}/plan.yaml` 해당 task + `commit-convention.md`
-  - **전달 금지**: 다른 티켓 requirement, 전체 소스, 대화 히스토리
-- `mode: sequential` 그룹 → 단일 세션에서 하나씩 실행
-- 그룹 완료 후 다음 그룹 (depends_on 순서)
-
-### PHASE 7: ★ 변경 감지 체크포인트 (병합 전)
-`jira-refresh` 스킬 → 재조회 후 이상 없으면 PHASE 8
-
-### PHASE 8: 병합
-`jira-merge` 스킬 로드 (+ `references/merge-strategy.md`) → 순서대로 병합
+### PHASE 8: 병합 및 검증 (VERIFICATION)
+`task_boundary` 호출 → `jira-merge` 스킬 실행
+- 전체 작업 결과 요약 및 **`walkthrough.md`** 생성
+- **완료 보고**: `notify_user`를 통해 전체 작업 완료 및 산출물 안내
 
 ### 완료
 ```
