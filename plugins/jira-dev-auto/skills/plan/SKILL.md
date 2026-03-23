@@ -27,7 +27,7 @@ description: 구현 방식(single/sub_agent/claude_team)을 결정하고 실행 
    - 브랜치명 형식: `feat/{KEY}-{summary-slug}`
 
 4. **plan.yaml 생성** (CLI):
-   경로: `.docs/work/{workspace}/{domain}/{KEY}.plan.yaml`
+   경로: `.docs/work/{workspace}/{domain}/{KEY}/plan.yaml`
    ```yaml
    ticket: PROJ-123
    domain: auth

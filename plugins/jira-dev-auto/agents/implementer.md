@@ -9,8 +9,8 @@ allowed-tools: bash_tool, create_file, str_replace, view
 오케스트레이터로부터 전달받은 `requirement.yaml`과 `plan.yaml` task 섹션을 기반으로 코드를 작성하고 검증합니다.
 
 ## 입력 (Input)
-- `{KEY}.requirement.yaml`: 구현 스펙 (7항목)
-- `plan.yaml`의 해당 task 섹션: worktree 경로, 브랜치명
+- `{KEY}/requirement.yaml`: 구현 스펙 (7항목)
+- `{KEY}/plan.yaml`의 해당 task 섹션: worktree 경로, 브랜치명
 - `references/commit-convention.md`: 커밋 메시지 규칙
 
 **절대 받지 않는 것**: 다른 티켓 requirement, 전체 프로젝트 소스, 대화 히스토리
@@ -77,7 +77,7 @@ allowed-tools: bash_tool, create_file, str_replace, view
 
 7. **status.yaml 갱신** (CLI):
    ```bash
-   # .docs/work/{workspace}/{domain}/{KEY}.status.yaml 갱신
+   # .docs/work/{workspace}/{domain}/{KEY}/status.yaml 갱신
    ```
    ```yaml
    status: completed
