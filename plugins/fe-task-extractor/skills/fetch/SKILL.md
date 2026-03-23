@@ -1,34 +1,42 @@
 ---
 name: fe-task-extractor-fetch
-description: Jira에 이미 등록된 이슈들을 가져와서 프론트엔드 작업 명세(.docs/task/ 하위 md 파일)로 생성하거나 업데이트하는 스킬. "지라 이슈 가져와줘", "기존 티켓 불러와", "지라 기준으로 명세서 만들어" 등을 요청할 때 사용한다. Jira의 summary와 description을 파싱하여 FE-XX 형식의 마크다운으로 변환한다.
+description: Jira에서 나에게 할당된 미완료 이슈들을 가져와서 프론트엔드 작업 명세(.docs/task/ 하위 md 파일)로 생성하거나 업데이트하는 스킬. "내 지라 이슈 가져와줘", "내 할 일 불러와", "지라 기준으로 명세서 업데이트해" 등을 요청할 때 사용한다.
 ---
 
 # Frontend Task Fetch (Jira to Markdown)
 
-Jira에 등록된 작업들을 불러와서 표준화된 프론트엔드 작업 명세 형식으로 변환하여 저장하는 스킬이다.
+Jira에 등록된 이슈 중 **본인에게 할당된 미완료 작업**들을 불러와서 표준화된 프론트엔드 작업 명세 형식으로 변환하여 저장하는 스킬이다.
 
 ---
 
-## 1. 대상 이슈 식별
+## 1. 대상 이슈 식별 및 필터링
 
-사용자에게 다음 중 하나를 요청한다:
-- **Project Key**: 해당 프로젝트의 최근 Story 티켓들
-- **Epic Key**: 특정 에픽 하위의 모든 Story 티켓들
-- **Issue Keys**: 특정 이슈 번호 리스트 (예: PROJ-101, PROJ-102)
+이 스킬은 항상 다음 JQL 조건을 기본으로 하여 이슈를 검색한다:
+- **Assignee**: `assignee = currentUser()` (본인에게 할당된 것만)
+- **Status**: `statusCategory != Done` (완료되지 않은 것만)
+- **Issue Type**: `issuetype = Story` (스토리 티켓만)
+
+사용자로부터 추가적인 범위를 입력받을 수 있다:
+- **최근 이슈**: 위 기본 조건에 해당하는 최근의 스토리들
+- **Project Key**: 특정 프로젝트 내 본인의 미완료 스토리 (`project = {KEY} AND ...`)
+- **Epic Key**: 특정 에픽 하위의 본인의 미완료 스토리 (`"Epic Link" = {KEY} AND ...`)
 
 ---
 
 ## 2. 데이터 수집 및 변환
 
 ### Step 1: Jira 데이터 조회
-Atlassian MCP(`jiraGetIssue` 또는 `jiraGetIssues`)를 사용하여 대상 이슈들의 정보를 가져온다.
+JQL(`assignee = currentUser() AND statusCategory != Done AND issuetype = Story`)을 사용하여 대상 이슈들의 정보를 가져온다.
 
 ### Step 2: 마크다운 변환
 Jira 이슈의 필드를 아래와 같이 마크다운 형식으로 매핑한다:
 
+- **파일 헤더**:
+  - **생성일**: Jira 이슈의 created date (파싱 불가 시 현재 시간)
+  - **최근 업데이트**: 현재 시간
 - **작업 제목**: Jira Summary
-- **작업 설명**: Jira Description의 서두 (1~2문장)
-- **deps**: Description 내의 '선행/후행' 정보 파싱
+- **작업 설명**: Jira Description의 핵심 내용
+- **deps**: Description 내의 '선행/후행' 정보 파싱 (없을 시 미기재)
 - **api**: Description 내의 'API' 정보 파싱
 - **states**: Description 내의 'UI 상태' 정보 파싱
 - **jira**: 해당 이슈의 Key (예: PROJ-101)
@@ -43,7 +51,23 @@ Jira 이슈의 필드를 아래와 같이 마크다운 형식으로 매핑한다
 `python3 scripts/init_task_dir.py "{프로젝트키 또는 기능명}"`을 실행하여 저장할 마크다운 파일 경로를 확보한다.
 
 ### Step 2: 마크다운 저장
-변환된 내용을 표준 포맷에 맞춰 파일로 저장한다. 기존 파일이 있는 경우 덮어쓰거나 사용자에게 확인 후 업데이트한다.
+변환된 내용을 표준 포맷에 맞춰 파일로 저장한다. 기존 파일이 있는 경우 내용을 병합하거나 최신 Jira 정보로 덮어쓸지 사용자에게 묻는다.
+
+### Step 3: 실행 완료 보고
+
+가져오기가 완료되면 아래 형식으로 보고한다.
+
+### ✅ Jira 이슈 가져오기 완료
+
+| ID | Jira Key | 작업 제목 | 담당자 | 상태 |
+| :--- | :--- | :--- | :--- | :--- |
+| FE-01 | [{KEY}](URL) | {제목} | @본인 | 완료 |
+| FE-02 | [{KEY}](URL) | {제목} | @본인 | 완료 |
+
+**관련 정보**:
+- **생성된 명세**: [{파일명}]({파일경로})
+- **가져온 기준**: {Project/Epic/Issue Keys}
+확인 후 업데이트한다.
 
 ---
 
