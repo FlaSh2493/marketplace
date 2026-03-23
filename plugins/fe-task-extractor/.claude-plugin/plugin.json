@@ -1,0 +1,9 @@
+{
+  "name": "fe-task-extractor",
+  "description": "Frontend Task Extractor & Jira Story Creator from requirements.",
+  "version": "0.1.0",
+  "author": {
+    "name": "flash2493",
+    "email": "flash0211@naver.com"
+  }
+}

@@ -18,10 +18,10 @@
       "version": "0.1.0"
     },
     {
-      "name": "jira-planner",
-      "source": "./plugins/jira-planner",
-      "description": "Jira Planner Plugin for Claude Code - v4 (Final). Helps with requirement analysis, issue splitting, and automatic implementation chaining.",
-      "version": "4.0.0"
+      "name": "fe-task-extractor",
+      "source": "./plugins/fe-task-extractor",
+      "description": "기획서에서 프론트엔드 작업 추출 및 Jira Story 생성 플러그인",
+      "version": "0.1.0"
     }
   ]
 }

@@ -1,9 +1,0 @@
-{
-  "name": "jira-planner",
-  "description": "Jira Planner Plugin for Claude Code - v4 (Final). Helps with requirement analysis, issue splitting, and automatic implementation chaining.",
-  "version": "4.0.0",
-  "author": {
-    "name": "flash2493",
-    "email": "flash0211@naver.com"
-  }
-}
