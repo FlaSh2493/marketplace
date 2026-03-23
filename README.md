@@ -27,7 +27,7 @@
 |---------|------|--------|------|
 | `jira-report` | JIRA 분기별 Kanban 티켓 목록 및 스토리포인트 리포트 | `/jira-report:create` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정(메인/서브) 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
-| `fe-task-extractor` | 기획서에서 프론트엔드 작업 추출 및 Jira 티켓 생성 | `/fe-task-extractor:extract` | 0.1.0 |
+| `fe-task-extractor` | 기획서에서 프론트엔드 작업 추출 및 Jira 티켓 생성 | `/fe-task-extractor:extract`, `/fe-task-extractor:update`, `/fe-task-extractor:fetch` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
 
 ## 스킬 이름 규칙
