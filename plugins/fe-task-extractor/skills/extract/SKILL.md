@@ -99,7 +99,9 @@ python3 scripts/init_task_dir.py "{기능명}" [--root {경로}]
 
 사용자의 승인이 완료된 후, 추출된 각 작업을 Jira에 Story로 등록한다.
 
-**사전 조건**: Atlassian MCP 연결 확인 (불가 시 마크다운만 저장 후 안내) → 프로젝트 키 확인 → 에픽 연결 여부 확인.
+**지라 티켓 생성 규칙**:
+- **독립된 스토리 생성**: 모든 작업은 서브태스크(Sub-task)를 사용하지 않고 각각 **독립된 스토리(Story)**로 생성한다.
+- **사전 조건**: Atlassian MCP 연결 확인 (불가 시 마크다운만 저장 후 안내) → 프로젝트 키 확인 → 에픽 연결 여부 확인.
 
 **`jiraCreateIssue` 호출** — 타입: Story, summary: 작업 제목, description:
 ```
