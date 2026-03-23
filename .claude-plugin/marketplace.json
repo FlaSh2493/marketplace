@@ -1,14 +1,21 @@
 {
   "name": "flash-plugins",
+  "owner": {
+    "name": "내 프로젝트",
+    "email": "admin@example.com"
+  },
   "plugins": [
     {
       "name": "gh-sub",
-      "path": "plugins/gh-sub"
+      "source": "./plugins/gh-sub",
+      "description": "GitHub 서브 계정 관리 플러그인",
+      "version": "0.1.0"
     },
     {
       "name": "e2e-testid-sync",
-      "path": "plugins/e2e-testid-sync"
+      "source": "./plugins/e2e-testid-sync",
+      "description": "E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 플러그인",
+      "version": "0.1.0"
     }
-
   ]
 }
