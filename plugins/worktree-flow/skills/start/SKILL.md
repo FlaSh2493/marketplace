@@ -34,3 +34,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
    - 플랜 승인은 반드시 `notify_user`를 통한 **승인 버튼**으로만 받으세요. 채팅(`AskUserQuestion` 등)으로 승인을 묻지 마세요.
 6. 사용자가 **'build'** 라고 답하거나 승인 버튼을 누르면, `task_boundary`를 통해 **수행(EXECUTION) 모드**로 전환하여 실제 구현을 진행하세요.
 7. 로컬 파일(`.docs/task/{feature}.md`)에 정보가 없는 경우, 출력된 가이드에 따라 Jira 이슈 조회를 시도하세요.
+
+## 알림 (처음 사용하는 경우)
+
+워크트리를 처음 시작했거나 훅을 등록하지 않은 경우, 다음을 안내하세요:
+1. **훅 등록**: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/install_hooks.py` 명령을 실행하여 Stop 훅을 등록해야 합니다.
+2. **WIP 활성화**: 훅 등록 후, `/worktree-flow:wip on` 명령을 실행해야 자동 WIP 커밋이 활성화됩니다.
+   - 훅만 등록된 상태에서는 WIP 커밋이 생성되지 않으므로, 명시적으로 `wip on`을 해야 함을 강조하세요.

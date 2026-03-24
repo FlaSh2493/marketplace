@@ -42,22 +42,46 @@ def main():
     if 'hooks' not in settings_data:
         settings_data['hooks'] = {}
 
-    for event, actions in plugin_hooks_data.get('hooks', {}).items():
+    for event, entries in plugin_hooks_data.get('hooks', {}).items():
         if event not in settings_data['hooks']:
             settings_data['hooks'][event] = []
         
-        # Avoid duplicate registration
-        existing_actions = settings_data['hooks'][event]
-        for action in actions:
-            # We check if an action with the same command already exists
-            cmd = action.get('command')
-            if not any(a.get('command') == cmd for a in existing_actions):
-                # Ensure the path is correct
-                # Actually, in hooks.json, it's already ${CLAUDE_PLUGIN_ROOT}/scripts/wip_commit.sh
-                existing_actions.append(action)
+        existing_entries = settings_data['hooks'][event]
+        for incoming_entry in entries:
+            # Determine the commands (both raw and resolved) for this incoming entry
+            raw_cmds = []
+            resolved_cmds = []
+            
+            # Create a copy to modify for resolution
+            resolved_entry = json.loads(json.dumps(incoming_entry))
+            
+            for action in resolved_entry.get('actions', []):
+                if 'command' in action:
+                    raw_cmd = action['command']
+                    raw_cmds.append(raw_cmd)
+                    
+                    resolved_cmd = raw_cmd.replace('${CLAUDE_PLUGIN_ROOT}', plugin_root)
+                    action['command'] = resolved_cmd
+                    resolved_cmds.append(resolved_cmd)
+
+            # Avoid duplicate registration
+            # Check if any existing entry has the same matcher and same set of commands (either raw or resolved)
+            is_duplicate = False
+            for existing_entry in existing_entries:
+                if existing_entry.get('matcher') == incoming_entry.get('matcher'):
+                    existing_cmds = [a.get('command') for a in existing_entry.get('actions', []) if 'command' in a]
+                    
+                    # Check if existing commands match either the raw or resolved versions
+                    if set(existing_cmds) == set(raw_cmds) or set(existing_cmds) == set(resolved_cmds):
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                existing_entries.append(resolved_entry)
                 print(f"Registered {event} hook for worktree-flow.")
             else:
                 print(f"{event} hook for worktree-flow already exists. Skipping.")
+
 
     # 6. Save Settings
     with open(settings_file, 'w', encoding='utf-8') as f:
@@ -65,6 +89,8 @@ def main():
         f.write('\n')
 
     print(f"Hooks successfully registered in {settings_file}")
+    print("\nNext step: Run '/worktree-flow:wip on' to enable automatic WIP commits.")
+
 
 if __name__ == '__main__':
     main()
