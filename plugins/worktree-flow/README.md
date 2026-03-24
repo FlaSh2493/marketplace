@@ -13,9 +13,15 @@ Git worktree를 사용하여 여러 작업을 병렬로 수행할 수 있게 도
 
 ### 1. 워크트리 생성
 ```
-/worktree-flow:create feat/new-api auth database logger
+/worktree-flow:create
 ```
-`feat/new-api` 브랜치로부터 `auth`, `database`, `logger` **3개의 워크트리를 한 번에 생성**합니다. 여러 작업을 띄어쓰기로 나열하기만 하면 됩니다.
+현재 브랜치와 관련된 명세서(`.docs/task/{현재브랜치}.md`)에서 이슈 번호를 추출하여 선택 목록을 제공합니다. 
+
+특정 브랜치나 이슈를 지정할 수도 있습니다:
+```
+/worktree-flow:create feat/new-api PLAT-101 PLAT-102
+```
+`feat/new-api` 브랜치로부터 `PLAT-101`, `PLAT-102` 라는 이름의 워크트리를 생성합니다. 
 
 ### 2. 작업 시작 (Context 로드)
 ```
