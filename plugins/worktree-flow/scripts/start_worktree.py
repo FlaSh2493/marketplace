@@ -10,12 +10,11 @@ def run(cmd, cwd=None):
     return r.stdout.strip(), r.returncode
 
 def find_git_root():
+    # git-common-dir를 통해 메인 저장소의 .git 경로를 찾고 그 상위 디렉토리를 반환
+    common_dir, _ = run("git rev-parse --git-common-dir")
+    if common_dir:
+        return os.path.abspath(os.path.join(common_dir, ".."))
     out, _ = run("git rev-parse --show-toplevel")
-    if not out:
-        # 워크트리 내부일 가능성 고려
-        git_common = run("git rev-parse --git-common-dir")[0]
-        if git_common:
-            return os.path.abspath(os.path.join(git_common, ".."))
     return out or None
 
 def get_current_branch():

@@ -10,6 +10,10 @@ def run(cmd, cwd=None):
     return r.stdout.strip(), r.stderr.strip(), r.returncode
 
 def find_git_root():
+    # git-common-dir를 통해 메인 저장소의 .git 경로를 찾고 그 상위 디렉토리를 반환
+    common_dir, _, _ = run("git rev-parse --git-common-dir")
+    if common_dir:
+        return os.path.abspath(os.path.join(common_dir, ".."))
     out, _, _ = run("git rev-parse --show-toplevel")
     return out or None
 
