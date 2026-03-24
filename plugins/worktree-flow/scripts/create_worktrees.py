@@ -22,10 +22,17 @@ def get_current_branch(root):
     return out
 
 def get_tasks_from_md(root, feature):
+    # 브랜치명의 '/'를 폴더 구조로 변환하여 탐색
+    parts = feature.lower().split('/')
+    sub_dirs = [p.strip().replace(' ', '-') for p in parts[:-1]]
+    filename = f"{parts[-1].strip().replace(' ', '-')}.md"
+    
     paths = [
-        os.path.join(root, ".docs", "task", f"{feature}.md"),
-        os.path.join(root, "docs", "task", f"{feature}.md"),
-        os.path.join(root, ".docs", "task", f"{feature.replace('/', '-')}.md")
+        os.path.join(root, ".docs", "task", *sub_dirs, filename),
+        os.path.join(root, "docs", "task", *sub_dirs, filename),
+        # 기존 평면 구조 하위 호환성
+        os.path.join(root, ".docs", "task", f"{feature.replace('/', '-')}.md"),
+        os.path.join(root, "docs", "task", f"{feature.replace('/', '-')}.md")
     ]
     tasks = []
     for path in paths:

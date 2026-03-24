@@ -24,12 +24,16 @@ def main():
         sys.exit(1)
 
     task_dir = os.path.join(project_root, '.docs', 'task')
-    os.makedirs(task_dir, exist_ok=True)
 
-    # Convert feature name to kebab-case for filename
-    kebab_name = args.feature_name.lower().replace(' ', '-')
-    filename = f"{kebab_name}.md"
-    file_path = os.path.join(task_dir, filename)
+    # 브랜치명의 '/'를 폴더 구조로 변환
+    parts = args.feature_name.lower().split('/')
+    sub_dirs = [p.strip().replace(' ', '-') for p in parts[:-1]]
+    filename = f"{parts[-1].strip().replace(' ', '-')}.md"
+    
+    target_dir = os.path.join(task_dir, *sub_dirs) if sub_dirs else task_dir
+    os.makedirs(target_dir, exist_ok=True)
+    
+    file_path = os.path.join(target_dir, filename)
 
     print(json.dumps({"path": file_path}))
 
