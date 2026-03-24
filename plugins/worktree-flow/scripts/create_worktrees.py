@@ -92,6 +92,9 @@ def main():
 
     wt_base = os.path.join(root, ".worktrees")
     os.makedirs(wt_base, exist_ok=True)
+    # WIP 자동 커밋 활성화 파일 생성
+    with open(os.path.join(wt_base, ".wip-enabled"), "a"):
+        pass
 
     results, errors = [], []
     for task in tasks:

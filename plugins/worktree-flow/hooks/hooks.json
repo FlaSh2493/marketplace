@@ -3,7 +3,7 @@
     "Stop": [
       {
         "matcher": "*",
-        "hooks": [
+        "actions": [
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/wip_commit.sh"
