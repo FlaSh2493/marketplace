@@ -39,8 +39,8 @@ def get_tasks_from_md(root, feature):
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
-                # Jira 이슈 번호 패턴 (예: PLAT-123) 찾기
-                matches = re.findall(r"([A-Z]+-[0-9]+)", content)
+                # **jira**: IET-123 형태에서만 이슈 번호 추출
+                matches = re.findall(r"\*\*jira\*\*\s*:\s*([A-Z]+-[0-9]+)", content)
                 for m in matches:
                     if m not in tasks: tasks.append(m)
     return tasks
