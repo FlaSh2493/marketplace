@@ -17,10 +17,17 @@ def main():
     parser.add_argument('--root', help='Optional project root path')
     args = parser.parse_args()
 
-    project_root = args.root if args.root else find_project_root(os.getcwd())
+    # Try to find project root from CWD or script location
+    search_start = args.root if args.root else os.getcwd()
+    project_root = find_project_root(search_start)
     
     if not project_root:
-        print(json.dumps({"error": "Project root not found"}), file=sys.stderr)
+        # Fallback: search from the script's own location
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = find_project_root(script_dir)
+    
+    if not project_root:
+        print(json.dumps({"error": "Project root not found (package.json, .git, or tsconfig.json not found in parent directories)"}), file=sys.stderr)
         sys.exit(1)
 
     task_dir = os.path.join(project_root, '.docs', 'task')

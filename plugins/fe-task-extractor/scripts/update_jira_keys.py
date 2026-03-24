@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import argparse
@@ -40,5 +41,4 @@ def main():
     print(f"Successfully updated Jira keys in {args.md_path}")
 
 if __name__ == "__main__":
-    import os
     main()

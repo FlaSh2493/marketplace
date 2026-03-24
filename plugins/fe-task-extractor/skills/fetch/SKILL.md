@@ -60,7 +60,8 @@ Jira 이슈의 필드를 아래와 같이 마크다운 형식으로 매핑한다
 ## 3. 출력 및 저장
 
 ### Step 1: 파일 경로 결정
-`python3 scripts/init_task_dir.py "{프로젝트키 또는 기능명}"`을 실행하여 저장할 마크다운 파일 경로를 확보한다.
+에이전트는 이 플러그인의 설치 폴더(`plugins/fe-task-extractor/`) 하위의 `scripts/` 디렉토리를 찾아 다음과 같이 실행한다:
+`python3 plugins/fe-task-extractor/scripts/init_task_dir.py "{프로젝트키 또는 기능명}"`을 실행하여 저장할 마크다운 파일 경로를 확보한다.
 
 ### Step 2: 마크다운 저장
 변환된 내용을 표준 포맷에 맞춰 파일로 저장한다. 기존 파일이 있는 경우 내용을 병합하거나 최신 Jira 정보로 덮어쓸지 사용자에게 묻는다.
