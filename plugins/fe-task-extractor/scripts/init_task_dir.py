@@ -28,7 +28,7 @@ def main():
 
     # Convert feature name to kebab-case for filename
     kebab_name = args.feature_name.lower().replace(' ', '-')
-    filename = f"fe-tasks-{kebab_name}.md"
+    filename = f"{kebab_name}.md"
     file_path = os.path.join(task_dir, filename)
 
     print(json.dumps({"path": file_path}))

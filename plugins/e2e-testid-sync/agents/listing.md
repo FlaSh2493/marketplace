@@ -17,7 +17,12 @@ allowed-tools: view, bash_tool, grep_search, find_by_name, create_file
 4. `newStr`을 생성하여 삽입될 코드를 미리 준비합니다.
 5. 기존에 사용 중인 `data-testid`가 있다면 중복 여부를 검사합니다.
 6. `.docs/e2e/{YYYYMMDD}/listing.json` 파일을 생성합니다.
-7. 사용자 검토를 위한 `.docs/e2e/{YYYYMMDD}/listing-summary.md`(마크다운 테이블 형식) 파일을 생성합니다.
+20. 사용자 검토를 위해 `.docs/e2e/{YYYYMMDD}/listing-summary.md` 파일을 다음 형식으로 생성합니다:
+    - **가독성 최우선**: 불필요한 필드는 제외하고 핵심 정보만 포함하는 마크다운 테이블.
+    - **상태 아이콘**: `Actionable` (✅), `Ambiguous` (❓), `Skip` (⏩), `Error` (❌) 이모지 사용.
+    - **테이블 컬럼**: `| ID | 상태 | 대상 파일 (라인) | test-id | 요약 (Old -> New) |`
+    - **코드 요약**: `oldStr`과 `newStr`의 차이점을 한눈에 볼 수 있도록 `oldStr -> newStr` 형식으로 간결하게 작성.
+
 
 ## 스키마 (Schema)
 

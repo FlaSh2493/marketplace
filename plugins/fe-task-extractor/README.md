@@ -8,6 +8,7 @@
 - **Jira 연동**: 각 작업을 Jira Story 티켓으로 자동 생성 (Atlassian MCP 필요)
 
 ## 명령어
+- `/fe-task-extractor:init`: 현재 브랜치 이름을 기반으로 명세서 초기화
 - `/fe-task-extractor:extract`: 요구사항 분석 및 FE 작업 추출 시작
 - `/fe-task-extractor:update`: 기존 작업 명세 수정 및 Jira 동기화
 - `/fe-task-extractor:fetch`: Jira 이슈를 가져와서 명세서 생성/업데이트
