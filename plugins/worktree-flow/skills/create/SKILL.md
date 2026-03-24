@@ -25,8 +25,16 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_worktrees.py $ARGUMENTS
 ```
 
 ## 결과 처리
-결과 JSON을 읽고 사용자에게 생성된 워크트리 목록을 보여주세요.
-성공 후 WIP 자동 커밋을 활성화하기 위해 다음을 수행합니다:
-```bash
-mkdir -p .worktrees && touch .worktrees/.wip-enabled
-```
+
+1. 만약 결과 JSON에 `"mode": "selection"`이 포함되어 있다면:
+   - `tasks` 목록 내의 이슈들을 사용자에게 보여주세요.
+   - **반드시 `AskUserQuestion`을 사용하여 사용자가 원하는 이슈들을 선택(다수 선택 가능)할 수 있게 하세요.**
+   - 사용자가 이슈를 선택하면, 해당 이슈 키들을 인자로 하여 다시 스크립트를 실행하세요.
+     예: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_worktrees.py {피처브랜치} {선택된_이슈1} {선택된_이슈2}`
+
+2. 워크트리 생성이 완료되면 결과 JSON을 읽고 사용자에게 생성된 워크트리 목록을 보여주세요.
+
+3. 성공 후 WIP 자동 커밋을 활성화하기 위해 다음을 수행합니다:
+ ```bash
+ mkdir -p .worktrees && touch .worktrees/.wip-enabled
+ ```

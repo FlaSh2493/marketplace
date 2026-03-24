@@ -2,7 +2,7 @@
   "hooks": {
     "Stop": [
       {
-        "matcher": "*",
+        "matcher": "",
         "actions": [
           {
             "type": "command",

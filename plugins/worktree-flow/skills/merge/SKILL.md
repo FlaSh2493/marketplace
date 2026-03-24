@@ -19,5 +19,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py $ARGUMENTS
 ```
 
 ## 결과 처리
-- 성공 시: 머지된 브랜치, 생성된 태그, 정리된 워크트리 목록을 안내하고 WIP 자동 커밋을 비활성화(`rm -f .worktrees/.wip-enabled`)하세요.
+- 성공 시: 머지된 브랜치, 생성된 태그, 정리된 워크트리 목록을 안내하고 해당 세션의 WIP 자동 커밋을 비활성화(`rm -f .wip-active`)하세요.
+
 - 충돌 시: 충돌 파일과 위치를 안내하고 해결 방법(수동/전략)을 제안하세요. 사용자가 충돌을 해결하면 나머지를 계속 진행합니다.

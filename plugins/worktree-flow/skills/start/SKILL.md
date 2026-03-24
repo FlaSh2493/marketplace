@@ -17,14 +17,21 @@ description: 현재 워크트리 또는 선택한 워크트리에 대한 작업 
 ## 실행
 
 아래 스크립트를 실행하여 워크트리 정보를 확인하세요:
+
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
 ```
 
 ## 결과 처리
 
-1. 스크립트 결과로 워크트리 목록이 나오면, 사용자에게 번호를 선택받으세요.
-2. 선택된 워크트리(또는 현재 워크트리)의 작업 설명(Description)이 출력되면, 해당 내용을 `task.md`에 기록하고 `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하세요.
+1. 스크립트 결과로 목록(`mode: selection`)이 나오면:
+   - **반드시 `AskUserQuestion`을 사용하여 사용자에게 작업 항목 또는 워크트리 목록을 보여주세요.**
+   - 사용자가 선택한 결과를 인자로 하여 다시 기능을 수행하게 하세요.
+
+2. 선택된 워크트리(또는 현재 워크트리)의 기획 정보가 로드되면:
+   - 해당 내용을 `task.md`에 기록하고, 해당 워크트리에서 자동 WIP 커밋이 동작하도록 **`.wip-active` 파일을 생성**하세요. (`touch .wip-active`)
+   - `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하세요.
+
 3. 기획이 확정되면(승인 요청 전), 해당 내용을 **`.docs/task/{feature}.md`** 파일에 저장하세요.
    - `{feature}`는 현재 브랜치명에서 워크트리 suffix(`--wt-XXXX`)를 제거한 값입니다. (예: `qa/data-center-bug--wt-IET-7571` → `{feature}`: `qa/data-center-bug`)
    - 파일 내 해당 이슈(`jira: IET-XXXX`)의 작업 항목 아래에 **`### 플랜`** 섹션을 추가하거나 업데이트하세요.
@@ -38,6 +45,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
 ## 알림 (처음 사용하는 경우)
 
 워크트리를 처음 시작했거나 훅을 등록하지 않은 경우, 다음을 안내하세요:
+
 1. **훅 등록**: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/install_hooks.py` 명령을 실행하여 Stop 훅을 등록해야 합니다.
 2. **WIP 활성화**: 훅 등록 후, `/worktree-flow:wip on` 명령을 실행해야 자동 WIP 커밋이 활성화됩니다.
    - 훅만 등록된 상태에서는 WIP 커밋이 생성되지 않으므로, 명시적으로 `wip on`을 해야 함을 강조하세요.
