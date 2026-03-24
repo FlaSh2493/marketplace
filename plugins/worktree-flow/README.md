@@ -4,8 +4,8 @@ Git worktree를 사용하여 여러 작업을 병렬로 수행할 수 있게 도
 
 ## 주요 기능
 
-- **병렬 작업 환경 구축**: 여러 기능을 동시에 개발할 때 각 기능별로 격리된 워크트리를 생성합니다.
-- **WIP 자동 커밋**: Claude 응답이 끝날 때마다 현재 워크트리의 변경사항을 `WIP: ...` 메시지로 자동 커밋합니다. (복원용)
+- **병렬 작업 환경 구축**: 여러 기능을 동시에 개발할 때 각 기능별로 격리된 워크트리를 생성합니다. 하나의 명령으로 여러 개의 워크트리를 동시에 생성할 수 있습니다.
+- **WIP 자동 커밋**: Claude 응답이 끝날 때마다 현재 워크트리의 변경사항을 `WIP: ...` 메시지로 자동 커밋합니다. 메인 저장소뿐만 아니라 생성된 모든 워크트리 내에서도 동일하게 작동합니다. (복원용)
 - **일괄 머지 및 정리**: 작업이 완료된 워크트리 브랜치들을 피처 브랜치에 하나씩 머지하고, 워크트리를 자동으로 삭제합니다.
 - **태그 생성**: 머지 전 각 워크트리 상태를 `wt/{feature}/{task}` 태그로 남겨 언제든 복원 가능하게 합니다.
 
@@ -13,28 +13,27 @@ Git worktree를 사용하여 여러 작업을 병렬로 수행할 수 있게 도
 
 ### 1. 워크트리 생성
 ```
-/wt-create feat/new-api auth database logger
+/worktree-flow:create feat/new-api auth database logger
 ```
-`feat/new-api` 브랜치로부터 `auth`, `database`, `logger` 3개의 워크트리를 생성합니다.
+`feat/new-api` 브랜치로부터 `auth`, `database`, `logger` **3개의 워크트리를 한 번에 생성**합니다. 여러 작업을 띄어쓰기로 나열하기만 하면 됩니다.
 
 ### 2. 상태 확인
 ```
-/wt-status
+/worktree-flow:status
 ```
 현재 생성된 모든 워크트리의 위치, 브랜치명, 변경사항 수, 커밋 상태를 확인합니다.
 
 ### 3. WIP 자동 커밋 제어
-```
-/wt-wip on/off
-```
-`.worktrees/.wip-enabled` 파일을 통해 자동 커밋 활성 여부를 제어합니다.
+준비 중인 기능입니다. 현재는 `/worktree-flow:create` 실행 시 자동으로 활성화됩니다.
+메인 저장소 루트의 `.worktrees/.wip-enabled` 파일 존재 여부로 자동 커밋 활성 상태를 판단합니다.
 
 ### 4. 머지 및 정리
 ```
-/wt-merge feat/new-api
+/worktree-flow:merge feat/new-api
 ```
 워크트리 브랜치들을 피처 브랜치(`feat/new-api`)에 머지하고 워크트리와 임시 브랜치들을 삭제합니다.
 
 ## 디렉토리 구조
 - `.worktrees/{task}/`: 각 워크트리가 위치하는 경로입니다.
 - `feat/{feature}--wt-{task}`: 각 워크트리에 할당되는 임시 브랜치입니다.
+- `.worktrees/.wip-enabled`: 이 파일이 있으면 WIP 자동 커밋이 활성화됩니다.
