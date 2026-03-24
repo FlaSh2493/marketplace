@@ -4,7 +4,7 @@
 머지 전 태그를 남기고, 완료 후 워크트리와 브랜치를 삭제한다.
 Usage: python3 merge_worktrees.py {피처브랜치} [--dry-run] [--abort]
 """
-import argparse, json, subprocess, sys
+import argparse, json, os, subprocess, sys
 
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
@@ -41,6 +41,32 @@ def count_conflicts(root, target, source):
     run("git merge --abort", cwd=root)
     return conflicts
 
+def get_wip_commits(root, branch, target):
+    base, _, _ = run(f"git merge-base '{target}' '{branch}'", cwd=root)
+    if not base: return []
+    out, _, _ = run(f"git log {base}..{branch} --oneline", cwd=root)
+    return [line for line in out.split("\n") if line.strip()]
+
+def squash_wip_commits(root, branch, target, task_name):
+    base, _, _ = run(f"git merge-base '{target}' '{branch}'", cwd=root)
+    commits = get_wip_commits(root, branch, target)
+    if not any("WIP:" in c for c in commits): return False
+    
+    # Reset to base and commit everything
+    run(f"git checkout '{branch}'", cwd=root)
+    run(f"git reset --soft {base}", cwd=root)
+    
+    # summary msg
+    msg = f"feat({task_name}): implementation cleanup\n\nGenerated from WIP commits:\n" + "\n".join(commits)
+    # Using a temp file for the message to avoid shell escaping issues with newlines
+    msg_file = os.path.join(root, ".git", "SQUASH_MSG")
+    with open(msg_file, "w", encoding="utf-8") as f:
+        f.write(msg)
+    
+    run(f"git commit -F '{msg_file}'", cwd=root)
+    if os.path.exists(msg_file): os.remove(msg_file)
+    return True
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("feature")
@@ -63,6 +89,15 @@ def main():
         print(json.dumps({"error": f"'{args.feature}'의 워크트리 브랜치가 없습니다"})); sys.exit(1)
 
     wt_paths = get_wt_paths(root)
+
+    # WIP 정리 (항상 수행)
+    orig_branch, _, _ = run("git rev-parse --abbrev-ref HEAD", cwd=root)
+    rebased_info = []
+    for b in branches:
+        if squash_wip_commits(root, b["branch"], args.feature, b["name"]):
+            rebased_info.append(b["name"])
+    
+    # 미커밋 검사
 
     # 미커밋 검사
     dirty = []
@@ -92,8 +127,12 @@ def main():
     order = sorted(matrix, key=lambda x: x["conflict_count"])
 
     if args.dry_run:
-        run(f"git checkout '{orig}'", cwd=root)
-        print(json.dumps({"dry_run": True, "feature": args.feature, "merge_order": order, "tags": tags}, ensure_ascii=False, indent=2)); return
+        run(f"git checkout '{orig_branch}'", cwd=root)
+        print(json.dumps({
+            "dry_run": True, "feature": args.feature, 
+            "merge_order": order, "tags": tags,
+            "rebase_candidates": [b["name"] for b in branches if any("WIP:" in c for c in get_wip_commits(root, b['branch'], args.feature))]
+        }, ensure_ascii=False, indent=2)); return
 
     # 머지
     run(f"git checkout '{args.feature}'", cwd=root)
@@ -121,7 +160,8 @@ def main():
 
     print(json.dumps({
         "status": "success", "feature": args.feature,
-        "merged": [m["name"] for m in merged], "tags": tags, "cleaned": cleaned
+        "merged": [m["name"] for m in merged], "tags": tags, "cleaned": cleaned,
+        "rebased": rebased_info
     }, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
