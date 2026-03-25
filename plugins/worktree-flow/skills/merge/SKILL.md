@@ -29,8 +29,9 @@ STEP 1: 사전 분석 (dry-run)
   실패: reason 그대로 출력 후 [STOP]
 
 STEP 2: WIP 커밋 요약 표시
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_wip.py {피처브랜치}`
-  성공: 각 이슈의 WIP 커밋 목록 표시
+  STEP 1의 merge_order 기준으로 각 이슈별:
+    실행: `git log $(git merge-base {피처브랜치} {피처브랜치}--wt-{이슈키})..{피처브랜치}--wt-{이슈키} --oneline`
+  각 이슈의 WIP 커밋 목록 표시
 
   Claude 역할: 각 이슈의 변경 내용을 요약하여 커밋 메시지 제안
   ```

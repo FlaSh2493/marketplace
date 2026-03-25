@@ -29,9 +29,19 @@ STEP 3-A: 신규 플랜 작성 (플랜 없을 때)
   EnterPlanMode 실행
 
   영향 범위 분석:
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_scope.py {이슈키}`
-    성공: skeleton 기준으로 관련성 높은 파일만 선택하여 Read
-    실패: reason 그대로 출력 후 [STOP]
+    1. 이슈 명세에서 변경 예상 파일/컴포넌트/함수명 키워드 추출
+    2. MCP tool 호출: semantic_search_nodes_tool (query: {키워드}, limit: 10)
+       성공 + 결과 있음: 관련 노드 목록 확보 → 3번 진행
+       성공 + 결과 없음: fallback → 4번 진행
+       실패 (그래프 없음):
+         출력: "code-review-graph 그래프가 없습니다. /worktree-flow:init 을 먼저 실행하세요."
+         [STOP]
+    3. MCP tool 호출: get_impact_radius_tool (changed_files: 위에서 찾은 파일 목록, max_depth: 2)
+       성공: 영향 파일 목록 확보 → 5번 진행
+       실패: fallback → 4번 진행
+    4. [fallback] Claude가 직접 탐색
+       이슈 명세 기반으로 Glob/Grep으로 관련 파일 직접 탐색
+    5. 영향 파일 목록 기준으로 필요한 파일만 Read
 
   플랜 작성:
     ```
