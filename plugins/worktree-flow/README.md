@@ -140,7 +140,7 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 /worktree-flow:merge feat/sprint3 # 충돌 예측 → 커밋 메시지 제안 → 승인 → squash merge → 정리
 ```
 
-![alt text](image-1.png)
+![alt text](image.png)
 
 ---
 
