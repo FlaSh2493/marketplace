@@ -140,65 +140,7 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 /worktree-flow:merge feat/sprint3 # 충돌 예측 → 커밋 메시지 제안 → 승인 → squash merge → 정리
 ```
 
-```mermaid
-flowchart TD
-    Start(["이슈 시작\n/worktree-flow:plan PLAT-101"])
-
-    subgraph PLAN ["📋 플랜 단계"]
-        WT["워크트리 생성\n.worktrees/PLAT-101/"]
-        LoadIssue["이슈 명세서 로드\n.docs/task/.../PLAT-101.md"]
-        HasPlan{기존 플랜?}
-        Graph["code-review-graph\n영향 파일 분석"]
-        Fallback["fallback\nGlob/Grep 직접 탐색"]
-        WritePlan["플랜 작성\n영향 파일 · 구현 순서 · 커밋 단위"]
-        GATE1{{"🔒 GATE\n사용자 승인 (ExitPlanMode)"}}
-    end
-
-    subgraph IMPL ["⚙️ 구현 단계"]
-        Code["플랜 순서대로 코드 수정"]
-        WIP["Stop 훅 → WIP 자동 커밋\nClaude가 커밋 메시지 생성"]
-    end
-
-    subgraph MERGE ["🔀 머지 단계\n/worktree-flow:merge feat/sprint3"]
-        DryRun["Dry-run: 충돌 예측\n충돌 적은 순으로 정렬"]
-        MsgSuggest["AI 커밋 메시지 제안\nWIP 커밋 분석 → squash 메시지"]
-        GATE2{{"🔒 GATE\n커밋 메시지 승인"}}
-        Squash["Squash merge 실행"]
-        Conflict{충돌?}
-        Resolve{{"🔒 GATE\n파일별 해결 선택\nfeature / base / 직접편집"}}
-        Cleanup["워크트리 삭제\nWIP 태그 보존\narchive/{피처}/{이슈키}-wip-YYYYMMDD"]
-    end
-
-    Done(["피처 브랜치 완성"])
-
-    Start --> WT --> LoadIssue --> HasPlan
-    HasPlan -- "없음" --> Graph
-    HasPlan -- "있음" --> GATE1
-    Graph -- "성공" --> WritePlan
-    Graph -- "실패" --> Fallback --> WritePlan
-    WritePlan --> GATE1
-    GATE1 -- "승인" --> Code
-    GATE1 -- "거절" --> Start
-
-    Code --> WIP
-    WIP -- "추가 작업" --> Code
-    WIP -- "완료" --> DryRun
-
-    DryRun --> MsgSuggest --> GATE2
-    GATE2 -- "승인" --> Squash
-    GATE2 -- "수정" --> MsgSuggest
-    Squash --> Conflict
-    Conflict -- "없음" --> Cleanup
-    Conflict -- "있음" --> Resolve --> Squash
-    Cleanup --> Done
-
-    style GATE1 fill:#f59e0b,color:#000
-    style GATE2 fill:#f59e0b,color:#000
-    style Resolve fill:#f59e0b,color:#000
-    style PLAN fill:#1e3a5f,color:#fff
-    style IMPL fill:#1a3a2a,color:#fff
-    style MERGE fill:#3a1a2a,color:#fff
-```
+![alt text](image.png)
 
 ---
 
@@ -210,6 +152,57 @@ flowchart TD
 
 archive/
 └── PLAT-101-wip-20260326  ← 머지 후 보존되는 WIP 히스토리 태그
+```
+
+---
+
+## 롤백 및 복원 (미구현 — 아이디어)
+
+### 배경
+
+squash merge 후 워크트리 브랜치는 삭제되지만, `archive/{피처}/{이슈키}-wip-{날짜}` 태그가 WIP 커밋 전체를 보존한다. 이 태그를 활용해 특정 이슈를 롤백하고 재작업하는 흐름을 자동화할 수 있다.
+
+### 예상 흐름
+
+```
+# main에서 피처 revert (merge --no-ff였다면)
+git revert -m 1 <피처 merge 커밋>
+
+# 피처 브랜치 복원 (삭제됐다면 merge 커밋의 parent 2에서 재생성)
+git checkout -b feat/sprint3 <merge커밋의 parent2>
+
+# 수정할 이슈만 워크트리 복원 (restore 스킬)
+/worktree-flow:restore PLAT-101
+→ archive/feat/sprint3/PLAT-101-wip-날짜 태그 목록 표시
+→ 선택한 태그에서 브랜치 생성 + git worktree add
+→ /worktree-flow:plan PLAT-101 으로 재작업
+→ /worktree-flow:merge feat/sprint3 으로 재머지
+
+# 수정 안 한 이슈는 태그에서 직접 squash merge
+git merge --squash archive/feat/sprint3/PLAT-102-wip-날짜
+```
+
+### 필요한 추가 구현
+
+- **`/worktree-flow:restore {이슈키}`** 스킬
+  - `archive/{피처}/{이슈키}-wip-*` 태그 목록 조회
+  - 선택한 태그에서 브랜치 재생성 + `git worktree add`
+  - 피처 브랜치에서 이전 squash 커밋 revert 여부 확인 (GATE)
+- **피처 브랜치 태그** — 머지 시점에 피처 브랜치 끝 커밋을 별도 태그로 보존 (피처 브랜치 재생성 자동화)
+- **태그 기반 squash merge** — 워크트리 없이 태그에서 직접 머지하는 스크립트
+
+### 태그로 할 수 있는 것 (현재도 가능)
+
+```bash
+# 특정 피처의 모든 이슈 태그 조회
+git tag --list 'archive/feat/sprint3/*'
+
+# WIP 이력 조회
+git log archive/feat/sprint3/PLAT-101-wip-20260326
+
+# 수동 워크트리 복원
+git checkout -b feat/sprint3--wt-PLAT-101 archive/feat/sprint3/PLAT-101-wip-20260326
+git worktree add .worktrees/PLAT-101 feat/sprint3--wt-PLAT-101
 ```
 
 ---
