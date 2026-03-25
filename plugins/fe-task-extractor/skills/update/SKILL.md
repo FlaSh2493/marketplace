@@ -1,104 +1,78 @@
 ---
-name: fe-task-extractor-update
-description: 사용자가 직접 수정한 마크다운 작업 명세(.docs/task/{브랜치명}/ 하위 개별 md 파일들)의 내용을 연결된 Jira 이슈에 동기화하는 스킬. "마크다운 수정했어", "지라에 반영해줘", "티켓 업데이트해" 등을 요청할 때 사용한다.
+name: update
+description: Writer 서브에이전트 전용. 로컬에서 수정된 마크다운 파일의 내용을 Jira 이슈에 동기화한다. "마크다운 수정했어", "지라에 반영해줘", "티켓 업데이트해" 등을 요청할 때 사용한다.
 ---
 
-# Frontend Task Update (Sync to Jira)
+# Frontend Task Update
 
-사용자가 **마크다운 개별 파일(.docs/task/{브랜치명}/{JIRA-KEY}.md)**을 직접 수정한 후, 그 내용을 연결된 Jira 이슈에 반영(동기화)하는 스킬이다.
+**실행 주체: Writer 에이전트 전용**
+마크다운 → Jira 단방향 동기화. 요약·해석 없이 원문 그대로 반영한다.
 
----
+## 사용법
+`/fe-task-extractor:update`
 
-## 🚨 절대 준수 사항 (Strict Adherence)
+## 실행 절차
 
-이 스킬은 마크다운의 수정 사항을 Jira에 반영할 때, **데이터의 정합성과 템플릿의 형식을 100% 유지**해야 한다.
+STEP 0: 전제조건 검증
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py update`
+  성공: data.branch, data.published 보관
+  실패: reason 그대로 출력 후 [STOP]
 
-1.  **템플릿 기반 파싱 (Template-Based Parsing)**: 파일을 읽기 전 **반드시** `templates/fe-task-template.md`를 참고하여 헤더와 태그 구조가 올바른지 확인하고 파싱한다.
-2.  **요약 금지 (No Summary)**: `## 설명` 섹션의 본문은 요약하지 않고 원문 그대로 Jira의 Description에 반영한다.
-3.  **경로 탐색**: 현재 브랜치를 기반으로 한 `.docs/task/` 하위 경로에서 파일을 찾는다.
+STEP 1: PUBLISHED 목록 출력
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py {branch} --state PUBLISHED`
+  성공: 번호 테이블로 출력:
+  ```
+  | 번호 | Jira Key  | 작업 제목        |
+  |-----|-----------|----------------|
+  |  1  | PROJ-101  | 로그인 폼 UI    |
+  |  2  | PROJ-102  | 목록 페이지 구현 |
+  ```
+  실패: reason 그대로 출력 후 [STOP]
 
----
+[GATE] STEP 2: 동기화 대상 선택
+  실행: AskUserQuestion("동기화할 이슈 번호를 선택하세요 (예: 1,3 / 전체: all)")
+  [LOCK: 응답 전 jiraUpdateIssue 절대 실행 금지]
 
-## 1. 대상 파일 식별
+STEP 3: 변경 내용 분석 (Claude 역할)
+  선택된 각 파일을 읽어 아래 필드 파악:
+  - 작업 제목 (# 헤더에서)
+  - ## 설명 섹션 원문 전체
+  - deps, api, states 필드
 
-### Step 1: 저장 디렉토리 탐색
-현재 Git 브랜치명을 기반으로 작업 명세가 저장된 디렉토리를 찾는다.
+  변경 예정 목록을 표로 출력:
+  ```
+  | Jira Key  | 변경 필드        |
+  |-----------|----------------|
+  | PROJ-101  | 설명, deps      |
+  ```
 
-```bash
-# 현재 브랜치명 확인
-git rev-parse --abbrev-ref HEAD
+[GATE] STEP 4: 동기화 확인
+  실행: AskUserQuestion("위 변경사항을 Jira에 반영할까요?")
+  [LOCK: 응답 전 jiraUpdateIssue 절대 실행 금지]
 
-# 디렉토리 경로 확인 (.docs/task/ 하위 브랜치명 구조)
-```
+  응답 "no": [TERMINATE]
 
-### Step 2: 수정된 파일 선택
-해당 디렉토리 내의 모든 `{JIRA-KEY}.md` 파일들 중에서 최근에 수정된 파일이나 사용자가 명시한 파일을 식별한다.
-- 파일 상단의 `최근 업데이트` 시각과 실제 파일 수정 시각을 비교하여 변경 사항이 있는 파일을 우선적으로 제안한다.
-- 사용자에게 동기화할 이슈 파일들을 번호가 붙은 목록으로 보여주고 선택받는다.
+STEP 5: Jira 업데이트
+  각 이슈마다:
 
----
+  5-1. jiraUpdateIssue (Claude MCP):
+    - summary: 작업 제목
+    - description: ## 설명 섹션 원문 + 메타데이터 (요약 금지)
+    실패: reason 출력, 해당 이슈 스킵 후 계속
 
-## 2. 분석 및 동기화 프로세스
+  5-2. 상태 전이
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {jira_key} PUBLISHED SYNCED`
+    실패: reason 그대로 출력 (스킵 후 계속)
 
-### Step 1: 마크다운 내용 읽기 (Source of Truth)
-선택된 각 마크다운 파일을 읽어 다음 정보를 파악한다.
+STEP 6: 완료 보고
+  ```
+  ✅ Jira 동기화 완료
 
-- **Jira Key**: 파일 헤더의 `jira:` 필드 또는 파일명
-- **Summary**: `# {JIRA-KEY}: {작업 제목}`에서 추출한 제목
-- **Description**: `## 설명` 섹션 하위의 **본문 전체** (마크다운 → Jira ADF 변환 준비)
-- **Metadata**: `deps`, `api`, `states` 필드
+  | Jira Key  | 작업 제목        | 결과       |
+  |-----------|----------------|----------|
+  | PROJ-101  | 로그인 폼 UI    | 완료       |
+  | PROJ-102  | 목록 페이지 구현 | 완료       |
+  ```
 
-### Step 2: Jira 업데이트 실행
-Jira 키가 있는 각 작업에 대해, Atlassian MCP의 `jiraUpdateIssue`를 호출하여 마크다운의 최신 내용을 반영한다.
-
-**업데이트할 Jira 필드**:
-- **Summary**: 마크다운의 작업 제목
-- **Description**: 아래 형식으로 마크다운의 내용을 재구성하여 반영 (설명 전문 보존)
-```
-{## 설명 섹션의 본문 전체}
-
----
-- 선행: {deps ←}
-- 후행: {deps →}
-- API: {api}
-- UI 상태: {states}
-```
-
----
-
-## 3. 출력 및 승인
-
-### Step 1: ✅ Gate 1: 동기화 확인/승인
-Jira에 반영될 변경 사항을 아래 표 형식으로 요약하여 보여주고 승인을 받는다.
-
----
-### 📋 Jira 동기화 예정 목록
-
-| Jira Key | 작업 제목 | 변경 내용 요약 |
-| :--- | :--- | :--- |
-| {PROJ-XXX} | {제목} | {제목/설명/필드 등 변경 사항 요약} |
-
-**저장 경로**: .docs/task/{브랜치명}/
----
-
-사용자에게 다음과 같이 질문한다:
-> "수정된 마크다운 파일들의 변경 사항을 확인했습니다. 위 목록대로 Jira 티켓들을 업데이트할까요?"
-
-### Step 2: 실행 및 보고
-승인 시 `jiraUpdateIssue`를 호출하고 아래 형식으로 보고한다.
-
-### ✅ Jira 동기화 완료
-
-| Jira Key | 작업 제목 | 상태 |
-| :--- | :--- | :--- |
-| [{KEY}](URL) | {제목} | 업데이트 완료 |
-
----
-
-## 4. 주의사항
-
-- **마크다운 우선**: 마크다운 파일의 내용을 Jira로 보내는 것이 주 목적이다. (Jira 원문 유의)
-- **요약 금지**: `## 설명` 섹션의 본문은 요약하지 않고 원문 그대로 전달한다.
-- **댓글/이미지 역동기화 제외**: 마크다운의 `댓글` 섹션 수정사항은 Jira에 반영하지 않는다 (Jira가 댓글의 원천임). 이미지 또한 이미 Jira에 있는 것을 마크다운에서 링크한 것이므로 별도로 동기화하지 않는다.
-- **포맷 준수**: `templates/fe-task-template.md` 형식을 유지하고 있어야 정상적으로 파싱이 가능하다.
-- **저장 경로 절대 준수**: 반드시 `.docs/task/{현재 브랜치명}/` 경로의 파일을 대상으로 한다.
+[TERMINATE]
+댓글·이미지 역동기화 금지. ## 설명 섹션만 Jira에 반영한다.
