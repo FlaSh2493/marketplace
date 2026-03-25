@@ -1,32 +1,17 @@
 #!/bin/bash
-# WIP Commit — 현재 워크트리만 처리 (Stop 훅 또는 build 스킬에서 직접 호출)
+# WIP Commit — 워크트리 자동 감지, 플래그 파일 불필요
 
-# 1. 글로벌 스위치 확인
-CONFIG_FILE=".claude/worktree-flow.json"
-if [ -f "$CONFIG_FILE" ]; then
-    ENABLED=$(jq -r '.wip_enabled // "true"' "$CONFIG_FILE" 2>/dev/null)
-    [ "$ENABLED" == "false" ] && exit 0
-fi
+WT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 
-# 2. 현재 워크트리 루트 확인
-WT_PATH=$(git rev-parse --show-toplevel 2>/dev/null)
-[ -z "$WT_PATH" ] && exit 0
+# 메인 리포면 스킵
+MAIN=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')
+[ "$WT" = "$MAIN" ] && exit 0
 
-# 3. .wip-active 확인 (이 워크트리에서만)
-[ ! -f "$WT_PATH/.wip-active" ] && exit 0
+# 변경사항 없으면 스킵
+git -C "$WT" diff --quiet && \
+  git -C "$WT" diff --cached --quiet && \
+  [ -z "$(git -C "$WT" ls-files --others --exclude-standard 2>/dev/null)" ] && exit 0
 
-# 4. 변경사항 확인
-if git -C "$WT_PATH" diff --quiet && \
-   git -C "$WT_PATH" diff --cached --quiet && \
-   [ -z "$(git -C "$WT_PATH" ls-files --others --exclude-standard 2>/dev/null)" ]; then
-    exit 0
-fi
-
-# 5. 현재 브랜치명
-BRANCH=$(git -C "$WT_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null)
-[ -z "$BRANCH" ] && BRANCH="unknown"
-
-# 6. WIP 커밋
-TIMESTAMP=$(date +%Y-%m-%dT%H:%M:%S)
-git -C "$WT_PATH" add -A
-git -C "$WT_PATH" commit -m "WIP($BRANCH): $TIMESTAMP" --no-verify > /dev/null 2>&1
+BRANCH=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+git -C "$WT" add -A
+git -C "$WT" commit -m "WIP($BRANCH): $(date +%H:%M:%S)" --no-verify > /dev/null 2>&1

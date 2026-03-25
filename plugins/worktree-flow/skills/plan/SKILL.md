@@ -1,31 +1,25 @@
 ---
 name: plan
-description: Planner 에이전트 전용. 이슈 명세를 분석하여 구현 플랜을 작성하고 사용자 승인을 받는다.
+description: 워크트리 세션에서 이슈 명세를 분석해 플랜을 세우고, 사용자 승인 후 같은 세션에서 바로 구현을 진행한다.
 ---
 
 # Worktree Plan
 
-**실행 주체: Planner 에이전트 전용**
-코드 수정, git 명령, 파일 직접 생성 절대 금지.
+**실행 주체: Main Session 또는 Planner 에이전트**
+코드 수정은 ExitPlanMode 승인 이후에만 허용.
 
 ## 사용법
 `/worktree-flow:plan {이슈키}`
 
 ## 실행 절차
 
-STEP 0: 전제조건 검증
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py plan {이슈키}`
-  성공: data.md_path 보관
-  실패: reason 그대로 출력 후 [STOP]
-
-STEP 1: 이슈 명세 로드 (필요 섹션만)
+STEP 1: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 2: Plan Mode 진입
+STEP 2: 영향 범위 분석 및 플랜 작성
   EnterPlanMode 실행
-  [이하 Plan Mode 내 — 코드 수정 물리적 불가]
 
   2-1. 영향 범위 분석
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_scope.py {이슈키}`
@@ -52,32 +46,25 @@ STEP 2: Plan Mode 진입
     - [ ] {항목}
     ```
 
-  ExitPlanMode 실행
-  → 작성한 플랜을 사용자에게 제시
+  ExitPlanMode 실행 (승인 시 STEP 3 자동 진행 / 거절 시 TERMINATE)
 
-[GATE] STEP 3: 플랜 피드백
-  실행: AskUserQuestion("위 플랜을 검토해주세요.\n- 승인: 플랜을 저장하고 완료합니다\n- 수정 {내용}: 피드백을 반영하여 플랜을 다시 작성합니다\n- no: 취소합니다")
-
-  응답 "승인":
-    STEP 4 진행
-
-  응답 "수정 {내용}":
-    피드백을 반영하여 STEP 2로 돌아가 EnterPlanMode 재진입 → 플랜 재작성 → ExitPlanMode → STEP 3 루프
-
-  응답 "no":
-    출력: "플랜 작성이 취소되었습니다."
-    [TERMINATE]
-
-STEP 4: 플랜 저장
-  생성한 플랜 내용을 stdin으로 전달:
+STEP 3: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
-  성공: STEP 5 진행
-  실패: reason 그대로 출력 후 [STOP]
+  실패: reason 그대로 출력 후 [STOP] — 저장 실패 시 구현 진입 금지
 
-STEP 5: 상태 전이 (READY → PLANNED)
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {이슈키} READY PLANNED`
-  성공: notify_user("플랜 완료 [{이슈키}]: /worktree-flow:review {이슈키} 실행 가능")
-  실패: reason 그대로 출력 후 [STOP]
+STEP 4: 구현 실행 (승인된 플랜을 컨텍스트에서 그대로 사용)
+  "구현 순서" 각 항목을 순서대로:
+    4-1. 해당 파일 현재 상태 읽기
+    4-2. 플랜 명세대로 코드 수정
 
-[TERMINATE]
-코드 수정, git 명령 실행 절대 금지.
+  중간 실패 시:
+    [STOP] — 임의 복구 시도 금지
+
+STEP 5: 완료 보고 및 피드백 대기
+  출력: "구현 완료 [{이슈키}]. 추가 수정이 있으면 말씀하세요. 머지하려면 /worktree-flow:merge {피처브랜치}"
+
+  사용자 응답 대기:
+    응답 없음 / "머지": [TERMINATE]
+    계획/플랜을 세우자는 의도 ("계획 세워", "플랜 짜줘", "설계해줘" 등):
+      EnterPlanMode 재진입 → STEP 2-2부터 반복 → 완료 후 STEP 5로 돌아옴
+    그 외 수정 요청: 플랜 없이 바로 수정 후 STEP 5로 돌아옴

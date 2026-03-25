@@ -39,7 +39,7 @@ GITIGNORE_ENTRIES = [
     "# worktree-flow",
     ".worktrees/",
     ".wt/",
-    ".wip-active",
+
 ]
 
 def ensure_gitignore(root):
@@ -129,10 +129,6 @@ def main():
         if code != 0 and err and "already" not in err.lower():
             errors.append({"name": task, "error": err})
             continue
-
-        # .wip-active 자동 생성 (수동 활성화 불필요)
-        wip_flag = os.path.join(wt_path, ".wip-active")
-        open(wip_flag, "w").close()
 
         results.append({"name": task, "branch": branch, "path": wt_path})
 
