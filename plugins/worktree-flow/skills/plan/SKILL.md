@@ -15,33 +15,32 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 STEP 1: 워크트리 생성 및 진입
   EnterWorktree 실행 (name: {이슈키})
-  → 세션 CWD가 워크트리로 자동 전환됨
 
-STEP 2: 이슈 명세 로드
+STEP 2: 기존 플랜 확인
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --section 플랜`
+  성공 (플랜 있음): data.content를 컨텍스트로 보관 → STEP 3-B 진행
+  실패 (플랜 없음): STEP 3-A 진행
+
+STEP 3-A: 신규 플랜 작성 (플랜 없을 때)
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 3: 영향 범위 분석 및 플랜 작성
   EnterPlanMode 실행
 
-  3-1. 영향 범위 분석
+  영향 범위 분석:
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_scope.py {이슈키}`
-    성공: data.affected_files의 skeleton을 보고 관련성이 높은 파일만 선택하여 Read
-          skeleton만으로 충분히 파악되는 파일은 Read 생략
+    성공: skeleton 기준으로 관련성 높은 파일만 선택하여 Read
     실패: reason 그대로 출력 후 [STOP]
 
-  3-2. 플랜 작성 (Claude 역할)
-    STEP 2 요구사항 + 영향 파일 분석을 바탕으로 아래 템플릿 형식으로 작성:
+  플랜 작성:
     ```
     ### 영향 파일
     | 파일 | 변경 유형 | 이유 |
     |------|----------|------|
-    | src/... | 수정/신규 | ... |
 
     ### 구현 순서
     1. `{파일}` — {변경 내용}
-    2. `{파일}` — {변경 내용}
 
     ### 예상 커밋 단위
     - `feat({이슈키}): {설명}`
@@ -50,27 +49,29 @@ STEP 3: 영향 범위 분석 및 플랜 작성
     - [ ] {항목}
     ```
 
-  ExitPlanMode 실행 (승인 시 STEP 4 자동 진행 / 거절 시 TERMINATE)
+  ExitPlanMode 실행 (승인 시 STEP 4 진행 / 거절 시 TERMINATE)
+
+STEP 3-B: 기존 플랜 재사용 (플랜 있을 때)
+  저장된 플랜을 사용자에게 표시
+  [GATE] AskUserQuestion("기존 플랜이 있습니다.\n- yes: 이 플랜으로 구현\n- 재플랜: 플랜을 새로 작성\n- 수정 {내용}: 플랜 일부 수정 후 구현")
+
+  응답 "yes": STEP 5 진행 (이슈 로드·분석 생략)
+  응답 "재플랜": STEP 3-A 진행
+  응답 "수정 {내용}":
+    수정 내용 반영하여 플랜 업데이트
+    STEP 4 진행
 
 STEP 4: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
-  실패: reason 그대로 출력 후 [STOP] — 저장 실패 시 구현 진입 금지
+  실패: reason 그대로 출력 후 [STOP]
 
-STEP 5: 구현 실행 (승인된 플랜을 컨텍스트에서 그대로 사용)
+STEP 5: 구현 실행
   "구현 순서" 각 항목을 순서대로:
     5-1. 해당 파일 현재 상태 읽기
     5-2. 플랜 명세대로 코드 수정
+  중간 실패 시: [STOP]
 
-  중간 실패 시:
-    [STOP] — 임의 복구 시도 금지
-
-STEP 6: 완료 보고 및 피드백 대기
-  출력: "구현 완료 [{이슈키}]. 추가 수정이 있으면 말씀하세요. 머지하려면 /worktree-flow:merge {피처브랜치}"
-
-  사용자 응답 대기:
-    응답 없음 / "머지": [TERMINATE]
-    계획/플랜을 세우자는 의도 ("계획 세워", "플랜 짜줘", "설계해줘" 등):
-      EnterPlanMode 재진입 → STEP 3-2부터 반복 → 완료 후 STEP 6으로 돌아옴
-    그 외 수정 요청: 플랜 없이 바로 수정 후 STEP 6으로 돌아옴
+STEP 6: 완료
+  출력: "구현 완료 [{이슈키}]. 추가 수정은 /worktree-flow:plan {이슈키} 재실행, 머지는 /worktree-flow:merge {피처브랜치}"
 
 [TERMINATE]

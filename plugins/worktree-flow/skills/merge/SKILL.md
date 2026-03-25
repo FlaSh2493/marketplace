@@ -1,12 +1,12 @@
 ---
 name: merge
-description: Merger 에이전트 전용. WIP 커밋을 의미 단위로 정리한 뒤 피처 브랜치에 머지하고 워크트리를 정리한다.
+description: Merger 에이전트 전용. WIP 커밋을 squash merge로 피처 브랜치에 통합하고 워크트리를 정리한다. 워크트리 브랜치는 태그로 보존된다.
 ---
 
 # Worktree Merge
 
 **실행 주체: Merger 에이전트 전용**
-사용자 승인 없이 git reset, git commit 실행 금지.
+워크트리 브랜치 히스토리 직접 수정 절대 금지. git push 금지.
 
 ## 사용법
 `/worktree-flow:merge {피처브랜치}`
@@ -28,82 +28,53 @@ STEP 1: 사전 분석 (dry-run)
   ```
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 2: WIP 커밋 분석
+STEP 2: WIP 커밋 요약 표시
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_wip.py {피처브랜치}`
-  성공: data.commits_by_issue 보관
+  성공: 각 이슈의 WIP 커밋 목록 표시
 
-  Claude 역할: 각 이슈의 WIP 커밋을 의미 단위로 그룹화하여 제안
-  출력 형식:
+  Claude 역할: 각 이슈의 변경 내용을 요약하여 커밋 메시지 제안
   ```
-  커밋 재정의 제안:
-  ┌──────────┬───────────────────────────────────────────────────┐
-  │ PLAT-101 │ WIP 1,2,3 → feat(PLAT-101): 주문 API 페이지네이션 │
-  │          │ WIP 4,5   → feat(PLAT-101): 빈 상태 UI 처리      │
-  └──────────┴───────────────────────────────────────────────────┘
+  커밋 메시지 제안:
+  ┌──────────┬───────────────────────────────────────┐
+  │ PLAT-101 │ feat(PLAT-101): 주문 API 페이지네이션  │
+  │ PLAT-102 │ feat(PLAT-102): 빈 상태 UI 처리       │
+  └──────────┴───────────────────────────────────────┘
   ```
 
-[GATE] STEP 3: 커밋 계획 승인
-  실행: AskUserQuestion("이 커밋 계획으로 진행할까요? (수정이 필요하면 내용을 입력하세요 / no: 취소)")
-  [LOCK: 응답 전 git reset 절대 실행 금지]
+[GATE] STEP 3: 커밋 메시지 승인
+  실행: AskUserQuestion("이 커밋 메시지로 진행할까요? (수정이 필요하면 내용을 입력하세요 / no: 취소)")
+  [LOCK: 응답 전 머지 실행 금지]
 
-  응답 "yes":
-    STEP 4 진행
+  응답 "yes": STEP 4 진행
+  응답 "수정 {내용}": 메시지 반영 후 STEP 2 출력 재표시 → STEP 3 반복
+  응답 "no": 출력 "머지 취소." [TERMINATE]
 
-  응답 "수정 {내용}":
-    Claude 역할: 수정 내용 반영하여 그룹 재구성 후 STEP 2 출력 재표시
-    [GATE] STEP 3 반복
-
-  응답 "no":
-    출력: "머지 취소."
-    [TERMINATE]
-
-STEP 4: 커밋 재정의
-  승인된 그룹 계획을 JSON으로 직렬화:
-  groups = [{"message": "feat(PLAT-101): ...", "commit_indices": [0,1,2]}, ...]
-
+STEP 4: Squash merge 실행
   각 이슈별 순서대로:
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/rewrite_commits.py {이슈키} \
-           --branch {branch} --base {base} --groups '{groups_json}'`
-    성공: "{이슈키} 커밋 재정의 완료" 출력
-    실패: reason 그대로 출력 후 [STOP]
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --message "{커밋메시지}"`
+    성공 (exit 0): 다음 이슈 진행
+    충돌 (exit 2): 충돌 해결 프로세스 진입
 
-STEP 5: 머지 실행
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치}`
-  성공 (exit 0): STEP 6 진행
-  충돌 (exit 2): 충돌 해결 프로세스 진입
+    [충돌 해결 프로세스]
+      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py`
+      충돌 파일마다:
+        [GATE] AskUserQuestion("충돌: {파일명}\n{diff}\n\n선택: [feature / base / 직접편집]")
+        응답 "feature": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py {파일} feature`
+        응답 "base": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py {파일} base`
+        응답 "직접편집":
+          [GATE] AskUserQuestion("편집 완료 후 'done' 입력")
+      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --continue`
 
-  [충돌 해결 프로세스]
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py`
-    성공: 각 충돌 파일의 diff 출력
-
-    충돌 파일마다:
-    [GATE] AskUserQuestion("충돌: {파일명}\n{diff 내용}\n\n선택: [feature / base / 직접편집]")
-    [LOCK: 응답 전 다음 파일 처리 금지]
-
-      응답 "feature":
-        실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py {파일} feature`
-      응답 "base":
-        실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py {파일} base`
-      응답 "직접편집":
-        출력: "파일을 직접 편집한 뒤 'done'을 입력하세요."
-        [GATE] AskUserQuestion("편집 완료 후 'done' 입력")
-
-    모든 충돌 해결 완료 후:
-      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --continue`
-      성공: STEP 6 진행
-      실패: reason 그대로 출력 후 [STOP]
-
-STEP 6: 정리
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_worktrees.py {피처브랜치}`
+STEP 5: 정리
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_worktrees.py {피처브랜치} --issues {이슈키목록}`
   성공:
-    아래 형식으로 출력:
     ```
-    ┌───────────────────────────────────────┐
-    │ 머지 완료                              │
-    │ 브랜치: {피처브랜치}                   │
-    │ 처리된 이슈: {이슈키 목록}             │
-    │ 삭제된 워크트리: {N}개                 │
-    └───────────────────────────────────────┘
+    ┌───────────────────────────────────────────────┐
+    │ 머지 완료                                      │
+    │ 브랜치: {피처브랜치}                           │
+    │ 처리된 이슈: {이슈키 목록}                     │
+    │ WIP 보존 태그: archive/{이슈키}-wip-{날짜}     │
+    └───────────────────────────────────────────────┘
     ```
   실패: reason 그대로 출력 후 [STOP]
 

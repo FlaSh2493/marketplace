@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-머지 완료 후 워크트리, 브랜치, 상태 파일 정리.
+머지 완료 후 워크트리 정리. 브랜치는 태그로 보존 후 삭제.
 Usage: python3 cleanup_worktrees.py {feature} --issues {PLAT-101} {PLAT-102} ...
 """
-import argparse, json, os, sys, subprocess, glob
+import argparse, json, os, sys, subprocess
+from datetime import datetime
 
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
@@ -34,14 +35,18 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    wt_dir = os.path.join(root, ".wt")
     wt_base = os.path.join(root, ".worktrees")
     cleaned = []
     errors = []
+    date = datetime.now().strftime("%Y%m%d")
 
     for issue in args.issues:
         branch = f"{args.feature}--wt-{issue}"
         wt_path = os.path.join(wt_base, issue)
+        tag = f"archive/{issue}-wip-{date}"
+
+        # 태그 생성 (WIP 히스토리 보존)
+        run(f"git tag '{tag}' '{branch}'", cwd=root)
 
         # 워크트리 제거
         if os.path.exists(wt_path):
@@ -53,17 +58,7 @@ def main():
         # 브랜치 삭제
         run(f"git branch -D '{branch}'", cwd=root)
 
-        # 상태 파일 정리
-        for flag in ["approved", "building", "done", "planned"]:
-            flag_path = os.path.join(wt_dir, f"{issue}.{flag}")
-            if os.path.exists(flag_path):
-                os.remove(flag_path)
-
-        cleaned.append(issue)
-
-    # .wt/ 디렉토리가 비었으면 삭제
-    if os.path.exists(wt_dir) and not os.listdir(wt_dir):
-        os.rmdir(wt_dir)
+        cleaned.append({"issue": issue, "tag": tag})
 
     ok({
         "feature": args.feature,
