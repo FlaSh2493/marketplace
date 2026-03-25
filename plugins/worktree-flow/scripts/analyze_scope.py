@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 이슈 요구사항 기반 코드베이스 영향 범위 분석.
-Claude가 플랜 작성 시 참고할 파일 목록을 반환.
+Claude가 플랜 작성 시 참고할 파일 목록과 skeleton을 반환.
 Usage: python3 analyze_scope.py {issue}
 """
 import json, os, sys, glob, re, subprocess
@@ -50,6 +50,23 @@ def find_related_files(root, keywords):
                     related.append(rel)
     return related[:20]  # 최대 20개
 
+def extract_skeleton(file_path):
+    """파일에서 export/함수/클래스/타입 시그니처 라인만 추출"""
+    SKELETON_PATTERNS = re.compile(
+        r"^\s*(export\s+)?(default\s+)?"
+        r"(function|class|const|let|var|type|interface|enum|async function)"
+        r"\s+\w+"
+    )
+    lines = []
+    try:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if SKELETON_PATTERNS.match(line):
+                    lines.append(line.rstrip())
+    except Exception:
+        pass
+    return lines
+
 def ok(data):
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False, indent=2))
     sys.exit(0)
@@ -72,13 +89,22 @@ def main():
         error("ISSUE_NOT_FOUND", f"{issue}.md 파일을 찾을 수 없습니다")
 
     keywords = extract_keywords(content)
-    affected_files = find_related_files(root, keywords)
+    related_paths = find_related_files(root, keywords)
+
+    affected_files = []
+    for rel_path in related_paths:
+        abs_path = os.path.join(root, rel_path)
+        skeleton = extract_skeleton(abs_path)
+        affected_files.append({
+            "path": rel_path,
+            "skeleton": skeleton,
+        })
 
     ok({
         "issue": issue,
         "keywords": keywords,
         "affected_files": affected_files,
-        "note": "Claude가 플랜 작성 시 이 파일들을 읽어 현재 구조를 파악하세요"
+        "note": "skeleton으로 관련성을 판단 후 필요한 파일만 Read하세요",
     })
 
 if __name__ == "__main__":

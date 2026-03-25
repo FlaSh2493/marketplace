@@ -18,8 +18,8 @@ STEP 0: 전제조건 검증
   성공: data.md_path 보관
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 1: 이슈 명세 로드
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}`
+STEP 1: 이슈 명세 로드 (필요 섹션만)
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
 
@@ -29,7 +29,8 @@ STEP 2: Plan Mode 진입
 
   2-1. 영향 범위 분석
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/analyze_scope.py {이슈키}`
-    성공: data.affected_files 목록을 참고하여 관련 파일 Read
+    성공: data.affected_files의 skeleton을 보고 관련성이 높은 파일만 선택하여 Read
+          skeleton만으로 충분히 파악되는 파일은 Read 생략
     실패: reason 그대로 출력 후 [STOP]
 
   2-2. 플랜 작성 (Claude 역할)

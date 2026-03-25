@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 이슈 md 파일을 읽어 반환. 특정 섹션만 반환할 수 있음.
-Usage: python3 load_issue.py {issue} [--section {섹션명}]
+Usage: python3 load_issue.py {issue} [--section {섹션명}] [--sections 섹션1,섹션2]
 """
 import argparse, json, os, sys, glob, re
 
@@ -28,6 +28,14 @@ def extract_section(content, section):
     m = re.search(pattern, content, re.DOTALL)
     return m.group(2).strip() if m else None
 
+def extract_sections(content, sections):
+    parts = []
+    for s in sections:
+        text = extract_section(content, s)
+        if text:
+            parts.append(f"## {s}\n{text}")
+    return "\n\n".join(parts) if parts else None
+
 def ok(data):
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False, indent=2))
     sys.exit(0)
@@ -40,6 +48,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("issue")
     parser.add_argument("--section", default=None)
+    parser.add_argument("--sections", default=None, help="콤마 구분 복수 섹션. 예: 설명,메타데이터")
     args = parser.parse_args()
 
     root = find_git_root()
@@ -50,7 +59,13 @@ def main():
     if not md_path:
         error("ISSUE_NOT_FOUND", f"{args.issue}.md 파일을 찾을 수 없습니다")
 
-    if args.section:
+    if args.sections:
+        names = [s.strip() for s in args.sections.split(",")]
+        combined = extract_sections(content, names)
+        if not combined:
+            error("SECTION_NOT_FOUND", f"섹션을 찾을 수 없습니다: {args.sections}")
+        ok({"issue": args.issue, "sections": names, "content": combined, "md_path": md_path})
+    elif args.section:
         section_content = extract_section(content, args.section)
         if section_content is None:
             error("SECTION_NOT_FOUND", f"## {args.section} 섹션을 찾을 수 없습니다")
