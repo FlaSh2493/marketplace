@@ -1,20 +1,28 @@
 ---
-name: worktree-flow-status
-description: 현재 활성화된 모든 워크트리의 상태(브랜치, 변경사항 수 등)를 조회합니다.
+name: status
+description: 현재 활성화된 모든 워크트리의 상태(브랜치, WIP 커밋 수, 진행 단계)를 조회한다.
 ---
 
 # Worktree Status
 
-모든 워크트리의 상태를 조회합니다.
+**실행 주체: Main Session 전용**
 
 ## 사용법
 `/worktree-flow:status`
 
-## 실행
-아래 스크립트를 실행하라:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/status.py
-```
+## 실행 절차
 
-## 결과 처리
-결과 JSON을 읽어 각 워크트리의 경로, 브랜치명, 변경사항 수, 베이스 브랜치 대비 커밋 수를 표 형식으로 보기 좋게 출력하세요.
+STEP 1: 상태 조회
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/status.py`
+  성공: 아래 형식으로 출력
+  ```
+  ┌──────────┬──────────┬────────┬────────────────────────┐
+  │ 이슈     │ 상태     │ WIP수  │ 마지막 커밋             │
+  ├──────────┼──────────┼────────┼────────────────────────┤
+  │ PLAT-101 │ BUILDING │  3개   │ 2026-03-25T14:32:01    │
+  │ PLAT-102 │ APPROVED │  0개   │ -                      │
+  └──────────┴──────────┴────────┴────────────────────────┘
+  ```
+  실패: reason 그대로 출력 후 [STOP]
+
+[TERMINATE]
