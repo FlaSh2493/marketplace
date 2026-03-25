@@ -33,10 +33,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
    - `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하세요.
 
 3. 기획이 확정되면(승인 요청 전), 해당 내용을 **`.docs/task/{feature}/{jira}.md`** 파일에 저장하세요.
+   - **🔥 중요 (포맷 유지)**: 해당 파일은 `fe-task-extractor`의 **`templates/fe-task-template.md`** 형식을 반드시 유지해야 합니다. 수정 전 해당 템플릿을 읽어 헤더 필드와 섹션 구조를 파괴하지 않도록 주의하세요.
    - `{feature}`는 현재 브랜치명에서 워크트리 suffix(`--wt-XXXX`)를 제거한 값입니다. (예: `qa/data-center-bug--wt-IET-7571` → `{feature}`: `qa/data-center-bug`)
    - `{jira}`는 해당 워크트리의 이슈 키입니다. (예: `IET-7571`)
    - 해당 이슈 파일(`.md`) 내의 **`## 메타데이터`** 섹션 아래에 **`### 플랜`** 섹션을 추가하거나 업데이트하세요.
-   - 새로운 플랜이 작성될 때마다 해당 섹션을 덮어씁니다.
+   - **플랜 섹션 덮어쓰기**: 새로운 플랜이 작성될 때마다 해당 섹션만 덮어씁니다. 헤더(jira, 상태 등)는 유지하되 `최근 업데이트` 시각을 현재로 갱신합니다.
 4. 수립된 기획안(`implementation_plan.md`)의 내용을 **마크다운 텍스트로 채팅창에 출력**하여 사용자가 즉시 확인할 수 있게 하세요.
 5. `notify_user(BlockedOnUser: true)`를 호출하여 사용자가 승인 버튼을 통해 구현을 시작할 수 있게 하세요.
    - 플랜 승인은 반드시 `notify_user`를 통한 **승인 버튼**으로만 받으세요. 채팅(`AskUserQuestion` 등)으로 승인을 묻지 마세요.

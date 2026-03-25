@@ -9,6 +9,16 @@ description: 사용자가 직접 수정한 마크다운 작업 명세(.docs/task
 
 ---
 
+## 🚨 절대 준수 사항 (Strict Adherence)
+
+이 스킬은 마크다운의 수정 사항을 Jira에 반영할 때, **데이터의 정합성과 템플릿의 형식을 100% 유지**해야 한다.
+
+1.  **템플릿 기반 파싱 (Template-Based Parsing)**: 파일을 읽기 전 **반드시** `templates/fe-task-template.md`를 참고하여 헤더와 태그 구조가 올바른지 확인하고 파싱한다.
+2.  **요약 금지 (No Summary)**: `## 설명` 섹션의 본문은 요약하지 않고 원문 그대로 Jira의 Description에 반영한다.
+3.  **경로 탐색**: 현재 브랜치를 기반으로 한 `.docs/task/` 하위 경로에서 파일을 찾는다.
+
+---
+
 ## 1. 대상 파일 식별
 
 ### Step 1: 저장 디렉토리 탐색
@@ -31,7 +41,7 @@ git rev-parse --abbrev-ref HEAD
 ## 2. 분석 및 동기화 프로세스
 
 ### Step 1: 마크다운 내용 읽기 (Source of Truth)
-선택된 각 마크다운 파일을 읽어 다음 정보를 파악한다. **반드시** `templates/fe-task-template.md`의 구조를 기반으로 파싱한다.
+선택된 각 마크다운 파일을 읽어 다음 정보를 파악한다.
 
 - **Jira Key**: 파일 헤더의 `jira:` 필드 또는 파일명
 - **Summary**: `# {JIRA-KEY}: {작업 제목}`에서 추출한 제목
