@@ -8,6 +8,7 @@ import argparse, json, os, re, sys, glob
 
 
 STATE_EXT = {
+    "PENDING": "pending",
     "DRAFT": "draft",
     "PUBLISHING": "publishing",
     "PUBLISHED": "published",

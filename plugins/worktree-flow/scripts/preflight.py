@@ -33,11 +33,11 @@ def find_issue_md(root, issue):
         matches = glob.glob(pattern, recursive=True)
         if matches:
             return matches[0]
-    # 파일명이 이슈키가 아닌 경우 내용에서 탐색
+    # 파일명이 이슈키가 아닌 경우 내용에서 탐색 (fe-task-extractor 포맷: "- jira: {KEY}")
     for base in [os.path.join(root, ".docs", "task"), os.path.join(root, "docs", "task")]:
         for f in glob.glob(os.path.join(base, "**", "*.md"), recursive=True):
             with open(f, encoding="utf-8") as fh:
-                if f"issue: {issue}" in fh.read():
+                if f"jira: {issue}" in fh.read():
                     return f
     return None
 
@@ -92,9 +92,10 @@ def main():
         md = find_issue_md(root, issue)
         if not md:
             error("PRECONDITION_FAILED", f"{issue}.md 파일이 없습니다.")
-        if not has_plan_section(md):
-            error("PRECONDITION_FAILED", f"{issue}.md에 ## 플랜 섹션이 없습니다. /worktree-flow:plan {issue} 을 먼저 실행하세요.")
-        ok({"md_path": md})
+        has_plan = has_plan_section(md)
+        approved = os.path.join(wt_dir, f"{issue}.approved")
+        current_state = "APPROVED" if os.path.exists(approved) else ("PLANNED" if has_plan else "READY")
+        ok({"md_path": md, "has_plan": has_plan, "current_state": current_state})
 
     elif skill == "build":
         if not issue:

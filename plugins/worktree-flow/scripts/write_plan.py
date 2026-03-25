@@ -19,7 +19,7 @@ def find_issue_md(root, issue):
         for f in glob.glob(os.path.join(base, "**", "*.md"), recursive=True):
             with open(f, encoding="utf-8") as fh:
                 content = fh.read()
-                if f"issue: {issue}" in content or os.path.basename(f) == f"{issue}.md":
+                if f"jira: {issue}" in content or os.path.basename(f) == f"{issue}.md":
                     return f, content
     return None, None
 
@@ -64,9 +64,6 @@ def main():
             new_content = content.replace("## 진행 로그", f"{section_block}\n## 진행 로그")
         else:
             new_content = content.rstrip() + f"\n\n{section_block}"
-
-    # frontmatter status 업데이트
-    new_content = re.sub(r"(status:\s*)\w+", r"\1PLANNED", new_content)
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(new_content)

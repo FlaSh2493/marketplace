@@ -120,10 +120,12 @@ def main():
     elif skill == "publish":
         if not os.path.exists(task_dir):
             error("PRECONDITION_FAILED", f"작업 디렉토리가 없습니다: {task_dir}. /fe-task-extractor:init을 먼저 실행하세요.")
+        pending = list_state_files(state_dir, "pending")
         drafts = list_state_files(state_dir, "draft")
-        if not drafts:
-            error("PRECONDITION_FAILED", "DRAFT 상태인 이슈가 없습니다. extract 또는 fetch를 먼저 실행하세요.")
-        ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir, "drafts": drafts})
+        if not pending and not drafts:
+            error("PRECONDITION_FAILED", "처리할 이슈가 없습니다. write 또는 extract를 먼저 실행하세요.")
+        ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir,
+            "pending": pending, "drafts": drafts})
 
     elif skill == "update":
         if not os.path.exists(task_dir):

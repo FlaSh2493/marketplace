@@ -8,7 +8,9 @@ import json, os, sys, glob
 
 TRANSITIONS = {
     ("READY",    "PLANNED"):  [],
+    ("PLANNED",  "READY"):    [],                                                              # 재플랜 역전이
     ("PLANNED",  "APPROVED"): [("create", "{issue}.approved")],
+    ("APPROVED", "PLANNED"):  [("delete", "{issue}.approved")],                               # 재플랜 역전이 (APPROVED 후)
     ("APPROVED", "BUILDING"): [("create", "{issue}.building")],
     ("BUILDING", "DONE"):     [("delete", "{issue}.building"), ("create", "{issue}.done")],
     ("DONE",     "MERGED"):   [("delete", "{issue}.approved"), ("delete", "{issue}.done")],

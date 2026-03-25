@@ -1,6 +1,6 @@
 ---
 name: write
-description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈를 원본 그대로 로컬 문서로 변환한다. 직접 호출하거나 fetch가 런칭한다.
+description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈를 원본 그대로 로컬 문서로 변환한다. Bash 없이 Read/Write/MCP만 사용한다.
 ---
 
 # Frontend Task Write
@@ -13,61 +13,77 @@ description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈
 
 ## 실행 절차
 
-STEP 0: 전제조건 검증
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py write {이슈키들}`
-  성공: data.branch, data.task_dir, data.issues 보관
-  실패: reason 그대로 출력 후 [STOP] — pending.json에 없는 이슈는 처리 불가
+STEP 0: 선택 검증 (Read 도구)
+  Read: `.docs/task/{branch}/.state/pending.json`
+  파일이 없으면:
+    출력: "pending.json이 없습니다. /fe-task-extractor:fetch를 먼저 실행하세요."
+    [STOP]
+  요청된 이슈가 `selected` 목록에 없으면:
+    출력: "{이슈키}는 선택되지 않은 이슈입니다."
+    [STOP]
 
 STEP 1: 이슈별 처리 (각 이슈 순서대로)
 
   1-1. Jira 상세 조회 (Claude MCP)
     - `jiraGetIssue({이슈키})` — summary, description, status, assignee, created
     - `jiraGetIssueComments({이슈키})` — 전체 댓글 (시간순)
-    - attachments 필드 — 이미지/파일 목록
+    - attachments — 이미지/파일 목록
 
-  1-2. 설명 변환 (Claude 역할 — 유일한 자유 구간)
+  1-2. 템플릿 로드 (Read 도구)
+    Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-template.md`
+    Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-example.md`
+    포맷과 필드 순서 파악
+
+  1-3. 마크다운 변환 (Claude 역할 — 유일한 자유 구간)
     - Jira ADF → 마크다운 변환
     - 요약 금지. 원본 구조(리스트, 테이블, 코드블록) 보존
-    - 변환된 내용을 stdin으로 전달하여 파일 생성:
-    ```bash
-    echo "{변환된 설명}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py \
-      "{branch}" "{이슈키}" "{summary}" \
-      --status "{status}" \
-      --assignee "{assignee}" \
-      --source "jira-fetch" \
-      --created-at "{created}" \
-      --deps "{deps 파싱 결과 또는 없음}" \
-      --api "{api 파싱 결과 또는 없음}" \
-      --states "{states 파싱 결과 또는 없음}"
+    - 템플릿의 필드 순서와 구조 그대로 적용:
+      ```
+      # {이슈키}: {summary}
+
+      - jira: {이슈키}
+      - 상태: {status}
+      - 담당자: {assignee}
+      - 생성일: {created}
+      - 최근 업데이트: {현재시각}
+      - 출처: jira-fetch
+
+      ---
+
+      ## 설명
+
+      {description 전문 — ADF→마크다운, 요약 금지}
+
+      ---
+
+      ## 메타데이터
+
+      - deps: {파싱 결과 또는 없음}
+      - api: {파싱 결과 또는 없음}
+      - states: {파싱 결과 또는 없음}
+
+      ---
+      ```
+
+  1-4. 파일 저장 (Write 도구)
+    경로: `.docs/task/{branch}/{이슈키}.md`
+    (디렉토리가 없으면 Write 도구가 자동 생성)
+
+  1-5. 댓글 추가 (있는 경우, Edit 도구)
+    파일 끝에 추가:
     ```
-    실패: reason 그대로 출력 후 [STOP]
-
-  1-3. 포맷 검증
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_template.py {file_path}`
-    실패: reason 그대로 출력 후 [STOP]
-
-  1-4. 댓글 추가 (있는 경우)
-    파일 끝에 아래 형식으로 시간순 추가:
-    ```
-    ---
-
     ## 댓글
 
     > **@{작성자}** ({YYYY-MM-DD HH:mm})
-    > {댓글 내용 — ADF→마크다운 변환, 요약 금지}
+    > {댓글 내용 — ADF→마크다운, 요약 금지}
     ```
 
-  1-5. 첨부파일 처리 (있는 경우)
-    이미지: assets/ 폴더에 저장, 파일에 `![{설명}](./assets/{이슈키}-{파일명})` 추가
-    기타: 다운로드 URL 링크로 기재
+  1-6. 완료 마커 저장 (Write 도구)
+    Write: `.docs/task/{branch}/.state/{이슈키}.pending`
+    내용: `{"issue": "{이슈키}", "written_at": "{현재시각}"}`
 
-  1-6. 상태 전이
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} NONE DRAFT`
-    실패: reason 그대로 출력 후 [STOP]
-
-STEP 2: 완료 보고
-  처리된 이슈 목록 출력 후:
-  notify_user("문서 작성 완료 [{이슈키 목록}]: /fe-task-extractor:publish 실행 가능")
+STEP 2: 완료 알림
+  notify_user("문서 작성 완료 [{이슈키 목록}]: Main에서 /fe-task-extractor:publish 실행")
 
 [TERMINATE]
 내용 요약·추가·해석 금지. Jira 원본만 마크다운으로 변환한다.

@@ -19,7 +19,7 @@ def find_issue_md(root, issue):
         for f in glob.glob(os.path.join(base, "**", "*.md"), recursive=True):
             with open(f, encoding="utf-8") as fh:
                 content = fh.read()
-                if f"issue: {issue}" in content or os.path.basename(f) == f"{issue}.md":
+                if f"jira: {issue}" in content or os.path.basename(f) == f"{issue}.md":
                     return content
     return None
 
