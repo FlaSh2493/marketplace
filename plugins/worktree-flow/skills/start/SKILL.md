@@ -5,7 +5,7 @@ description: 현재 워크트리 또는 선택한 워크트리에 대한 작업 
 
 # Worktree Start
 
-현재 워크트리에서 작업을 시작하기 위해 로컬 문서(`.docs/task/`) 또는 Jira에서 작업 설명을 가져옵니다.
+현재 워크트리에서 작업을 시작하기 위해 로컬 작업 명세 디렉토리(`.docs/task/{feature}/`) 또는 Jira에서 상세 정보를 가져옵니다.
 
 ## 사용법
 
@@ -32,15 +32,16 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
    - 해당 내용을 `task.md`에 기록하고, 해당 워크트리에서 자동 WIP 커밋이 동작하도록 **`.wip-active` 파일을 생성**하세요. (`touch .wip-active`)
    - `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하세요.
 
-3. 기획이 확정되면(승인 요청 전), 해당 내용을 **`.docs/task/{feature}.md`** 파일에 저장하세요.
+3. 기획이 확정되면(승인 요청 전), 해당 내용을 **`.docs/task/{feature}/{jira}.md`** 파일에 저장하세요.
    - `{feature}`는 현재 브랜치명에서 워크트리 suffix(`--wt-XXXX`)를 제거한 값입니다. (예: `qa/data-center-bug--wt-IET-7571` → `{feature}`: `qa/data-center-bug`)
-   - 파일 내 해당 이슈(`jira: IET-XXXX`)의 작업 항목 아래에 **`### 플랜`** 섹션을 추가하거나 업데이트하세요.
+   - `{jira}`는 해당 워크트리의 이슈 키입니다. (예: `IET-7571`)
+   - 해당 이슈 파일(`.md`) 내의 **`## 메타데이터`** 섹션 아래에 **`### 플랜`** 섹션을 추가하거나 업데이트하세요.
    - 새로운 플랜이 작성될 때마다 해당 섹션을 덮어씁니다.
 4. 수립된 기획안(`implementation_plan.md`)의 내용을 **마크다운 텍스트로 채팅창에 출력**하여 사용자가 즉시 확인할 수 있게 하세요.
 5. `notify_user(BlockedOnUser: true)`를 호출하여 사용자가 승인 버튼을 통해 구현을 시작할 수 있게 하세요.
    - 플랜 승인은 반드시 `notify_user`를 통한 **승인 버튼**으로만 받으세요. 채팅(`AskUserQuestion` 등)으로 승인을 묻지 마세요.
 6. 사용자가 **'build'** 라고 답하거나 승인 버튼을 누르면, `task_boundary`를 통해 **수행(EXECUTION) 모드**로 전환하여 실제 구현을 진행하세요.
-7. 로컬 파일(`.docs/task/{feature}.md`)에 정보가 없는 경우, 출력된 가이드에 따라 Jira 이슈 조회를 시도하세요.
+7. 로컬 디렉토리(`.docs/task/{feature}/`)에 해당 이슈 파일이 없는 경우, 출력된 가이드에 따라 Jira 이슈 조회를 시도하세요.
 
 ## 알림 (처음 사용하는 경우)
 
