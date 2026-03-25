@@ -22,32 +22,44 @@ description: 현재 워크트리 또는 선택한 워크트리에 대한 작업 
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/start_worktree.py
 ```
 
-## 결과 처리
+## 2. 결과 처리 및 단계별 실행 (Strict Protocol)
 
-1. 스크립트 결과로 목록(`mode: selection`)이 나오면:
-   - **반드시 `AskUserQuestion`을 사용하여 사용자에게 작업 항목 또는 워크트리 목록을 보여주세요.**
-   - 사용자가 선택한 결과를 인자로 하여 다시 기능을 수행하게 하세요.
+### 🚨 STEP 1: 워크트리 식별 및 정보 추출
+- **입력**: 스크립트 실행 결과.
+- **실행**: 
+  - 목록(`mode: selection`) 출력 시, `AskUserQuestion`으로 사용자에게 선택 요청.
+  - 선택된 워크트리의 이슈 번호(Jira Key)와 피처 브랜치명을 확정.
+- **검증**: `ls -d .docs/task/{feature}/` 경로 존재 여부 확인.
+- **[LOCK]** 여기서 멈추고 선택된 작업 정보를 사용자에게 보고하십시오.
 
-2. 선택된 워크트리(또는 현재 워크트리)의 기획 정보가 로드되면:
-   - 해당 내용을 `task.md`에 기록하고, 해당 워크트리에서 자동 WIP 커밋이 동작하도록 **`.wip-active` 파일을 생성**하세요. (`touch .wip-active`)
-   - `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하세요.
+### 🚨 STEP 2: 환경 준비 및 WIP 설정 검증
+- **상태 체크**: 
+  - `.claude/settings.json` 내 `Stop` 훅 등록 여부 확인.
+  - 현재 워크트리 루트에 `.wip-active` 파일 존재 여부 확인.
+- **실행 (분기)**:
+  - **Case A (미설정 시)**: 훅이 없거나 WIP가 꺼져 있다면, `AskUserQuestion`을 사용하여 **훅 등록 및 WIP 활성화(wip on)를 현재 즉시 수행할지** 물어보십시오.
+  - **Case B (승인 시)**: `install_hooks.py` 실행 및 `touch .wip-active`를 통해 설정을 완료하십시오.
+- **다음 단계**: 
+  - 환경 준비가 완료되면 `task_boundary`를 통해 **기획(PLANNING) 모드**로 진입하십시오.
+- **증거**: `.claude/settings.json`의 훅 내역과 `.wip-active` 생성 확인.
+- **[LOCK]** 환경 설정에 대한 사용자의 승인 응답이 있을 때까지 대기하십시오.
 
-3. 기획이 확정되면(승인 요청 전), 해당 내용을 **`.docs/task/{feature}/{jira}.md`** 파일에 저장하세요.
-   - **🔥 중요 (포맷 유지)**: 해당 파일은 `fe-task-extractor`의 **`templates/fe-task-template.md`** 형식을 반드시 유지해야 합니다. 수정 전 해당 템플릿을 읽어 헤더 필드와 섹션 구조를 파괴하지 않도록 주의하세요.
-   - `{feature}`는 현재 브랜치명에서 워크트리 suffix(`--wt-XXXX`)를 제거한 값입니다. (예: `qa/data-center-bug--wt-IET-7571` → `{feature}`: `qa/data-center-bug`)
-   - `{jira}`는 해당 워크트리의 이슈 키입니다. (예: `IET-7571`)
-   - 해당 이슈 파일(`.md`) 내의 **`## 메타데이터`** 섹션 아래에 **`### 플랜`** 섹션을 추가하거나 업데이트하세요.
-   - **플랜 섹션 덮어쓰기**: 새로운 플랜이 작성될 때마다 해당 섹션만 덮어씁니다. 헤더(jira, 상태 등)는 유지하되 `최근 업데이트` 시각을 현재로 갱신합니다.
-4. 수립된 기획안(`implementation_plan.md`)의 내용을 **마크다운 텍스트로 채팅창에 출력**하여 사용자가 즉시 확인할 수 있게 하세요.
-5. `notify_user(BlockedOnUser: true)`를 호출하여 사용자가 승인 버튼을 통해 구현을 시작할 수 있게 하세요.
-   - 플랜 승인은 반드시 `notify_user`를 통한 **승인 버튼**으로만 받으세요. 채팅(`AskUserQuestion` 등)으로 승인을 묻지 마세요.
-6. 사용자가 **'build'** 라고 답하거나 승인 버튼을 누르면, `task_boundary`를 통해 **수행(EXECUTION) 모드**로 전환하여 실제 구현을 진행하세요.
-7. 로컬 디렉토리(`.docs/task/{feature}/`)에 해당 이슈 파일이 없는 경우, 출력된 가이드에 따라 Jira 이슈 조회를 시도하세요.
+### 🚨 STEP 3: 기획 수립 및 마크다운 기록 (PLANNING Mode Only)
+- **전제 조건**: `task_boundary`를 통해 이미 **기획(PLANNING) 모드**에 진입한 상태여야 함.
+- **실행**:
+  - 현재 워크트리의 컨텍스트와 요구사항을 토대로 **상세 기획안(implementation_plan.md)** 작성.
+  - **파일 동기화**: `fe-task-extractor`의 템플릿을 `view_file`로 읽은 뒤, `.docs/task/{feature}/{jira}.md` 파일의 `### 플랜` 섹션을 해당 내용으로 업데이트.
+- **필수 출력**: 수립된 `implementation_plan.md`의 전체 내용을 **채팅창에 마크다운으로 출력**하여 가시성 확보.
+- **[LOCK/GATE]** `notify_user(BlockedOnUser: true)`를 호출하여 **승인 버튼**을 노출하고, 사용자의 명시적 승인이 있을 때까지 대기하십시오.
 
-## 알림 (처음 사용하는 경우)
+### 🚨 STEP 4: 구현 시작 (Execution)
+- **전제 조건**: 사용자가 'build'라고 입력하거나 승인 버튼을 누름.
+- **실행**: `task_boundary`를 통해 **수행(EXECUTION) 모드**로 전환.
+- **후속**: 실제 코드 수정을 시작하십시오.
 
-워크트리를 처음 시작했거나 훅을 등록하지 않은 경우, 다음을 안내하세요:
+## 3. 알림 (처음 사용하는 경우)
 
-1. **훅 등록**: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/install_hooks.py` 명령을 실행하여 Stop 훅을 등록해야 합니다.
-2. **WIP 활성화**: 훅 등록 후, `/worktree-flow:wip on` 명령을 실행해야 자동 WIP 커밋이 활성화됩니다.
-   - 훅만 등록된 상태에서는 WIP 커밋이 생성되지 않으므로, 명시적으로 `wip on`을 해야 함을 강조하세요.
+워크트리를 처음 시작했거나 훅을 등록하지 않은 경우, 다음을 안내하십시오:
+1. **훅 등록**: `install_hooks.py` 실행 안내.
+2. **WIP 활성화**: `/worktree-flow:wip on` 실행 권고.
+해야 함을 강조하세요.

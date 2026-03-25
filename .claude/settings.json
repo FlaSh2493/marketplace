@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "actions": [
+          {
+            "type": "command",
+            "command": "/Users/madup/my/marketplace/plugins/worktree-flow/scripts/wip_commit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
