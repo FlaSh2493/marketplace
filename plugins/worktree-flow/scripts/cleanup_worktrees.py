@@ -43,7 +43,7 @@ def main():
     for issue in args.issues:
         branch = f"{args.feature}--wt-{issue}"
         wt_path = os.path.join(wt_base, issue)
-        tag = f"archive/{issue}-wip-{date}"
+        tag = f"archive/{args.feature}/{issue}-wip-{date}"
 
         # 태그 생성 (WIP 히스토리 보존)
         run(f"git tag '{tag}' '{branch}'", cwd=root)

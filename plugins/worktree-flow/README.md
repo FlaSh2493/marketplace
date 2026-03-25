@@ -1,48 +1,225 @@
-# Worktree Flow Plugin
+# worktree-flow
 
-Git worktree를 사용하여 여러 이슈를 병렬로 개발할 수 있게 도와주는 플러그인입니다.
+> Claude Code에서 이슈 단위 병렬 개발을 완전 자동화하는 플러그인
 
-## 주요 기능
+이슈 키 하나로 워크트리 생성 → AI 플랜 수립 → 코드 구현 → WIP 자동 커밋 → Squash merge까지, 개발 워크플로우 전 구간을 Claude가 직접 관리합니다.
 
-- **워크트리 기반 병렬 작업**: 이슈별로 격리된 워크트리를 생성하여 독립적으로 개발합니다.
-- **AI 기반 플랜 수립**: 이슈 명세서를 분석하여 영향 파일, 구현 순서, 예상 커밋 단위를 자동 제안합니다.
-- **WIP 자동 커밋**: Claude 응답이 끝날 때마다 변경사항을 `WIP: ...` 메시지로 자동 커밋합니다. (복원용)
-- **Squash Merge 및 정리**: WIP 커밋들을 의미 있는 단위로 정리하여 피처 브랜치에 squash merge합니다. WIP 히스토리는 태그로 보존됩니다.
+---
 
-## 사용 방법
+## 왜 worktree-flow인가
 
-### 1. 이슈 플랜 수립 및 구현
+### 문제: 브랜치 전환의 비용
 
-```
-/worktree-flow:plan {이슈키}
-```
+여러 이슈를 동시에 작업할 때 `git stash` + `git checkout`의 반복은 컨텍스트를 끊고 실수를 유발합니다. 작업 중인 내용을 임시로 치워두고, 돌아올 때 다시 펼쳐야 하는 이 흐름 자체가 생산성을 갉아먹습니다.
 
-1. 이슈키에 해당하는 워크트리를 생성하고 진입합니다.
-2. 로컬 명세서(`.docs/task/{피처명}/{이슈키}.md`)에서 이슈 정보를 로드합니다.
-3. 기존 플랜이 있으면 재사용 여부를 확인하고, 없으면 새 플랜을 작성합니다.
-4. 사용자 승인 후 플랜에 따라 코드를 구현합니다.
+### 해결: 이슈별 격리된 워크트리
 
-### 2. 상태 확인
+git worktree는 하나의 레포에서 여러 작업 디렉토리를 동시에 유지합니다. worktree-flow는 이 기능을 Claude Code의 스킬 시스템과 연결해, 이슈 키만 입력하면 격리 환경 생성부터 구현까지 자동으로 처리합니다.
 
-```
-/worktree-flow:status
-```
+---
 
-현재 활성화된 모든 워크트리의 브랜치명, WIP 커밋 수, 마지막 커밋 시각을 확인합니다.
+## 핵심 기능
 
-### 3. 머지 및 정리
+### 1. AI 기반 영향 범위 분석 플랜
+
+`/worktree-flow:plan PLAT-101`을 실행하면:
+
+1. 이슈 명세서에서 변경 예상 파일·컴포넌트·함수명 키워드를 추출
+2. **code-review-graph** MCP 도구로 코드 의존성 그래프를 탐색해 실제 영향 파일 목록을 확보
+3. 영향 파일 기준으로 필요한 파일만 읽어 플랜을 작성
+
+플랜 형식:
 
 ```
-/worktree-flow:merge {피처브랜치}
+### 영향 파일
+| 파일 | 변경 유형 | 이유 |
+|------|----------|------|
+
+### 구현 순서
+1. `src/api/order.ts` — 페이지네이션 파라미터 추가
+
+### 예상 커밋 단위
+- `feat(PLAT-101): 주문 API 페이지네이션`
+
+### 검토 포인트
+- [ ] 기존 클라이언트 호환성 확인
 ```
 
-1. **분석**: 대상 워크트리 목록과 충돌 예상 파일을 표시합니다.
-2. **커밋 메시지 제안**: AI가 WIP 커밋들을 분석하여 squash 커밋 메시지를 제안합니다.
-3. **승인**: 커밋 메시지 확인 후 실행합니다.
-4. **정리**: 피처 브랜치에 squash merge 후 워크트리를 삭제하고, WIP 히스토리를 `archive/{이슈키}-wip-{날짜}` 태그로 보존합니다.
+플랜 확인 후 사용자가 승인해야만 코드 수정이 시작됩니다. **ExitPlanMode 게이트**로 구현 시작 전 반드시 사람의 승인을 받는 구조입니다.
+
+### 2. WIP 자동 커밋 — Claude 응답이 끝날 때마다
+
+`Stop` 훅으로 Claude가 응답을 마칠 때마다 워크트리의 변경사항을 자동으로 커밋합니다.
+
+커밋 메시지도 Claude가 직접 생성합니다:
+
+```
+WIP(feat/PLAT-101--wt-PLAT-101): 주문 목록 API에 cursor 파라미터 추가
+
+요구사항: 무한 스크롤 지원을 위해 커서 기반 페이지네이션 필요
+작업내용: GET /orders에 cursor, limit 쿼리 파라미터 추가, 응답에 nextCursor 포함
+특이사항: 기존 page 파라미터와 하위 호환 유지
+```
+
+단순 "파일 N개 변경"이 아니라 **왜 바꿨는지, 무엇을 바꿨는지, 어떤 결정을 했는지**를 담습니다. 나중에 WIP 커밋만 보고도 작업 맥락을 복원할 수 있습니다.
+
+메인 리포는 자동으로 감지해 스킵합니다. 워크트리에서만 동작합니다.
+
+### 3. 충돌 예측 기반 Squash merge
+
+`/worktree-flow:merge feat/PLAT-sprint3`을 실행하면:
+
+```
+머지 대상: 3개 워크트리
+┌──────────┬────────┬──────────────────────────┐
+│ 이슈     │ WIP수  │ 충돌 예상 파일            │
+├──────────┼────────┼──────────────────────────┤
+│ PLAT-101 │  5개   │ (없음)                   │
+│ PLAT-102 │  3개   │ src/api/order.ts         │
+│ PLAT-103 │  8개   │ (없음)                   │
+└──────────┴────────┴──────────────────────────┘
+머지 순서: PLAT-101 → PLAT-103 → PLAT-102 (충돌 적은 순)
+```
+
+실제 merge --squash를 dry-run으로 먼저 실행해 충돌 파일을 예측하고, **충돌이 적은 순서로 자동 정렬**합니다. 충돌이 발생하면 파일별로 `feature / base / 직접편집` 중 선택하는 인터랙티브 해결 흐름으로 넘어갑니다.
+
+### 4. WIP 히스토리 보존
+
+Squash merge 후 워크트리 브랜치는 삭제되지만, WIP 커밋 히스토리는 태그로 보존됩니다:
+
+```
+archive/feat/sprint3/PLAT-101-wip-20260326
+```
+
+깔끔한 피처 브랜치 히스토리와 복원 가능한 작업 흔적을 동시에 유지합니다.
+
+---
+
+## 구조적 특이사항
+
+### 스크립트와 Claude의 역할 분리
+
+모든 git 조작은 Python 스크립트가 담당하고, Claude는 스크립트 출력을 해석해 사용자에게 전달합니다. Claude가 직접 `git merge`나 `git reset`을 실행하는 것을 **에이전트 정의 수준에서 금지**합니다.
+
+```
+exit 0 → 다음 스텝 진행
+exit 1 → reason 그대로 출력 후 STOP (우회 금지)
+exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
+```
+
+스크립트가 실패하면 Claude는 "어차피 같은 결과"라 판단하고 넘어가지 않습니다. 스텝 건너뜀 자체를 금지하는 에이전트 규칙이 있습니다.
+
+### GATE 패턴 — 사람의 확인 없이 되돌리기 어려운 작업은 실행 안 함
+
+- 플랜 수립 후 구현 시작 전: `ExitPlanMode` 게이트
+- 머지 전 커밋 메시지 확인: `AskUserQuestion` 게이트
+- 충돌 파일 처리 방식: 파일마다 `AskUserQuestion` 게이트
+
+자동화하되, 되돌리기 어려운 시점에는 반드시 사람이 개입합니다.
+
+### 플랜 재사용
+
+같은 이슈로 재진입하면 저장된 플랜을 먼저 보여주고 `yes / 재플랜 / 수정 {내용}` 중 선택하게 합니다. 세션이 끊겨도 플랜 컨텍스트가 유지됩니다.
+
+### code-review-graph 연동 — Fallback 포함
+
+코드 의존성 그래프가 없으면 Claude가 직접 Glob/Grep으로 탐색하는 fallback이 있어 그래프 없이도 동작합니다. 그래프가 있을 때는 `semantic_search_nodes_tool` → `get_impact_radius_tool` 순서로 연쇄 호출해 변경 파일의 의존 범위를 2-hop까지 추적합니다.
+
+---
+
+## 워크플로우
+
+```
+/worktree-flow:init               # 최초 1회: 의존 플러그인 확인 및 그래프 빌드
+
+/worktree-flow:plan PLAT-101      # 워크트리 생성 → 플랜 수립 → 사용자 승인 → 구현
+/worktree-flow:plan PLAT-102      # 동시에 다른 이슈도 작업 가능 (별도 워크트리)
+
+/worktree-flow:status             # 활성 워크트리 현황 확인
+
+/worktree-flow:merge feat/sprint3 # 충돌 예측 → 커밋 메시지 제안 → 승인 → squash merge → 정리
+```
+
+```mermaid
+flowchart TD
+    Start(["이슈 시작\n/worktree-flow:plan PLAT-101"])
+
+    subgraph PLAN ["📋 플랜 단계"]
+        WT["워크트리 생성\n.worktrees/PLAT-101/"]
+        LoadIssue["이슈 명세서 로드\n.docs/task/.../PLAT-101.md"]
+        HasPlan{기존 플랜?}
+        Graph["code-review-graph\n영향 파일 분석"]
+        Fallback["fallback\nGlob/Grep 직접 탐색"]
+        WritePlan["플랜 작성\n영향 파일 · 구현 순서 · 커밋 단위"]
+        GATE1{{"🔒 GATE\n사용자 승인 (ExitPlanMode)"}}
+    end
+
+    subgraph IMPL ["⚙️ 구현 단계"]
+        Code["플랜 순서대로 코드 수정"]
+        WIP["Stop 훅 → WIP 자동 커밋\nClaude가 커밋 메시지 생성"]
+    end
+
+    subgraph MERGE ["🔀 머지 단계\n/worktree-flow:merge feat/sprint3"]
+        DryRun["Dry-run: 충돌 예측\n충돌 적은 순으로 정렬"]
+        MsgSuggest["AI 커밋 메시지 제안\nWIP 커밋 분석 → squash 메시지"]
+        GATE2{{"🔒 GATE\n커밋 메시지 승인"}}
+        Squash["Squash merge 실행"]
+        Conflict{충돌?}
+        Resolve{{"🔒 GATE\n파일별 해결 선택\nfeature / base / 직접편집"}}
+        Cleanup["워크트리 삭제\nWIP 태그 보존\narchive/{피처}/{이슈키}-wip-YYYYMMDD"]
+    end
+
+    Done(["피처 브랜치 완성"])
+
+    Start --> WT --> LoadIssue --> HasPlan
+    HasPlan -- "없음" --> Graph
+    HasPlan -- "있음" --> GATE1
+    Graph -- "성공" --> WritePlan
+    Graph -- "실패" --> Fallback --> WritePlan
+    WritePlan --> GATE1
+    GATE1 -- "승인" --> Code
+    GATE1 -- "거절" --> Start
+
+    Code --> WIP
+    WIP -- "추가 작업" --> Code
+    WIP -- "완료" --> DryRun
+
+    DryRun --> MsgSuggest --> GATE2
+    GATE2 -- "승인" --> Squash
+    GATE2 -- "수정" --> MsgSuggest
+    Squash --> Conflict
+    Conflict -- "없음" --> Cleanup
+    Conflict -- "있음" --> Resolve --> Squash
+    Cleanup --> Done
+
+    style GATE1 fill:#f59e0b,color:#000
+    style GATE2 fill:#f59e0b,color:#000
+    style Resolve fill:#f59e0b,color:#000
+    style PLAN fill:#1e3a5f,color:#fff
+    style IMPL fill:#1a3a2a,color:#fff
+    style MERGE fill:#3a1a2a,color:#fff
+```
+
+---
 
 ## 디렉토리 구조
 
-- `.worktrees/{이슈키}/`: 워크트리 경로
-- `feat/{피처}--wt-{이슈키}`: 워크트리 전용 임시 브랜치
-- `archive/{이슈키}-wip-{날짜}`: 머지 후 WIP 히스토리 보존 태그
+```
+.worktrees/
+└── PLAT-101/           ← 워크트리 경로 (feat/sprint3--wt-PLAT-101 브랜치)
+
+archive/
+└── PLAT-101-wip-20260326  ← 머지 후 보존되는 WIP 히스토리 태그
+```
+
+---
+
+## 설치
+
+```
+/plugin marketplace add <owner>/<repo>
+/plugin install worktree-flow@<marketplace-name>
+/worktree-flow:init
+```
+
+의존 플러그인: [code-review-graph](https://github.com/tirth8205/code-review-graph) (선택 — 없으면 fallback 탐색으로 동작)
