@@ -149,9 +149,16 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 ```
 .worktrees/
 └── PLAT-101/           ← 워크트리 경로 (feat/sprint3--wt-PLAT-101 브랜치)
+```
 
-archive/
-└── PLAT-101-wip-20260326  ← 머지 후 보존되는 WIP 히스토리 태그
+머지 후 WIP 히스토리는 git 태그로 보존됩니다 (파일시스템 폴더 아님):
+
+```
+# 태그 조회
+git tag --list 'archive/feat/sprint3/*'
+
+archive/feat/sprint3/PLAT-101-wip-20260326
+archive/feat/sprint3/PLAT-102-wip-20260326
 ```
 
 ---
