@@ -21,23 +21,18 @@ def get_current_branch(root):
     return out
 
 def get_tasks_from_md(root, feature):
-    parts = feature.lower().split('/')
-    sub_dirs = [p.strip().replace(' ', '-') for p in parts[:-1]]
-    filename = f"{parts[-1].strip().replace(' ', '-')}.md"
-    paths = [
-        os.path.join(root, ".docs", "task", *sub_dirs, filename),
-        os.path.join(root, "docs", "task", *sub_dirs, filename),
-        os.path.join(root, ".docs", "task", f"{feature.replace('/', '-')}.md"),
-        os.path.join(root, "docs", "task", f"{feature.replace('/', '-')}.md")
-    ]
+    """fe-task-extractor 구조: .docs/task/{feature}/.state/*.published 기준으로 이슈 탐색"""
     tasks = []
-    for path in paths:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read()
-                matches = re.findall(r"\*\*jira\*\*\s*:\s*([A-Z]+-[0-9]+)", content)
-                for m in matches:
-                    if m not in tasks: tasks.append(m)
+    for base in [os.path.join(root, ".docs", "task"), os.path.join(root, "docs", "task")]:
+        state_dir = os.path.join(base, feature.replace("/", os.sep), ".state")
+        if not os.path.isdir(state_dir):
+            continue
+        for fname in sorted(os.listdir(state_dir)):
+            if not fname.endswith(".published") and not fname.endswith(".synced"):
+                continue
+            issue_key = fname.rsplit(".", 1)[0]  # 확장자 제거
+            if issue_key not in tasks:
+                tasks.append(issue_key)
     return tasks
 
 GITIGNORE_ENTRIES = [
@@ -81,7 +76,7 @@ def main():
             print(json.dumps({
                 "status": "error",
                 "code": "NO_TASKS_FOUND",
-                "reason": f"'.docs/task/{feature}.md' 에서 이슈 번호를 찾을 수 없고, 인자로도 전달되지 않았습니다."
+                "reason": f"'.docs/task/{feature}/.state/'에 PUBLISHED 이슈가 없고, 인자로도 전달되지 않았습니다. /fe-task-extractor:fetch를 먼저 실행하세요."
             }, ensure_ascii=False))
             sys.exit(1)
 

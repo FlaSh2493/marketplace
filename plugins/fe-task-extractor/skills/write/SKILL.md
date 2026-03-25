@@ -79,11 +79,12 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
     ```
 
   1-6. 완료 마커 저장 (Write 도구)
-    Write: `.docs/task/{branch}/.state/{이슈키}.pending`
+    Jira에서 불러온 이슈는 이미 Jira에 존재하므로 PUBLISHED 상태로 저장:
+    Write: `.docs/task/{branch}/.state/{이슈키}.published`
     내용: `{"issue": "{이슈키}", "written_at": "{현재시각}"}`
 
 STEP 2: 완료 알림
-  notify_user("문서 작성 완료 [{이슈키 목록}]: Main에서 /fe-task-extractor:publish 실행")
+  notify_user("문서 작성 완료 [{이슈키 목록}]: /worktree-flow:create로 워크트리 생성 가능")
 
 [TERMINATE]
 내용 요약·추가·해석 금지. Jira 원본만 마크다운으로 변환한다.

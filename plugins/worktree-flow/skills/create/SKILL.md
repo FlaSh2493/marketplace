@@ -1,6 +1,6 @@
 ---
 name: create
-description: 피처 브랜치에서 이슈별 워크트리를 생성하고 Planner 에이전트를 런칭한다.
+description: 피처 브랜치에서 이슈별 워크트리를 생성한다. 플랜 진행 여부는 사용자가 선택한다.
 ---
 
 # Worktree Create
@@ -46,11 +46,24 @@ STEP 2: 결과 보고
   ```
   (.wip-active 자동 생성됨 — 수동 활성화 불필요)
 
-STEP 3: Planner 에이전트 런칭
-  생성된 각 이슈에 대해 헤드리스 Planner 에이전트 런칭:
+[GATE] STEP 3: 플랜 진행 여부 선택
+  실행: AskUserQuestion("워크트리 생성이 완료됐습니다.\n플랜을 어떻게 진행할까요?\n- all: 모든 이슈 플랜을 지금 바로 병렬 시작\n- {이슈키...}: 선택한 이슈만 플랜 시작 (예: PROJ-101 PROJ-102)\n- no: 플랜 없이 종료 (나중에 /worktree-flow:plan {이슈키}로 직접 실행)")
+  [LOCK: 응답 전 플랜 에이전트 런칭 금지]
+
+  응답 "no":
+    출력: "완료. 작업할 워크트리에서 /worktree-flow:plan {이슈키}를 실행하세요."
+    [TERMINATE]
+
+  응답 "all":
+    대상 이슈 = 생성된 전체 워크트리 이슈 목록
+
+  응답 "{이슈키...}":
+    대상 이슈 = 응답에서 파싱한 이슈 키 목록
+
+  대상 이슈에 대해 헤드리스 Planner 에이전트 병렬 런칭:
     - 에이전트: wt-manager (planner 역할)
-    - 작업 디렉토리: {워크트리 경로}
-    - 프롬프트: "/worktree-flow:plan {issue}"
+    - 작업 디렉토리: .worktrees/{이슈키}/
+    - 프롬프트: "/worktree-flow:plan {이슈키}"
   출력: "Planner 에이전트 {N}개 시작됨. 플랜 완료 시 알림 예정."
 
 [TERMINATE]
