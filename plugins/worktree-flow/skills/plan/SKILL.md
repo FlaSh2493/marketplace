@@ -15,17 +15,25 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 STEP 1: 워크트리 생성 및 진입
   EnterWorktree 실행 (name: {이슈키})
+  이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
 
-STEP 2: 기존 플랜 확인
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --section 플랜`
-  성공 (플랜 있음): data.content를 컨텍스트로 보관 → STEP 3-B 진행
-  실패 (플랜 없음): STEP 3-A 진행
-
-STEP 3-A: 신규 플랜 작성 (플랜 없을 때)
+STEP 2: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
 
+  [GATE] AskUserQuestion("이슈 명세를 불러왔습니다. 플랜 작성 전에 추가로 전달할 내용이 있으면 입력하세요.\n(없으면 엔터)")
+  응답이 비어있지 않은 경우:
+    입력 내용을 분석하여 성격 판단:
+      - 요구사항 성격 (새 기능, 조건 추가 등): 이슈 md 요구사항 섹션에 반영 예정으로 표시
+      - 플랜 힌트 성격 (방식, 제약 조건 등): 플랜 컨텍스트에만 포함
+    요구사항 반영이 있는 경우:
+      반영할 내용을 사용자에게 표시
+      [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
+      수정 입력 시: 반영 후 재표시 → 게이트 반복
+      확인 시: `echo "{요구사항}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_section.py {이슈키} 요구사항`
+
+STEP 3: 플랜 작성
   EnterPlanMode 실행
 
   영향 범위 분석:
@@ -61,16 +69,6 @@ STEP 3-A: 신규 플랜 작성 (플랜 없을 때)
 
   ExitPlanMode 실행 (승인 시 STEP 4 진행 / 거절 시 TERMINATE)
 
-STEP 3-B: 기존 플랜 재사용 (플랜 있을 때)
-  저장된 플랜을 사용자에게 표시
-  [GATE] AskUserQuestion("기존 플랜이 있습니다.\n- yes: 이 플랜으로 구현\n- 재플랜: 플랜을 새로 작성\n- 수정 {내용}: 플랜 일부 수정 후 구현")
-
-  응답 "yes": STEP 5 진행 (이슈 로드·분석 생략)
-  응답 "재플랜": STEP 3-A 진행
-  응답 "수정 {내용}":
-    수정 내용 반영하여 플랜 업데이트
-    STEP 4 진행
-
 STEP 4: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
   실패: reason 그대로 출력 후 [STOP]
@@ -82,6 +80,15 @@ STEP 5: 구현 실행
   중간 실패 시: [STOP]
 
 STEP 6: 완료
-  출력: "구현 완료 [{이슈키}]. 추가 수정은 /worktree-flow:plan {이슈키} 재실행, 머지는 /worktree-flow:merge {피처브랜치}"
-
-[TERMINATE]
+  출력: "구현 완료 [{이슈키}]."
+  [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
+  입력 있음:
+    입력 내용을 분석하여 성격 판단:
+      - 요구사항 성격: 반영할 내용을 사용자에게 표시
+        [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
+        수정 입력 시: 반영 후 재표시 → 게이트 반복
+        확인 시: `echo "{요구사항}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_section.py {이슈키} 요구사항`
+      - 플랜 힌트 성격: 플랜 컨텍스트에만 포함
+    → STEP 3 진행 (이슈 명세 재로드 생략)
+  '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]
+  엔터: [TERMINATE]

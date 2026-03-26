@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-이슈 폴더에 plan-N.md 파일을 순번으로 생성.
-Usage: python3 write_plan.py {issue} (플랜 내용을 stdin으로 전달)
+이슈 폴더의 requirements.md에 내용을 추가.
+Usage: python3 write_section.py {issue} {섹션명} (내용을 stdin으로 전달)
 """
-import json, os, sys, glob, re
+import json, os, sys, glob
 
 def find_git_root():
     import subprocess
@@ -21,15 +21,6 @@ def find_issue_dir(root, issue):
                 return d
     return None
 
-def next_plan_index(issue_dir):
-    existing = glob.glob(os.path.join(issue_dir, "plan-*.md"))
-    indices = []
-    for f in existing:
-        m = re.search(r"plan-(\d+)\.md$", f)
-        if m:
-            indices.append(int(m.group(1)))
-    return max(indices) + 1 if indices else 1
-
 def ok(msg):
     print(json.dumps({"status": "ok", "data": {"message": msg}}, ensure_ascii=False))
     sys.exit(0)
@@ -39,13 +30,14 @@ def error(code, reason):
     sys.exit(1)
 
 def main():
-    if len(sys.argv) < 2:
-        error("MISSING_ARGS", "사용법: write_plan.py {issue}  (내용은 stdin)")
+    if len(sys.argv) < 3:
+        error("MISSING_ARGS", "사용법: write_section.py {issue} {섹션명}  (내용은 stdin)")
 
     issue = sys.argv[1]
-    plan_content = sys.stdin.read().strip()
-    if not plan_content:
-        error("EMPTY_PLAN", "플랜 내용이 비어 있습니다")
+    section = sys.argv[2]
+    new_content_text = sys.stdin.read().strip()
+    if not new_content_text:
+        error("EMPTY_CONTENT", "내용이 비어 있습니다")
 
     root = find_git_root()
     if not root:
@@ -55,13 +47,19 @@ def main():
     if not issue_dir:
         error("ISSUE_NOT_FOUND", f"{issue} 폴더를 찾을 수 없습니다")
 
-    index = next_plan_index(issue_dir)
-    file_path = os.path.join(issue_dir, f"plan-{index}.md")
+    req_path = os.path.join(issue_dir, "requirements.md")
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(plan_content)
+    if os.path.exists(req_path):
+        with open(req_path, encoding="utf-8") as f:
+            content = f.read()
+        content = content.rstrip() + f"\n\n## {section}\n{new_content_text}\n"
+    else:
+        content = f"## {section}\n{new_content_text}\n"
 
-    ok(f"{issue} plan-{index}.md 저장 완료: {file_path}")
+    with open(req_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    ok(f"{issue} requirements.md 업데이트 완료: {req_path}")
 
 if __name__ == "__main__":
     main()

@@ -78,7 +78,7 @@ def main():
         pattern = os.path.join(state_dir, f"*.{ext}")
         for state_file in glob.glob(pattern):
             issue_key = os.path.splitext(os.path.basename(state_file))[0]
-            md_path = os.path.join(task_dir, f"{issue_key}.md")
+            md_path = os.path.join(task_dir, issue_key, f"{issue_key}.md")
             title = get_issue_title(md_path) if os.path.exists(md_path) else "(파일 없음)"
             tasks.append({
                 "issue": issue_key,

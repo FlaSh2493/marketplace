@@ -91,11 +91,12 @@ def main():
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
     task_dir = os.path.join(root, ".docs", "task", args.branch.replace("/", os.sep))
-    os.makedirs(task_dir, exist_ok=True)
-    os.makedirs(os.path.join(task_dir, "assets"), exist_ok=True)
+    issue_dir = os.path.join(task_dir, args.issue_key)
+    os.makedirs(issue_dir, exist_ok=True)
+    os.makedirs(os.path.join(issue_dir, "assets"), exist_ok=True)
     os.makedirs(os.path.join(task_dir, ".state"), exist_ok=True)
 
-    file_path = os.path.join(task_dir, f"{args.issue_key}.md")
+    file_path = os.path.join(issue_dir, f"{args.issue_key}.md")
     created_at = args.created_at or datetime.now().strftime("%Y-%m-%d %H:%M")
 
     content = build_content(

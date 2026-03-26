@@ -24,19 +24,19 @@ def main():
     results = []
 
     for task_id, jira_key in keys_map.items():
-        # 기존 파일 찾기: FE-XX.md
-        old_filename = f"{task_id}.md"
-        old_path = os.path.join(args.dir_path, old_filename)
+        # 기존 폴더 찾기: FE-XX/
+        old_dir = os.path.join(args.dir_path, task_id)
+        old_file = os.path.join(old_dir, f"{task_id}.md")
 
-        if not os.path.exists(old_path):
-            results.append({"task_id": task_id, "jira_key": jira_key, "status": "file_not_found", "old": old_filename})
+        if not os.path.exists(old_dir):
+            results.append({"task_id": task_id, "jira_key": jira_key, "status": "file_not_found", "old": task_id})
             continue
 
         # 파일 내용 읽기
-        with open(old_path, 'r', encoding='utf-8') as f:
+        with open(old_file, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # 1. 제목의 FE-XX를 JIRA-KEY로 교체: # FE-01: {제목} → # PROJ-101: {제목}
+        # 1. 제목의 FE-XX를 JIRA-KEY로 교체
         content = re.sub(
             rf"^# {re.escape(task_id)}: ",
             f"# {jira_key}: ",
@@ -51,20 +51,21 @@ def main():
             content
         )
 
-        # 3. 파일 저장
-        with open(old_path, 'w', encoding='utf-8') as f:
+        # 3. 파일명 변경: FE-01.md → PROJ-101.md (폴더 안에서)
+        new_file = os.path.join(old_dir, f"{jira_key}.md")
+        with open(new_file, 'w', encoding='utf-8') as f:
             f.write(content)
+        if new_file != old_file:
+            os.remove(old_file)
 
-        # 4. 파일 리네임: FE-01.md → PROJ-101.md
-        new_filename = f"{jira_key}.md"
-        new_path = os.path.join(args.dir_path, new_filename)
-
-        if os.path.exists(new_path):
-            results.append({"task_id": task_id, "jira_key": jira_key, "status": "rename_conflict", "old": old_filename, "new": new_filename})
+        # 4. 폴더 리네임: FE-01/ → PROJ-101/
+        new_dir = os.path.join(args.dir_path, jira_key)
+        if os.path.exists(new_dir):
+            results.append({"task_id": task_id, "jira_key": jira_key, "status": "rename_conflict", "old": task_id, "new": jira_key})
             continue
 
-        os.rename(old_path, new_path)
-        results.append({"task_id": task_id, "jira_key": jira_key, "status": "success", "old": old_filename, "new": new_filename})
+        os.rename(old_dir, new_dir)
+        results.append({"task_id": task_id, "jira_key": jira_key, "status": "success", "old": task_id, "new": jira_key})
 
     print(json.dumps({"results": results}, ensure_ascii=False))
 
