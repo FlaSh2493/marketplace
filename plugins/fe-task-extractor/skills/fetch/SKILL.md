@@ -43,6 +43,20 @@ STEP 1-B: 선택 저장
   성공: data.selected 보관
   실패: reason 그대로 출력 후 [STOP]
 
+STEP 1-C: 빈 파일 생성 (Bash)
+  선택된 각 이슈마다 파일 존재 여부 확인: `.docs/task/{branch}/{이슈키}/{이슈키}.md`
+
+  이미 존재하는 이슈가 있으면:
+    출력: "이미 로컬에 있는 이슈: {이슈키 목록}"
+    [GATE] AskUserQuestion("덮어쓸 이슈 번호를 선택하세요. (스킵하려면 엔터)")
+    선택한 이슈만 덮어쓰기 대상에 포함, 나머지 스킵
+
+  생성 대상 이슈마다:
+    실행: `echo "" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py \
+      "{branch}" "{이슈키}" "임시제목" --source jira-fetch`
+    성공: data.file_path 확인
+    실패: reason 그대로 출력 후 [STOP]
+
 STEP 2: Writer 서브에이전트 런칭
   헤드리스 Writer 에이전트 런칭:
     - 에이전트: fe-task-extractor (writer 역할)
