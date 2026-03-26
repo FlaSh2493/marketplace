@@ -66,8 +66,9 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
       ```
 
   1-4. 파일 저장 (Write 도구)
-    경로: `.docs/task/{branch}/{이슈키}.md`
+    경로: `.docs/task/{branch}/{이슈키}/{이슈키}.md`
     (디렉토리가 없으면 Write 도구가 자동 생성)
+    첨부파일은 `.docs/task/{branch}/{이슈키}/assets/` 에 저장
 
   1-5. 댓글 추가 (Edit 도구)
     1-1에서 조회한 댓글 목록을 확인한다.
