@@ -8,14 +8,18 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 **실행 주체: Main Session**
 코드 수정은 STEP 3 완료 이후부터 허용.
 
+> **[필수]** 모든 작업은 반드시 워크트리 안에서 진행한다.
+> STEP 1의 EnterWorktree 실행은 절대 건너뛸 수 없다.
+
 ## 사용법
 `/worktree-flow:work {이슈키} {요구사항}`
 
 ## 실행 절차
 
-STEP 1: 워크트리 생성 및 진입
+STEP 1: 워크트리 진입 [필수 — 건너뛰기 금지]
   EnterWorktree 실행 (name: {이슈키})
   이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  **EnterWorktree 성공 확인 후에만 다음 단계로 진행한다.**
 
 STEP 2: 플랜 작성
   EnterPlanMode 실행

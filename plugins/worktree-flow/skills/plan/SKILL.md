@@ -8,14 +8,19 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 **실행 주체: Main Session**
 코드 수정은 ExitPlanMode 승인 이후에만 허용.
 
+> **[필수]** 모든 작업은 반드시 워크트리 안에서 진행한다.
+> STEP 1의 EnterWorktree 실행은 절대 건너뛸 수 없다.
+
 ## 사용법
+
 `/worktree-flow:plan {이슈키}`
 
 ## 실행 절차
 
-STEP 1: 워크트리 생성 및 진입
+STEP 1: 워크트리 진입 [필수 — 건너뛰기 금지]
   EnterWorktree 실행 (name: {이슈키})
   이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  **EnterWorktree 성공 확인 후에만 다음 단계로 진행한다.**
 
 STEP 2: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
