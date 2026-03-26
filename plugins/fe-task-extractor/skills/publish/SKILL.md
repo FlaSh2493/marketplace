@@ -24,7 +24,7 @@ STEP 1: Pending 파일 탐색 및 검증
   결과가 없으면: "검증할 파일이 없습니다." 출력 후 STEP 2로 바로 이동
 
   각 pending 이슈마다:
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_template.py {task_dir}/{이슈키}.md`
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_template.py {task_dir}/{이슈키}/{이슈키}.md`
     성공: 통과
     실패: reason 출력 후 [STOP] — 파일을 수정한 뒤 다시 실행
 
@@ -81,10 +81,10 @@ STEP 6: 완료 보고
   ```
   ✅ Jira 등록 완료
 
-  | 기존 파일 | Jira Key  | 작업 제목        |
-  |---------|-----------|----------------|
-  | FE-01.md | PROJ-101 | 로그인 폼 UI    |
-  | FE-02.md | PROJ-102 | 목록 페이지 구현 |
+  | 기존 폴더   | Jira Key  | 작업 제목        |
+  |-----------|-----------|----------------|
+  | FE-01/    | PROJ-101  | 로그인 폼 UI    |
+  | FE-02/    | PROJ-102  | 목록 페이지 구현 |
   ```
 
 [TERMINATE]

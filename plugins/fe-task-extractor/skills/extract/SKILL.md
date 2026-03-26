@@ -63,7 +63,7 @@ STEP 2: 파일 저장 (Write 도구)
 
   ---
   ```
-  Write 경로: `.docs/task/{branch}/FE-{N}.md`
+  Write 경로: `.docs/task/{branch}/FE-{N}/FE-{N}.md`
 
   저장 후 각 파일마다 pending 마커:
   Write: `.docs/task/{branch}/.state/FE-{N}.pending`
