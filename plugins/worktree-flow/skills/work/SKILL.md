@@ -6,22 +6,25 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 # Worktree Work
 
 **실행 주체: Main Session**
-코드 수정은 STEP 3 완료 이후부터 허용.
-
-> **[필수]** 모든 작업은 반드시 워크트리 안에서 진행한다.
-> STEP 1의 EnterWorktree 실행은 절대 건너뛸 수 없다.
+코드 수정은 STEP 1 완료 이후부터 허용.
 
 ## 사용법
 `/worktree-flow:work {이슈키} {요구사항}`
 
+## ⚠️ 초기화 — 실행 절차 진입 전 필수
+
+**지금 즉시 EnterWorktree를 호출하라. 다른 어떤 작업도 그 이전에 하지 않는다.**
+
+  EnterWorktree (name: {이슈키})
+  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  - 성공: 아래 실행 절차로 진행
+  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+
+---
+
 ## 실행 절차
 
-STEP 1: 워크트리 진입 [필수 — 건너뛰기 금지]
-  EnterWorktree 실행 (name: {이슈키})
-  이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-  **EnterWorktree 성공 확인 후에만 다음 단계로 진행한다.**
-
-STEP 2: 플랜 작성
+STEP 1: 플랜 작성
   EnterPlanMode 실행
 
   영향 범위 분석:
@@ -55,9 +58,9 @@ STEP 2: 플랜 작성
     - [ ] {항목}
     ```
 
-  ExitPlanMode 실행 (승인 시 STEP 3 진행 / 거절 시 TERMINATE)
+  ExitPlanMode 실행 (승인 시 STEP 2 진행 / 거절 시 TERMINATE)
 
-STEP 3: 이슈 문서 업데이트
+STEP 2: 이슈 문서 업데이트
   요구사항 섹션 업데이트 내용을 사용자에게 표시
   [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
   수정 입력 시: 해당 내용 반영 후 재표시 → 게이트 반복
@@ -66,15 +69,15 @@ STEP 3: 이슈 문서 업데이트
     플랜 저장: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 4: 구현 실행
+STEP 3: 구현 실행
   "구현 순서" 각 항목을 순서대로:
-    4-1. 해당 파일 현재 상태 읽기
-    4-2. 플랜 명세대로 코드 수정
+    3-1. 해당 파일 현재 상태 읽기
+    3-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
-STEP 5: 완료
+STEP 4: 완료
   출력: "구현 완료 [{이슈키}]."
   [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
-  입력 있음: 해당 내용을 새 요구사항으로 보관 → STEP 2 진행
+  입력 있음: 해당 내용을 새 요구사항으로 보관 → STEP 1 진행
   '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]
   엔터: [TERMINATE]

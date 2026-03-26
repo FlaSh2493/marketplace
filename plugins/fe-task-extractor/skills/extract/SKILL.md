@@ -1,6 +1,6 @@
 ---
 name: extract
-description: Writer 서브에이전트 전용. 기획서·PRD·요구사항 문서에서 프론트엔드 작업만 식별·추출하여 작업 명세를 생성한다. 파일 저장은 반드시 create_task_file.py 스크립트로 한다.
+description: Writer 서브에이전트 전용. 기획서·PRD·요구사항 문서에서 프론트엔드 작업만 식별·추출하여 작업 명세를 생성한다.
 ---
 
 # Frontend Task Extract
