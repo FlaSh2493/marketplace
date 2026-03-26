@@ -1,6 +1,6 @@
 ---
 name: write
-description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈를 원본 그대로 로컬 문서로 변환한다. Bash 없이 Read/Write/MCP만 사용한다.
+description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈를 원본 그대로 로컬 문서로 변환한다. 파일 저장은 반드시 create_task_file.py 스크립트로 한다.
 ---
 
 # Frontend Task Write
@@ -34,41 +34,21 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
     Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-example.md`
     포맷과 필드 순서 파악
 
-  1-3. 마크다운 변환 (Claude 역할 — 유일한 자유 구간)
+  1-3. ADF → 마크다운 변환 (Claude 역할 — 유일한 자유 구간)
     - Jira ADF → 마크다운 변환
     - 요약 금지. 원본 구조(리스트, 테이블, 코드블록) 보존
-    - 템플릿의 필드 순서와 구조 그대로 적용:
-      ```
-      # {이슈키}: {summary}
+    - description, deps, api, states 값 추출
 
-      - jira: {이슈키}
-      - 상태: {status}
-      - 담당자: {assignee}
-      - 생성일: {created}
-      - 최근 업데이트: {현재시각}
-      - 출처: jira-fetch
-
-      ---
-
-      ## 설명
-
-      {description 전문 — ADF→마크다운, 요약 금지}
-
-      ---
-
-      ## 메타데이터
-
-      - deps: {파싱 결과 또는 없음}
-      - api: {파싱 결과 또는 없음}
-      - states: {파싱 결과 또는 없음}
-
-      ---
-      ```
-
-  1-4. 파일 저장 (Write 도구)
-    경로: `.docs/task/{branch}/{이슈키}/{이슈키}.md`
-    (디렉토리가 없으면 Write 도구가 자동 생성)
-    첨부파일은 `.docs/task/{branch}/{이슈키}/assets/` 에 저장
+  1-4. 파일 저장 (Bash — create_task_file.py 필수)
+    ```
+    echo "{description 마크다운}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py \
+      "{branch}" "{이슈키}" "{summary}" \
+      --status "{status}" --assignee "{assignee}" \
+      --source jira-fetch --created-at "{created}" \
+      --deps "{deps}" --api "{api}" --states "{states}"
+    ```
+    성공: data.file_path 확인
+    실패: reason 그대로 출력 후 [STOP]
 
   1-5. 댓글 추가 (Edit 도구)
     1-1에서 조회한 댓글 목록을 확인한다.

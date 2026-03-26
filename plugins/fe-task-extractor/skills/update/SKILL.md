@@ -1,6 +1,6 @@
 ---
 name: update
-description: Writer 서브에이전트 전용. 로컬에서 수정된 마크다운 파일의 내용을 Jira 이슈에 동기화한다. Bash 없이 Read/Glob/MCP만 사용한다.
+description: Writer 서브에이전트 전용. 로컬에서 수정된 마크다운 파일의 내용을 Jira 이슈에 동기화한다.
 ---
 
 # Frontend Task Update

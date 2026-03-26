@@ -1,6 +1,6 @@
 ---
 name: extract
-description: Writer 서브에이전트 전용. 기획서·PRD·요구사항 문서에서 프론트엔드 작업만 식별·추출하여 작업 명세를 생성한다. Bash 없이 Read/Write만 사용한다.
+description: Writer 서브에이전트 전용. 기획서·PRD·요구사항 문서에서 프론트엔드 작업만 식별·추출하여 작업 명세를 생성한다. 파일 저장은 반드시 create_task_file.py 스크립트로 한다.
 ---
 
 # Frontend Task Extract
@@ -35,38 +35,19 @@ STEP 1: FE 작업 식별 (Claude 역할)
   1-4. 의존관계·API 매핑
     각 작업의 선행/후행, 연동 API 기록
 
-STEP 2: 파일 저장 (Write 도구)
-  각 작업마다 템플릿 형식 그대로:
+STEP 2: 파일 저장 (Bash — create_task_file.py 필수)
+  각 작업마다:
   ```
-  # FE-{N}: {작업 제목}
-
-  - jira: 미생성
-  - 상태: 신규
-  - 담당자: @본인
-  - 생성일: {현재시각}
-  - 최근 업데이트: {현재시각}
-  - 출처: extract
-
-  ---
-
-  ## 설명
-
-  {설명 — 원문 기반, 구현 방법 제외}
-
-  ---
-
-  ## 메타데이터
-
-  - deps: {선행→후행 또는 없음}
-  - api: {API 또는 없음}
-  - states: {상태 흐름 또는 없음}
-
-  ---
+  echo "{설명}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py \
+    "{branch}" "FE-{N}" "{작업 제목}" \
+    --source extract \
+    --deps "{deps}" --api "{api}" --states "{states}"
   ```
-  Write 경로: `.docs/task/{branch}/FE-{N}/FE-{N}.md`
+  성공: data.file_path 확인
+  실패: reason 그대로 출력 후 [STOP]
 
-  저장 후 각 파일마다 pending 마커:
-  Write: `.docs/task/{branch}/.state/FE-{N}.pending`
+  저장 후 각 파일마다 pending 마커 (Bash):
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} FE-{N} NONE PENDING`
 
 [GATE] STEP 3: 작업 목록 승인
   저장된 파일 목록을 표로 출력:
