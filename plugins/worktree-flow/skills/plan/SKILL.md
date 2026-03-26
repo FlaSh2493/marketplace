@@ -7,6 +7,7 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 **실행 주체: Main Session**
 코드 수정은 ExitPlanMode 승인 이후에만 허용.
+`{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
 
@@ -39,7 +40,13 @@ STEP 1: 이슈 명세 로드
       반영할 내용을 사용자에게 표시
       [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
       수정 입력 시: 반영 후 재표시 → 게이트 반복
-      확인 시: `echo "{요구사항}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_section.py {이슈키} 요구사항`
+      확인 시: Edit 도구로 `.docs/task/{branch}/{이슈키}/{이슈키}.md` 파일 끝에 추가:
+        ```
+        ## 추가 요구사항
+
+        {요구사항 내용}
+        ```
+        (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
 
 STEP 2: 플랜 작성
   EnterPlanMode 실행
@@ -95,7 +102,13 @@ STEP 5: 완료
       - 요구사항 성격: 반영할 내용을 사용자에게 표시
         [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
         수정 입력 시: 반영 후 재표시 → 게이트 반복
-        확인 시: `echo "{요구사항}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_section.py {이슈키} 요구사항`
+        확인 시: Edit 도구로 `.docs/task/{branch}/{이슈키}/{이슈키}.md` 파일 끝에 추가:
+          ```
+          ## 추가 요구사항
+
+          {요구사항 내용}
+          ```
+          (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
       - 플랜 힌트 성격: 플랜 컨텍스트에만 포함
     → STEP 2 진행 (이슈 명세 재로드 생략)
   '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]

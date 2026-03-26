@@ -7,6 +7,7 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 
 **실행 주체: Main Session**
 코드 수정은 STEP 1 완료 이후부터 허용.
+`{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
 `/worktree-flow:work {이슈키} {요구사항}`
@@ -65,7 +66,13 @@ STEP 2: 이슈 문서 업데이트
   [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
   수정 입력 시: 해당 내용 반영 후 재표시 → 게이트 반복
   확인 시:
-    요구사항 섹션 저장: `echo "{요구사항}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_section.py {이슈키} 요구사항`
+    Edit 도구로 `.docs/task/{branch}/{이슈키}/{이슈키}.md` 파일 끝에 추가:
+      ```
+      ## 추가 요구사항
+
+      {요구사항 내용}
+      ```
+      (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
     플랜 저장: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
   실패: reason 그대로 출력 후 [STOP]
 
