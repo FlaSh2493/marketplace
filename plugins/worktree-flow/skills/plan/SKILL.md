@@ -78,8 +78,8 @@ STEP 1: 플랜 작성 ← 루프 재진입 시 여기부터
        성공: 영향 파일 목록 확보 → 5번 진행
        실패: fallback → 4번 진행
     4. [fallback] Claude가 직접 탐색
-       이슈 명세 기반으로 Glob/Grep으로 관련 파일 직접 탐색
-    5. 영향 파일 목록 기준으로 필요한 파일만 Read (CWD가 워크트리이므로 상대경로 사용)
+       이슈 명세 기반으로 Bash에서 `cd {data.worktree_path} && rg {패턴}` 으로 직접 탐색
+    5. 영향 파일 목록 기준으로 필요한 파일만 Read (`{data.worktree_path}/파일경로` 절대경로 사용)
 
   플랜 작성:
     ```
