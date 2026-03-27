@@ -48,7 +48,8 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 **구현 완료 후**: AskUserQuestion에 다음 선택지를 제시:
 ```
 구현이 완료되었습니다. 다음 중 선택하세요:
-1. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
-2. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
-3. 추가 작업 계속
+1. `/autopilot:check` — lint, type-check, test 검사 실행 (오류 시 자동 수정)
+2. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
+3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
+4. 추가 작업 계속
 ```

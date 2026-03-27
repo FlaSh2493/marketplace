@@ -28,7 +28,7 @@
 | `jira-report` | JIRA 분기별 Kanban 티켓 목록 및 스토리포인트 리포트 | `/jira-report:create` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정(메인/서브) 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `task-sync` | 작업 명세와 Jira 양방향 동기화 (추출·조회·발행·업데이트) | `/task-sync:extract`, `/task-sync:fetch`, `/task-sync:publish`, `/task-sync:update` | 0.1.0 |
-| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·머지 | `/autopilot:plan`, `/autopilot:work`, `/autopilot:merge`, `/autopilot:status` | 0.1.0 |
+| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·머지 | `/autopilot:plan`, `/autopilot:work`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
 
 ## 스킬 이름 규칙
