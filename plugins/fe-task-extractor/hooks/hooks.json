@@ -2,7 +2,7 @@
   "hooks": {
     "PermissionRequest": [
       {
-        "matcher": "mcp__mcp-atlassian__*",
+        "matcher": "mcp__atlassian__*",
         "hooks": [
           {
             "type": "command",
