@@ -101,7 +101,10 @@ STEP 5: Squash merge 실행
       응답 "base": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' base`
       응답 "직접편집":
         [GATE] AskUserQuestion("편집 완료 후 'done' 입력")
-        사용자가 'done' 입력 시: `git add -- '{파일명}'` 실행 (resolve_conflict.py 불필요)
+        사용자가 'done' 입력 시:
+          `grep -c "^<<<<<<< " '{파일명}'` 실행
+          exit 0 이면 (마커 존재): "충돌 마커(<<<<<<<)가 아직 남아있습니다. 파일을 다시 확인하세요." 출력 후 → [GATE] 반복
+          exit 1 이면 (마커 없음): `git add -- '{파일명}'` 실행
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --message "$(cat /tmp/merge_msg_{이슈키}.txt)" --continue`
     (--continue 시에는 /tmp/merge_msg_{이슈키}.txt가 이미 STEP 5에서 작성된 상태)
 
