@@ -16,13 +16,18 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 ## 전제조건 — 워크트리 진입 (완료 전까지 아래로 절대 넘어가지 않는다)
 
 1. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}` 실행
-   성공: data.worktree_path, data.branch, data.root_path, data.base_branch 보관
+   성공: data.worktree_path, data.branch, data.issue_doc_root, data.base_branch 보관
    실패: reason 출력 후 [STOP]
 2. `cd {data.worktree_path} && pwd && git branch --show-current` 실행하여 경로·브랜치 확인
 
-**중요**: Claude Bash 도구는 각 명령마다 새 셸을 생성하므로, 이후 모든 작업에서:
-- 파일 작업: `{data.worktree_path}/` prefix 절대경로 사용
-- Bash/git 명령: 매번 `cd {data.worktree_path} && command` 형태로 실행
+**중요 — 경로 규칙**: Claude Bash 도구는 각 명령마다 새 셸을 생성한다.
+
+| 작업 | 경로 |
+|------|------|
+| **코드** Read/Edit/Write/Glob/Grep | `{data.worktree_path}/파일경로` |
+| **Bash/git** 명령 | `cd {data.worktree_path} && command` |
+
+**⚠ `data.issue_doc_root`는 이슈 문서 접근 전용이다. 코드 파일에 이 경로를 사용하면 피처 브랜치에 직접 수정이 발생한다. 코드 작업은 반드시 `{data.worktree_path}/`만 사용한다.**
 
 ---
 

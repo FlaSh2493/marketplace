@@ -2,7 +2,7 @@
 """
 이슈 워크트리를 보장한다. 없으면 생성, 있으면 재사용.
 Usage: python3 ensure_worktree.py {issue_key}
-Exit 0: ok (data.worktree_path, data.branch, data.root_path, data.base_branch, data.created)
+Exit 0: ok (data.worktree_path, data.branch, data.issue_doc_root, data.base_branch, data.created)
 Exit 1: error
 """
 import json, os, re, subprocess, sys
@@ -14,6 +14,15 @@ def run(cmd):
 
 
 def ok(data):
+    wp = data.get("worktree_path", "")
+    if wp:
+        data["instructions"] = (
+            f"모든 코드 파일 작업에 이 경로를 사용하라: "
+            f"Read/Edit/Write → {wp}/파일경로, "
+            f"Glob/Grep path → {wp}, "
+            f"Bash/git → cd {wp} && command. "
+            f"issue_doc_root는 이슈 문서 전용이다. 코드에 사용 금지."
+        )
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False))
     sys.exit(0)
 
@@ -84,7 +93,7 @@ def main():
     branch = f"worktree-{name}"
 
     base = {"worktree_path": worktree_path, "branch": branch,
-            "root_path": root, "base_branch": current_branch}
+            "issue_doc_root": root, "base_branch": current_branch}
 
     # 이미 존재하는 워크트리인지 확인
     worktrees = list_worktrees(root)
