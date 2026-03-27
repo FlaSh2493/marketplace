@@ -116,18 +116,13 @@ STEP 5: Squash merge 실행
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --message "$(cat /tmp/merge_msg_{이슈키}.txt)" --continue`
     (--continue 시에는 /tmp/merge_msg_{이슈키}.txt가 이미 STEP 5에서 작성된 상태)
 
-STEP 6: 정리
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_worktrees.py {피처브랜치} --issues {이슈키}`
-  exit 0 (전체 성공):
-    ```
-    ┌───────────────────────────────────────────────┐
-    │ 머지 완료                                      │
-    │ 브랜치: {피처브랜치}                           │
-    │ 처리된 이슈: {이슈키}                          │
-    │ WIP 보존 태그: archive/{피처}/{이슈키}-wip-{날짜} │
-    └───────────────────────────────────────────────┘
-    ```
-  exit 1 (부분 실패): data.errors 내용을 사용자에게 출력 후 [STOP]
-    (머지는 완료됐으나 워크트리/브랜치 정리 중 일부 실패 — 수동 정리 필요)
+STEP 6: 완료 출력
+  ```
+  ┌───────────────────────────────────────────────┐
+  │ 머지 완료                                      │
+  │ 브랜치: {피처브랜치}                           │
+  │ 처리된 이슈: {이슈키}                          │
+  └───────────────────────────────────────────────┘
+  ```
 
 [TERMINATE]
