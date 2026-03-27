@@ -194,9 +194,10 @@ attempt >= 3 → 해당 검사 **실패** ❌ → 2-3으로
 전체 통과 시 AskUserQuestion으로 다음 선택지 제시:
 ```
 검사를 모두 통과했습니다. 다음 중 선택하세요:
-1. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
-2. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
-3. 추가 작업 계속
+1. `/autopilot:pr` — develop 대상 PR 생성
+2. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
+3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
+4. 추가 작업 계속
 ```
 
 [TERMINATE]
