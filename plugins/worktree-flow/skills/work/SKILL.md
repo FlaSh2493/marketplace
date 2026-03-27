@@ -104,6 +104,7 @@ STEP 2: 구현 실행
 
   구현 완료 후 커밋:
     실행: `cd {data.worktree_path} && git add -A && git commit -m "wip({이슈키}): 구현"`
+    **커밋 메시지는 반드시 `wip({이슈키}):` prefix만 사용한다. feat/fix/refactor 등 다른 prefix 사용 금지 — 최종 커밋 메시지는 merge 시 결정한다.**
 
 STEP 3: 완료
   출력: "구현 완료 [{이슈키}]"
