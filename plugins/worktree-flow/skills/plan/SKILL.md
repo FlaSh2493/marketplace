@@ -25,12 +25,17 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 ## 전제조건 — 워크트리 진입 (완료 전까지 아래 STEP으로 절대 넘어가지 않는다)
 
-`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}` 실행
-성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
-실패: reason 출력 후 [STOP]
+1. 워크트리 준비:
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}` 실행
+   성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
+   실패: reason 출력 후 [STOP]
+2. 워크트리로 체크아웃:
+   `cd {data.worktree_path} && pwd && git branch --show-current` 실행
+   워크트리 경로와 브랜치 확인 완료 후 다음 단계 진행
 
-이후 모든 파일 경로는 `{data.worktree_path}/` 를 prefix로 붙인 **절대경로**를 사용한다.
-git 명령은 `cd {data.worktree_path} && git ...` 형태로 실행한다.
+**중요**: Claude Bash 도구는 각 명령마다 새 셸을 생성하므로, 이후 모든 작업에서:
+- 파일 작업: `{data.worktree_path}/` 를 prefix로 붙인 **절대경로** 사용
+- Bash/git 명령: 매번 `cd {data.worktree_path} && command` 형태로 실행
 
 ---
 
