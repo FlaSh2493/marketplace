@@ -75,15 +75,31 @@ STEP 3: 전체 워크트리 WIP 커밋 + 커밋 메시지 수집
          cd {worktree_path} && git add -- {shlex.quote(파일1)} {shlex.quote(파일2)} ... && git commit -F /tmp/wip_msg_{이슈키}.txt
          ```
 
-    [커밋 메시지 제안]
-    단일 Bash 호출로 MERGE_BASE + log 확보:
+    [요구사항 동기화 + 커밋 메시지 제안]
+    단일 Bash 호출로 MERGE_BASE + log 전체 확보:
     ```bash
     cd '{worktree_path}' && \
       MERGE_BASE=$(git merge-base "origin/{피처브랜치}" HEAD 2>/dev/null || git merge-base "{피처브랜치}" HEAD 2>/dev/null) && \
-      [ -n "$MERGE_BASE" ] && git log "$MERGE_BASE"..HEAD --oneline || echo "MERGE_BASE_NOT_FOUND"
+      [ -n "$MERGE_BASE" ] && git log "$MERGE_BASE"..HEAD --format="%s%n%b" || echo "MERGE_BASE_NOT_FOUND"
     ```
     출력이 "MERGE_BASE_NOT_FOUND": skipped_issues에 추가 (경고 출력), 다음 이슈로
-    그 외: WIP 커밋 목록 기반으로 `feat({이슈키}): {설명}` 제안 → proposed_messages[{이슈키}]에 보관
+
+    그 외:
+      1. 요구사항 동기화
+         log 출력에서 `요구사항:` 로 시작하는 줄만 추출, 중복 제거
+         추출된 항목이 있으면:
+           `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
+           실패 시 경고 출력 후 스킵 (머지는 계속 진행)
+           data.md_path 의 `## 추가 요구사항` 섹션 끝에 append (섹션 없으면 파일 끝에 생성):
+           ```
+           <!-- merge-all {날짜} -->
+           - {요구사항 항목1}
+           - {요구사항 항목2}
+           ```
+
+      2. 커밋 메시지 제안
+         WIP 커밋 subject + body 전체 기반으로 `feat({이슈키}): {설명}` 제안
+         → proposed_messages[{이슈키}]에 보관
 
 [GATE] STEP 4: 커밋 메시지 일괄 승인
   proposed_messages 표시:
