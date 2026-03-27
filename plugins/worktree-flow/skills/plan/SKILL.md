@@ -6,7 +6,7 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 # Worktree Plan
 
 **실행 주체: Main Session**
-코드 수정은 STEP 3 (EnterWorktree) 완료 이후에만 허용.
+코드 수정은 STEP 1 (워크트리 진입) 완료 이후에만 허용.
 `{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
@@ -17,7 +17,19 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 ## 실행 절차
 
-STEP 1: 이슈 명세 로드
+STEP 0: 도구 로드
+  ToolSearch 도구를 호출한다 (query: "select:EnterWorktree")
+  반환된 schema에서 name 파라미터 허용 형식(최대 길이, 허용 문자) 확인
+  {이슈키}를 허용 형식에 맞게 변환한 값을 {worktree_name}으로 보관
+  → {worktree_name} 없이는 STEP 1을 실행할 수 없다
+
+STEP 1: 워크트리 진입
+  EnterWorktree 도구를 호출한다 (name: {worktree_name})
+  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  - 성공: STEP 2로 진행
+  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+
+STEP 2: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
@@ -39,7 +51,7 @@ STEP 1: 이슈 명세 로드
         ```
         (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
 
-STEP 2: 플랜 작성
+STEP 3: 플랜 작성
   EnterPlanMode 실행
 
   영향 범위 분석:
@@ -75,14 +87,7 @@ STEP 2: 플랜 작성
 
   ExitPlanMode 실행
   - 거절: [TERMINATE]
-  - 승인: 반드시 STEP 3으로 진행 (건너뛰기 금지)
-
-STEP 3: 워크트리 진입 ← 구현 전 필수. 승인 후 즉시 실행
-  ToolSearch("EnterWorktree") 호출 → 스키마 확인
-  EnterWorktree 도구 호출 (name: {이슈키})
-  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-  - 성공: STEP 4로 진행
-  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+  - 승인: STEP 4로 진행
 
 STEP 4: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
@@ -110,6 +115,6 @@ STEP 6: 완료
           ```
           (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
       - 플랜 힌트 성격: 플랜 컨텍스트에만 포함
-    → STEP 2 진행 (이슈 명세 재로드 생략)
+    → STEP 3 진행 (이슈 명세 재로드 생략)
   '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]
   엔터: [TERMINATE]

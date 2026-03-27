@@ -14,14 +14,17 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 
 ## ⚠️ 초기화 — 실행 절차 진입 전 필수
 
-**이 스킬 호출 자체가 사용자가 워크트리에서 작업하도록 명시적으로 요청한 것이다.**
-**지금 즉시 아래 두 단계를 실행하라. 다른 어떤 작업도 그 이전에 하지 않는다.**
+STEP 0: 도구 로드
+  ToolSearch 도구를 호출한다 (query: "select:EnterWorktree")
+  반환된 schema에서 name 파라미터 허용 형식(최대 길이, 허용 문자) 확인
+  {이슈키}를 허용 형식에 맞게 변환한 값을 {worktree_name}으로 보관
+  → {worktree_name} 없이는 STEP 1을 실행할 수 없다
 
-  1. ToolSearch("EnterWorktree") 호출 → 스키마 확인
-  2. EnterWorktree 도구 호출 (name: {이슈키})
-     - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-     - 성공: 아래 실행 절차로 진행
-     - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+STEP 1: 워크트리 진입
+  EnterWorktree 도구를 호출한다 (name: {worktree_name})
+  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  - 성공: 아래 실행 절차로 진행
+  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
 
 ---
 
