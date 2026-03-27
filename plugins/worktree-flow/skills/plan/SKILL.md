@@ -25,21 +25,12 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 ## 전제조건 — 워크트리 진입 (완료 전까지 아래 STEP으로 절대 넘어가지 않는다)
 
-아래 3단계를 순서대로 실행한다. 하나라도 실패하면 [STOP].
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}` 실행
+성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
+실패: reason 출력 후 [STOP]
 
-1. 워크트리 생성/확인
-   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}`
-   성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
-
-2. EnterWorktree 도구 확보 및 호출
-   실행: ToolSearch (query: "select:EnterWorktree")
-   실행: EnterWorktree (name: {이슈키})
-   성공: CWD가 워크트리로 전환됨
-
-3. 전환 검증
-   실행: Bash `pwd`
-   출력 경로가 data.worktree_path와 일치하지 않으면 → "워크트리 전환 실패" 출력 후 [STOP]
-   일치하면 → "✅ 워크트리 진입 완료: {경로}" 출력
+이후 모든 파일 경로는 `{data.worktree_path}/` 를 prefix로 붙인 **절대경로**를 사용한다.
+git 명령은 `cd {data.worktree_path} && git ...` 형태로 실행한다.
 
 ---
 
@@ -110,15 +101,15 @@ STEP 2: 플랜 저장
   실패: reason 그대로 출력 후 [STOP]
 
 STEP 3: 구현
-  CWD가 워크트리({worktree_path})이므로 상대경로로 파일을 편집한다.
+  모든 파일은 `{data.worktree_path}/` prefix를 붙인 절대경로로 편집한다.
 
   "구현 순서" 각 항목을 순서대로:
-    3-1. 파일 읽기 (상대경로)
+    3-1. 파일 읽기 (`{data.worktree_path}/파일경로`)
     3-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
   구현 완료 후 커밋:
-    실행: `git add -A && git commit -m "wip({이슈키}): 구현"`
+    실행: `cd {data.worktree_path} && git add -A && git commit -m "wip({이슈키}): 구현"`
 
 STEP 4: 피드백 루프
   출력: "구현 완료 [{이슈키}]"

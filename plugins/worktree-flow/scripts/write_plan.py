@@ -5,12 +5,6 @@ Usage: python3 write_plan.py {issue} (플랜 내용을 stdin으로 전달)
 """
 import json, os, sys, glob, re
 
-def assert_worktree():
-    """CWD가 git worktree 안인지 검증."""
-    git_dir = os.path.join(os.getcwd(), ".git")
-    if not os.path.isfile(git_dir):
-        error("NOT_WORKTREE", "워크트리가 아닙니다. ensure_worktree.py 실행 후 EnterWorktree로 진입하세요.")
-
 def find_git_root():
     import subprocess
     r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
@@ -52,8 +46,6 @@ def main():
     plan_content = sys.stdin.read().strip()
     if not plan_content:
         error("EMPTY_PLAN", "플랜 내용이 비어 있습니다")
-
-    assert_worktree()
 
     root = find_git_root()
     if not root:

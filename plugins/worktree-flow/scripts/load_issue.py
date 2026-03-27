@@ -5,12 +5,6 @@ Usage: python3 load_issue.py {issue} [--section {섹션명}] [--sections 섹션1
 """
 import argparse, json, os, sys, glob, re
 
-def assert_worktree():
-    """CWD가 git worktree 안인지 검증."""
-    git_dir = os.path.join(os.getcwd(), ".git")
-    if not os.path.isfile(git_dir):
-        error("NOT_WORKTREE", "워크트리가 아닙니다. ensure_worktree.py 실행 후 EnterWorktree로 진입하세요.")
-
 def find_git_root():
     import subprocess
     r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
@@ -61,8 +55,6 @@ def main():
     parser.add_argument("--section", default=None)
     parser.add_argument("--sections", default=None, help="콤마 구분 복수 섹션. 예: 설명,메타데이터")
     args = parser.parse_args()
-
-    assert_worktree()
 
     root = find_git_root()
     if not root:
