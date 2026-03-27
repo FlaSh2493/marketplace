@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-워크트리 브랜치를 squash merge로 피처 브랜치에 통합한다.
-워크트리 브랜치 히스토리는 건드리지 않음.
+워크트리 브랜치를 rebase 후 fast-forward로 피처 브랜치에 통합한다.
 Usage:
   python3 merge_worktrees.py {feature} --dry-run
-  python3 merge_worktrees.py {feature} --issue {이슈키} --message "{메시지}"
-  python3 merge_worktrees.py {feature} --issue {이슈키} --message "{메시지}" --continue
+  python3 merge_worktrees.py {feature} --issue {이슈키}
+  python3 merge_worktrees.py {feature} --issue {이슈키} --continue
 Exit 0: 성공 / Exit 1: 실패 / Exit 2: 충돌
 """
 import argparse, json, os, re, shlex, subprocess, sys
@@ -108,22 +107,12 @@ def main():
     parser.add_argument("feature")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--issue", default=None)
-    parser.add_argument("--message", default=None)
     parser.add_argument("--continue", action="store_true", dest="cont")
     args = parser.parse_args()
 
     root = find_git_root()
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
-
-    # 충돌 해결 후 계속
-    if args.cont and args.issue:
-        message = args.message or f"feat({args.issue}): squash merge"
-        _, err, code = run(f"git commit -m {shlex.quote(message)}", cwd=root)
-        if code != 0:
-            error("CONTINUE_FAILED", f"커밋 실패: {err}")
-        print(json.dumps({"status": "ok", "data": {"continued": True}}, ensure_ascii=False))
-        return
 
     if args.dry_run:
         branches = get_wt_branches(root, args.feature)
@@ -147,37 +136,51 @@ def main():
         }, ensure_ascii=False, indent=2))
         return
 
-    # 단일 이슈 squash merge
+    # 단일 이슈 rebase + ff merge
     if args.issue:
         branch = wt_branch(args.issue)
-        message = args.message or f"feat({args.issue}): squash merge"
 
         # 브랜치 존재 확인
         _, _, branch_rc = run(f"git rev-parse --verify '{branch}'", cwd=root)
         if branch_rc != 0:
             error("BRANCH_NOT_FOUND", f"워크트리 브랜치 '{branch}'가 존재하지 않습니다")
 
+        if args.cont:
+            # 충돌 해결 후 rebase 계속
+            _, err, code = run("git rebase --continue", cwd=root)
+            if code != 0:
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
+                conflicts = [f for f in out.split("\n") if f.strip()]
+                if not conflicts:
+                    error("REBASE_CONTINUE_FAILED", f"rebase --continue 실패: {err}")
+                print(json.dumps({
+                    "status": "conflict",
+                    "issue": args.issue,
+                    "conflicts": conflicts,
+                }, ensure_ascii=False, indent=2))
+                sys.exit(2)
+        else:
+            # 최초 rebase
+            _, err, code = run(f"git rebase '{args.feature}' '{branch}'", cwd=root)
+            if code != 0:
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
+                conflicts = [f for f in out.split("\n") if f.strip()]
+                if not conflicts:
+                    error("REBASE_FAILED", f"rebase 실패: {err}")
+                print(json.dumps({
+                    "status": "conflict",
+                    "issue": args.issue,
+                    "conflicts": conflicts,
+                }, ensure_ascii=False, indent=2))
+                sys.exit(2)
+
+        # rebase 완료 → fast-forward merge
         _, checkout_err, checkout_rc = run(f"git checkout '{args.feature}'", cwd=root)
         if checkout_rc != 0:
-            error("CHECKOUT_FAILED", f"'{args.feature}' 브랜치 체크아웃 실패: {checkout_err}")
-
-        _, err, code = run(f"git merge --squash '{branch}'", cwd=root)
+            error("CHECKOUT_FAILED", f"'{args.feature}' 체크아웃 실패: {checkout_err}")
+        _, err, code = run(f"git merge --ff-only '{branch}'", cwd=root)
         if code != 0:
-            out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
-            conflicts = [f for f in out.split("\n") if f.strip()]
-            if not conflicts:
-                # 충돌이 아닌 다른 원인의 실패
-                error("MERGE_FAILED", f"머지 실패: {err}")
-            print(json.dumps({
-                "status": "conflict",
-                "issue": args.issue,
-                "conflicts": conflicts,
-            }, ensure_ascii=False, indent=2))
-            sys.exit(2)
-
-        _, err, code = run(f"git commit -m {shlex.quote(message)}", cwd=root)
-        if code != 0:
-            error("COMMIT_FAILED", f"커밋 실패: {err}")
+            error("FF_MERGE_FAILED", f"fast-forward 머지 실패: {err}")
 
         print(json.dumps({
             "status": "ok",

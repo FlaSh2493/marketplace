@@ -45,15 +45,14 @@ STEP 1: 머지 계획 조회
   응답 "no": "머지 취소." [TERMINATE]
   응답 "yes": STEP 3 진행
 
-STEP 3: 전체 워크트리 WIP 커밋 + 커밋 메시지 수집
-  proposed_messages = {}  (이슈키 → 제안 커밋 메시지 매핑)
+STEP 3: 전체 워크트리 커밋 + 요구사항 동기화
   skipped_issues = []
 
   merge_order의 각 이슈에 대해 순서대로:
     이슈키 = merge_order[i].issue
     worktree_path = {root_path}/.claude/worktrees/{이슈키}
 
-    [WIP 커밋]
+    [미커밋 변경사항 커밋]
     `cd {worktree_path} && git status --porcelain` 실행
     변경사항 있으면:
       1. 전체 변경사항 파악:
@@ -62,20 +61,20 @@ STEP 3: 전체 워크트리 WIP 커밋 + 커밋 메시지 수집
          신규 파일은 내용도 Read하여 분석에 포함
       2. 변경사항을 논리적 단위로 그룹핑 (기능별, 레이어별 등)
       3. 각 그룹별로 순서대로 커밋 (subject + body):
-         - subject: `wip({이슈키}): {단위 요약}` (prefix 반드시 `wip({이슈키}):` 사용)
+         - subject: `{type}({이슈키}): {단위 요약}` (type: feat/fix/refactor/chore 등)
          - body:
            ```
            요구사항: {이 변경이 필요한 이유 / 요청된 내용}
            작업내용: {실제 변경 내용 (파일별로 간략히)}
            특이사항: {주요 결정, 트레이드오프, 제약사항 (없으면 생략)}
            ```
-         Write("/tmp/wip_msg_{이슈키}.txt", "{subject}\n\n{body 전체}")
+         Write("/tmp/commit_msg_{이슈키}.txt", "{subject}\n\n{body 전체}")
          그룹에 속한 파일만 개별 quote하여 stage 후 커밋:
          ```
-         cd {worktree_path} && git add -- {shlex.quote(파일1)} {shlex.quote(파일2)} ... && git commit -F /tmp/wip_msg_{이슈키}.txt
+         cd {worktree_path} && git add -- {shlex.quote(파일1)} {shlex.quote(파일2)} ... && git commit -F /tmp/commit_msg_{이슈키}.txt
          ```
 
-    [요구사항 동기화 + 커밋 메시지 제안]
+    [요구사항 동기화]
     단일 Bash 호출로 MERGE_BASE + log 전체 확보:
     ```bash
     cd '{worktree_path}' && \
@@ -85,51 +84,38 @@ STEP 3: 전체 워크트리 WIP 커밋 + 커밋 메시지 수집
     출력이 "MERGE_BASE_NOT_FOUND": skipped_issues에 추가 (경고 출력), 다음 이슈로
 
     그 외:
-      1. 요구사항 동기화
-         log 출력에서 `요구사항:` 로 시작하는 줄만 추출, 중복 제거
-         추출된 항목이 있으면:
-           `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
-           실패 시 경고 출력 후 스킵 (머지는 계속 진행)
-           data.md_path 의 `## 추가 요구사항` 섹션 끝에 append (섹션 없으면 파일 끝에 생성):
-           ```
-           <!-- merge-all {날짜} -->
-           - {요구사항 항목1}
-           - {요구사항 항목2}
-           ```
+      log 출력에서 `요구사항:` 로 시작하는 줄만 추출, 중복 제거
+      추출된 항목이 있으면:
+        `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
+        실패 시 경고 출력 후 스킵 (머지는 계속 진행)
+        data.md_path 의 `## 추가 요구사항` 섹션 끝에 append (섹션 없으면 파일 끝에 생성):
+        ```
+        <!-- merge-all {날짜} -->
+        - {요구사항 항목1}
+        - {요구사항 항목2}
+        ```
 
-      2. 커밋 메시지 제안
-         WIP 커밋 subject + body 전체 기반으로 `feat({이슈키}): {설명}` 제안
-         → proposed_messages[{이슈키}]에 보관
-
-[GATE] STEP 4: 커밋 메시지 일괄 승인
-  proposed_messages 표시:
-  ```
-  커밋 메시지 제안:
-  1. feat(PLAT-101): {설명}
-  2. feat(PLAT-102): {설명}
-  ```
-  AskUserQuestion("커밋 메시지를 확인하세요.\n수정: '1: 새메시지' 형식으로 입력\n승인: yes\n취소: no")
-  응답 "yes": STEP 5 진행
-  응답 "{번호}: {내용}": 해당 메시지 수정 후 재표시 → STEP 4 반복
+[GATE] STEP 4: 머지 승인
+  각 이슈의 커밋 목록 표시 (STEP 3에서 수집한 log)
+  AskUserQuestion("위 커밋들을 {피처브랜치}에 머지할까요? (yes / no)")
   응답 "no": "머지 취소." [TERMINATE]
+  응답 "yes": STEP 5 진행
 
-STEP 5: 순서대로 squash merge 실행
+STEP 5: 순서대로 rebase + fast-forward 머지 실행
   merged_issues = []
 
-  proposed_messages의 각 이슈에 대해 머지 순서대로:
+  merge_order의 각 이슈에 대해 순서대로 (skipped_issues 제외):
     이슈키 = 현재 이슈
-    커밋메시지 = proposed_messages[이슈키]
 
-    Write("/tmp/merge_msg_{이슈키}.txt", "{커밋메시지 전체 내용}")
     실행:
     ```
-    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --message "$(cat /tmp/merge_msg_{이슈키}.txt)"
+    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키}
     ```
     exit 0: merged_issues에 추가, 다음 이슈로
     exit 1: 오류 출력, 해당 이슈 건너뜀, 다음 이슈로
     exit 2 (충돌): 충돌 해결 프로세스 진입
 
-    [충돌 해결 프로세스] — 충돌은 메인 리포(피처 브랜치)에 발생하므로 아래 명령은 cd prefix 없이 실행
+    [충돌 해결 프로세스] — rebase 중 충돌
       실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py`
       충돌 파일마다:
         [GATE] AskUserQuestion("충돌: {파일명}\n{diff}\n\n선택: [feature / base / 직접편집]")
@@ -142,15 +128,16 @@ STEP 5: 순서대로 squash merge 실행
             exit 0 이면 (마커 존재): "충돌 마커(<<<<<<< 또는 >>>>>>>)가 아직 남아있습니다. 파일을 다시 확인하세요." 출력 후 → [GATE] 반복
             exit 1 이면 (마커 없음): `git add -- '{파일명}'` 실행
 
-      [--continue 전 최종 마커 검사] — 모든 파일 해결 완료 후 실행
+      [--continue 전 최종 마커 검사]
         `git diff --name-only --cached` 로 staged 파일 목록 확보
         각 파일에 대해: `grep -lE "^(<{7} |>{7} )" '{파일명}'`
         마커가 남은 파일이 있으면:
           해당 파일 목록 출력: "아직 충돌 마커가 남아있는 파일: {목록}"
           해당 이슈 건너뜀 (skipped_issues에 추가), 다음 이슈로
 
-      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --message "$(cat /tmp/merge_msg_{이슈키}.txt)" --continue`
+      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --issue {이슈키} --continue`
       exit 0: merged_issues에 추가, 다음 이슈로
+      exit 2: 다음 커밋 충돌 — 충돌 해결 프로세스 반복
       exit 1: 오류 출력, 해당 이슈 건너뜀, 다음 이슈로
 
 STEP 6: 완료 출력
