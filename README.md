@@ -44,7 +44,7 @@ plan/work → check → merge → pr → cleanup
 | `merge {피처브랜치}` | 워크트리를 피처 브랜치에 rebase + fast-forward 머지 |
 | `merge-all {피처브랜치}` | 모든 활성 워크트리를 충돌 수 기준 정렬 후 순차 머지 |
 | `pr` | 현재 브랜치를 push하고 develop 대상 PR 생성 |
-| `cleanup {피처브랜치} {이슈키...}` | 머지 완료된 워크트리 정리 (브랜치 태그 보존 후 삭제) |
+| `cleanup {피처브랜치} {이슈키...}` | 머지 완료된 워크트리 정리 (워크트리 제거 + 브랜치 삭제) |
 | `status` | 활성 워크트리 상태 조회 (브랜치, 커밋 수, 마지막 커밋) |
 | `init` | 초기 설정 (code-review-graph 확인, 그래프 빌드, 사용법 안내) |
 

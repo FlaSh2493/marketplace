@@ -32,7 +32,7 @@ plan/work → check → merge → pr → cleanup
 | `merge {피처브랜치}` | 워크트리를 피처 브랜치에 rebase + fast-forward 머지 |
 | `merge-all {피처브랜치}` | 모든 활성 워크트리를 충돌 수 기준 정렬 후 순차 머지 |
 | `pr` | 현재 브랜치를 push하고 develop 대상 PR 자동 생성 |
-| `cleanup {피처브랜치} {이슈키...}` | 머지 완료된 워크트리 정리 (브랜치 태그 보존 후 삭제) |
+| `cleanup {피처브랜치} {이슈키...}` | 머지 완료된 워크트리 정리 (워크트리 제거 + 브랜치 삭제) |
 | `status` | 활성 워크트리 상태 조회 (브랜치, 커밋 수, 마지막 커밋) |
 | `init` | 초기 설정 (code-review-graph 확인, 그래프 빌드, 사용법 안내) |
 
@@ -79,16 +79,6 @@ plan/work → check → merge → pr → cleanup
 - 도메인 라벨 자동 추론 (변경 파일 경로 기반)
 - 사용자 확인 후 push → PR 생성
 
-### 5. WIP 히스토리 보존
-
-머지 후 워크트리 브랜치는 삭제되지만, 커밋 히스토리는 태그로 보존됩니다:
-
-```
-archive/feat/sprint3/PLAT-101-wip-20260326
-```
-
-깔끔한 피처 브랜치 히스토리와 복원 가능한 작업 흔적을 동시에 유지합니다.
-
 ---
 
 ## 구조적 특이사항
@@ -125,15 +115,7 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 └── PLAT-101/           ← 워크트리 경로 (worktree-PLAT-101 브랜치)
 ```
 
-머지 후 WIP 히스토리는 git 태그로 보존됩니다:
-
-```bash
-# 특정 피처의 모든 이슈 태그 조회
-git tag --list 'archive/feat/sprint3/*'
-
-# WIP 이력 조회
-git log archive/feat/sprint3/PLAT-101-wip-20260326
-```
+rebase + fast-forward 머지이므로 커밋은 피처 브랜치에 그대로 남습니다. cleanup 시 워크트리와 브랜치만 삭제합니다.
 
 ---
 

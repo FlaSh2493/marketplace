@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-머지 완료 후 워크트리 정리. 브랜치는 태그로 보존 후 삭제.
+머지 완료 후 워크트리 정리. 워크트리 제거 + 브랜치 삭제.
 Usage: python3 cleanup_worktrees.py {feature} --issues {PLAT-101} {PLAT-102} ...
 """
 import argparse, json, os, re, sys, subprocess
-from datetime import datetime
 
 
 def run(cmd, cwd=None):
@@ -47,21 +46,11 @@ def main():
 
     cleaned = []
     errors = []
-    date = datetime.now().strftime("%Y%m%d")
 
     for issue in args.issues:
         name = sanitize_name(issue)
         branch = f"worktree-{name}"
         wt_path = os.path.join(root, ".claude", "worktrees", name)
-        tag = f"archive/{args.feature}/{issue}-wip-{date}"
-
-        # 태그 생성 (WIP 히스토리 보존) — 이미 존재하면 스킵
-        _, _, tag_rc = run(f"git rev-parse --verify 'refs/tags/{tag}'", cwd=root)
-        if tag_rc != 0:
-            _, tag_err, tag_code = run(f"git tag '{tag}' '{branch}'", cwd=root)
-            if tag_code != 0:
-                errors.append({"issue": issue, "error": f"태그 생성 실패: {tag_err}"})
-                continue
 
         # 워크트리 제거
         if os.path.exists(wt_path):
@@ -75,7 +64,7 @@ def main():
         if branch_code != 0:
             errors.append({"issue": issue, "error": f"브랜치 삭제 실패: {branch_err}"})
             continue
-        cleaned.append({"issue": issue, "tag": tag})
+        cleaned.append({"issue": issue})
 
     ok({
         "feature": args.feature,
