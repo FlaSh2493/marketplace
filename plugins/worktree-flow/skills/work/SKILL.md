@@ -6,29 +6,20 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 # Worktree Work
 
 **실행 주체: Main Session**
-코드 수정은 STEP 1 완료 이후부터 허용.
+코드 수정은 STEP 0 완료 후 {worktree_path} 기반 절대경로로만 허용.
 `{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
 `/worktree-flow:work {이슈키} {요구사항}`
 
-## ⚠️ 초기화 — 실행 절차 진입 전 필수
-
-STEP 0: 도구 로드
-  ToolSearch 도구를 호출한다 (query: "select:EnterWorktree")
-  반환된 schema에서 name 파라미터 허용 형식(최대 길이, 허용 문자) 확인
-  {이슈키}를 허용 형식에 맞게 변환한 값을 {worktree_name}으로 보관
-  → {worktree_name} 없이는 STEP 1을 실행할 수 없다
-
-STEP 1: 워크트리 진입
-  EnterWorktree 도구를 호출한다 (name: {worktree_name})
-  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-  - 성공: 아래 실행 절차로 진행
-  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
-
 ---
 
 ## 실행 절차
+
+STEP 0: 워크트리 확보
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}`
+  성공: data.worktree_path, data.branch 보관
+  실패: reason 그대로 출력 후 [STOP]
 
 STEP 1: 플랜 작성
   EnterPlanMode 실행
@@ -45,8 +36,8 @@ STEP 1: 플랜 작성
        성공: 영향 파일 목록 확보 → 5번 진행
        실패: fallback → 4번 진행
     4. [fallback] Claude가 직접 탐색
-       요구사항 기반으로 Glob/Grep으로 관련 파일 직접 탐색
-    5. 영향 파일 목록 기준으로 필요한 파일만 Read
+       요구사항 기반으로 Glob/Grep으로 관련 파일 직접 탐색 ({worktree_path} 기반)
+    5. 영향 파일 목록 기준으로 필요한 파일만 Read ({worktree_path} 기반 절대경로)
 
   플랜 작성:
     ```
@@ -64,7 +55,9 @@ STEP 1: 플랜 작성
     - [ ] {항목}
     ```
 
-  ExitPlanMode 실행 (승인 시 STEP 2 진행 / 거절 시 TERMINATE)
+  ExitPlanMode 실행
+  - 거절: [TERMINATE]
+  - 승인: STEP 2로 진행
 
 STEP 2: 이슈 문서 업데이트
   요구사항 섹션 업데이트 내용을 사용자에게 표시
@@ -82,14 +75,19 @@ STEP 2: 이슈 문서 업데이트
   실패: reason 그대로 출력 후 [STOP]
 
 STEP 3: 구현 실행
+  모든 파일 편집은 {worktree_path} 기반 절대경로를 사용한다.
+
   "구현 순서" 각 항목을 순서대로:
-    3-1. 해당 파일 현재 상태 읽기
+    3-1. {worktree_path}/{파일} 읽기
     3-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
+  구현 완료 후 커밋:
+    실행: `cd {worktree_path} && git add -A && git commit -m "wip({이슈키}): 구현"`
+
 STEP 4: 완료
-  출력: "구현 완료 [{이슈키}]."
+  출력: "구현 완료 [{이슈키}] — {worktree_path}"
   [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
   입력 있음: 해당 내용을 새 요구사항으로 보관 → STEP 1 진행
-  '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]
+  '머지': 출력 "/worktree-flow:merge {branch} 를 실행하세요." → [TERMINATE]
   엔터: [TERMINATE]

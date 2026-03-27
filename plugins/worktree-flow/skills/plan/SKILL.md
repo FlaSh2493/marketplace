@@ -6,7 +6,7 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 # Worktree Plan
 
 **실행 주체: Main Session**
-코드 수정은 STEP 1 (워크트리 진입) 완료 이후에만 허용.
+코드 수정은 STEP 1 완료 후 {worktree_path} 기반 절대경로로만 허용.
 `{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
@@ -17,19 +17,16 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 ## 실행 절차
 
-STEP 0: 도구 로드
-  ToolSearch 도구를 호출한다 (query: "select:EnterWorktree")
-  반환된 schema에서 name 파라미터 허용 형식(최대 길이, 허용 문자) 확인
-  {이슈키}를 허용 형식에 맞게 변환한 값을 {worktree_name}으로 보관
-  → {worktree_name} 없이는 STEP 1을 실행할 수 없다
+STEP 0: 워크트리 확보
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}`
+  성공: data.worktree_path, data.branch 보관
+  실패: reason 그대로 출력 후 [STOP]
 
-STEP 1: 워크트리 진입
-  EnterWorktree 도구를 호출한다 (name: {worktree_name})
-  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-  - 성공: STEP 2로 진행
-  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+  출력:
+  - created=true:  "워크트리 생성됨: {worktree_path} ({branch})"
+  - created=false: "워크트리 재사용: {worktree_path} ({branch})"
 
-STEP 2: 이슈 명세 로드
+STEP 1: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
   성공: data.content를 컨텍스트로 보관
   실패: reason 그대로 출력 후 [STOP]
@@ -51,7 +48,7 @@ STEP 2: 이슈 명세 로드
         ```
         (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
 
-STEP 3: 플랜 작성
+STEP 2: 플랜 작성
   EnterPlanMode 실행
 
   영향 범위 분석:
@@ -67,7 +64,7 @@ STEP 3: 플랜 작성
        실패: fallback → 4번 진행
     4. [fallback] Claude가 직접 탐색
        이슈 명세 기반으로 Glob/Grep으로 관련 파일 직접 탐색
-    5. 영향 파일 목록 기준으로 필요한 파일만 Read
+    5. 영향 파일 목록 기준으로 필요한 파일만 Read ({worktree_path} 기반 절대경로)
 
   플랜 작성:
     ```
@@ -87,20 +84,26 @@ STEP 3: 플랜 작성
 
   ExitPlanMode 실행
   - 거절: [TERMINATE]
-  - 승인: STEP 4로 진행
+  - 승인: STEP 3로 진행
 
-STEP 4: 플랜 저장
+STEP 3: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 5: 구현 실행
+STEP 4: 구현 실행
+  모든 파일 편집은 {worktree_path} 기반 절대경로를 사용한다.
+  예: Edit {worktree_path}/src/components/Login.tsx
+
   "구현 순서" 각 항목을 순서대로:
-    5-1. 해당 파일 현재 상태 읽기
-    5-2. 플랜 명세대로 코드 수정
+    4-1. {worktree_path}/{파일} 읽기
+    4-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
-STEP 6: 완료
-  출력: "구현 완료 [{이슈키}]."
+  구현 완료 후 커밋:
+    실행: `cd {worktree_path} && git add -A && git commit -m "wip({이슈키}): 구현"`
+
+STEP 5: 완료
+  출력: "구현 완료 [{이슈키}] — {worktree_path}"
   [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
   입력 있음:
     입력 내용을 분석하여 성격 판단:
@@ -115,6 +118,6 @@ STEP 6: 완료
           ```
           (이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
       - 플랜 힌트 성격: 플랜 컨텍스트에만 포함
-    → STEP 3 진행 (이슈 명세 재로드 생략)
-  '머지': 출력 "/worktree-flow:merge {피처브랜치} 를 실행하세요." → [TERMINATE]
+    → STEP 2 진행 (이슈 명세 재로드 생략)
+  '머지': 출력 "/worktree-flow:merge {branch} 를 실행하세요." → [TERMINATE]
   엔터: [TERMINATE]
