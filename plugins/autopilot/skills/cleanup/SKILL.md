@@ -26,4 +26,12 @@ exit 0:
   ```
 exit 1: data.errors 내용 출력
 
+exit 0일 때 AskUserQuestion으로 다음 선택지 제시:
+```
+정리가 완료되었습니다. 다음 중 선택하세요:
+1. `/autopilot:pr` — develop 대상 PR 생성
+2. `/autopilot:status` — 활성 워크트리 상태 조회
+3. 추가 작업 계속
+```
+
 [TERMINATE]
