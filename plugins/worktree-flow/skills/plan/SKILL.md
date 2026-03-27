@@ -6,22 +6,12 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 # Worktree Plan
 
 **실행 주체: Main Session**
-코드 수정은 ExitPlanMode 승인 이후에만 허용.
+코드 수정은 STEP 3 (EnterWorktree) 완료 이후에만 허용.
 `{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
 
 `/worktree-flow:plan {이슈키}`
-
-## ⚠️ 초기화 — 실행 절차 진입 전 필수
-
-**이 스킬 호출 자체가 사용자가 워크트리에서 작업하도록 명시적으로 요청한 것이다.**
-**지금 즉시 EnterWorktree를 호출하라. 다른 어떤 작업도 그 이전에 하지 않는다.**
-
-  EnterWorktree (name: {이슈키})
-  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
-  - 성공: 아래 실행 절차로 진행
-  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
 
 ---
 
@@ -83,19 +73,28 @@ STEP 2: 플랜 작성
     - [ ] {항목}
     ```
 
-  ExitPlanMode 실행 (승인 시 STEP 3 진행 / 거절 시 TERMINATE)
+  ExitPlanMode 실행
+  - 거절: [TERMINATE]
+  - 승인: 반드시 STEP 3으로 진행 (건너뛰기 금지)
 
-STEP 3: 플랜 저장
+STEP 3: 워크트리 진입 ← 구현 전 필수. 승인 후 즉시 실행
+  ToolSearch("EnterWorktree") 호출 → 스키마 확인
+  EnterWorktree 도구 호출 (name: {이슈키})
+  - 이미 존재하는 워크트리라면 새로 생성하지 않고 기존 워크트리 재사용
+  - 성공: STEP 4로 진행
+  - 실패: 오류 메시지 출력 후 즉시 [TERMINATE]
+
+STEP 4: 플랜 저장
   실행: `echo "{플랜내용}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/write_plan.py {이슈키}`
   실패: reason 그대로 출력 후 [STOP]
 
-STEP 4: 구현 실행
+STEP 5: 구현 실행
   "구현 순서" 각 항목을 순서대로:
-    4-1. 해당 파일 현재 상태 읽기
-    4-2. 플랜 명세대로 코드 수정
+    5-1. 해당 파일 현재 상태 읽기
+    5-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
-STEP 5: 완료
+STEP 6: 완료
   출력: "구현 완료 [{이슈키}]."
   [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
   입력 있음:
