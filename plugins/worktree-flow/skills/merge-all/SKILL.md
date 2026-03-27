@@ -159,4 +159,6 @@ STEP 6: 완료 출력
     재시도:   /worktree-flow:merge {피처브랜치}  (해당 워크트리 세션에서 실행)
   ```
 
+  AskUserQuestion("머지가 완료되었습니다. 이어서 `/worktree-flow:cleanup`으로 머지된 워크트리를 정리할까요?")
+
 [TERMINATE]

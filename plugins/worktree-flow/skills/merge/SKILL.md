@@ -26,16 +26,7 @@ STEP 0: 워크트리 확인
 
   **이후 파일 작업과 git 명령은 `cd {worktree_path} && command` 형태로 실행. 스크립트(python3) 실행은 cd prefix 불필요 — 스크립트가 내부적으로 git root를 탐색함**
 
-STEP 1: 요구사항 동기화
-  현재 대화 히스토리에서 요구사항 성격의 내용 추출:
-  - 요구사항: 기능 추가/변경/조건/수정 요청
-  - 제외: 단순 컨텍스트, 정보 제공, 질문
-
-  추출된 요구사항이 있으면:
-    1. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
-    2. data.md_path 의 `## 추가 요구사항` 섹션 끝에 append (섹션 없으면 파일 끝에 생성)
-
-STEP 2: 미커밋 변경사항 커밋
+STEP 1: 미커밋 변경사항 커밋
   `cd {worktree_path} && git status --porcelain` 실행
   변경사항 없으면: 스킵
   변경사항 있으면:
@@ -60,8 +51,28 @@ STEP 2: 미커밋 변경사항 커밋
        ```
        파일명에 공백이 있을 수 있으므로 각 경로를 반드시 따옴표로 감쌀 것. 전체 add(`git add -A`)는 금지.
 
-STEP 3: 머지 대상 커밋 확인
+STEP 2: 요구사항 동기화
   단일 Bash 호출로 MERGE_BASE + log 확보:
+  ```bash
+  cd '{worktree_path}' && \
+    MERGE_BASE=$(git merge-base "origin/{피처브랜치}" HEAD 2>/dev/null || git merge-base "{피처브랜치}" HEAD 2>/dev/null) && \
+    [ -n "$MERGE_BASE" ] && git log "$MERGE_BASE"..HEAD --format="%s%n%b" || echo "MERGE_BASE_NOT_FOUND"
+  ```
+  출력이 "MERGE_BASE_NOT_FOUND" 이면 경고 출력 후 스킵
+  그 외:
+    log 출력에서 `요구사항:` 로 시작하는 줄만 추출, 중복 제거
+    추출된 항목이 있으면:
+      `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
+      실패 시 경고 출력 후 스킵
+      data.md_path 의 `## 추가 요구사항` 섹션 끝에 append (섹션 없으면 파일 끝에 생성):
+      ```
+      <!-- merge {날짜} -->
+      - {요구사항 항목1}
+      - {요구사항 항목2}
+      ```
+
+STEP 3: 머지 대상 커밋 확인
+  단일 Bash 호출로 커밋 목록 확보:
   ```bash
   cd '{worktree_path}' && \
     MERGE_BASE=$(git merge-base "origin/{피처브랜치}" HEAD 2>/dev/null || git merge-base "{피처브랜치}" HEAD 2>/dev/null) && \
@@ -118,5 +129,7 @@ STEP 6: 완료 출력
   │ 처리된 이슈: {이슈키}                          │
   └───────────────────────────────────────────────┘
   ```
+
+  AskUserQuestion("머지가 완료되었습니다. 이어서 `/worktree-flow:cleanup`으로 워크트리를 정리할까요?")
 
 [TERMINATE]

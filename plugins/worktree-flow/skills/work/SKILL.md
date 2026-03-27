@@ -44,3 +44,11 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 - code-review-graph 그래프 없음: 4번 fallback으로 진행
 
 **커밋**: 구현 중 WIP 커밋하지 않는다. 커밋은 merge 단계에서 처리한다.
+
+**구현 완료 후**: AskUserQuestion에 다음 선택지를 제시:
+```
+구현이 완료되었습니다. 다음 중 선택하세요:
+1. `/worktree-flow:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
+2. `/worktree-flow:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
+3. 추가 작업 계속
+```
