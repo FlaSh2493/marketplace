@@ -142,6 +142,12 @@ STEP 6: 정리
   exit 1 (부분 실패): data.errors 내용을 사용자에게 출력 후 [STOP]
     (머지는 완료됐으나 워크트리/브랜치 정리 중 일부 실패 — 수동 정리 필요)
 
-  skipped_issues가 있으면: "건너뛴 이슈: {목록} — 수동 머지 필요" 출력
+  skipped_issues가 있으면 아래 형식으로 출력:
+  ```
+  ⚠ 머지 실패 이슈 — 워크트리가 그대로 남아있습니다. 직접 처리하세요:
+  {이슈키마다 한 줄씩}
+    워크트리: {root_path}/.claude/worktrees/{이슈키}
+    재시도:   /worktree-flow:merge {피처브랜치}  (해당 워크트리 세션에서 실행)
+  ```
 
 [TERMINATE]
