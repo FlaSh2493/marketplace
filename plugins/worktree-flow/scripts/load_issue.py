@@ -18,14 +18,20 @@ def find_issue_md(root, issue):
     for base in [os.path.join(root, ".docs", "task"), os.path.join(root, "docs", "task")]:
         # 폴더 구조: {base}/**/{issue}/{issue}.md 우선 탐색
         for f in glob.glob(os.path.join(base, "**", issue, f"{issue}.md"), recursive=True):
-            with open(f, encoding="utf-8") as fh:
-                return f, fh.read()
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    return f, fh.read()
+            except (OSError, UnicodeDecodeError):
+                continue
         # fallback: 단일 파일 구조
         for f in glob.glob(os.path.join(base, "**", "*.md"), recursive=True):
-            with open(f, encoding="utf-8") as fh:
-                content = fh.read()
-                if f"jira: {issue}" in content or os.path.basename(f) == f"{issue}.md":
-                    return f, content
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    content = fh.read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if f"jira: {issue}" in content or os.path.basename(f) == f"{issue}.md":
+                return f, content
     return None, None
 
 def extract_section(content, section):

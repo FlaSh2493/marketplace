@@ -16,7 +16,7 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 ## 전제조건 — 워크트리 진입 (완료 전까지 아래로 절대 넘어가지 않는다)
 
 1. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}` 실행
-   성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
+   성공: data.worktree_path, data.branch, data.root_path, data.base_branch 보관
    실패: reason 출력 후 [STOP]
 2. `cd {data.worktree_path} && pwd && git branch --show-current` 실행하여 경로·브랜치 확인
 
@@ -36,15 +36,6 @@ description: 새 세션에서 기존 워크트리에 추가/수정/삭제 작업
 3. 결과 있으면 `get_impact_radius_tool` 호출 (changed_files: 위 결과, max_depth: 2)
 4. 실패/결과 없음 시 fallback: `cd {data.worktree_path} && rg {패턴}` 직접 탐색
 5. 관련 파일 Read (`{data.worktree_path}/파일경로` 절대경로)
-- code-review-graph 그래프 없음: "code-review-graph 그래프가 없습니다. /worktree-flow:init 을 먼저 실행하세요." 출력 후 [STOP]
-
-**요구사항 추가/수정** 발생 시:
-Edit 도구로 `{root_path}/.docs/task/{main_branch}/{이슈키}/{이슈키}.md` 끝에 추가:
-```
-## 추가 요구사항
-
-{내용}
-```
-(이미 `## 추가 요구사항` 섹션이 있으면 해당 섹션 끝에 append)
+- code-review-graph 그래프 없음: 4번 fallback으로 진행
 
 **커밋**: 구현 중 WIP 커밋하지 않는다. 커밋은 merge 단계에서 처리한다.

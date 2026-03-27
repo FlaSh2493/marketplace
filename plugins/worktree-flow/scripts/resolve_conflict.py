@@ -3,7 +3,7 @@
 충돌 파일 단일 해결.
 Usage: python3 resolve_conflict.py {file} {feature|base}
 """
-import json, os, sys, subprocess
+import json, os, shlex, sys, subprocess
 
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
@@ -36,17 +36,18 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
+    quoted = shlex.quote(filepath)
     if choice == "feature":
         # 머지 들어오는 쪽(theirs) 선택
-        _, err, code = run(f"git checkout --theirs -- '{filepath}'", cwd=root)
+        _, err, code = run(f"git checkout --theirs -- {quoted}", cwd=root)
     else:
         # 베이스(ours) 선택
-        _, err, code = run(f"git checkout --ours -- '{filepath}'", cwd=root)
+        _, err, code = run(f"git checkout --ours -- {quoted}", cwd=root)
 
     if code != 0:
         error("RESOLVE_FAILED", f"충돌 해결 실패: {err}")
 
-    run(f"git add -- '{filepath}'", cwd=root)
+    run(f"git add -- {quoted}", cwd=root)
     ok(f"{filepath} 충돌 해결 완료 ({choice} 선택)")
 
 if __name__ == "__main__":

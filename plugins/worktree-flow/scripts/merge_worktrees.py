@@ -1,54 +1,107 @@
 #!/usr/bin/env python3
 """
-워크트리 브랜치들을 squash merge로 피처 브랜치에 통합한다.
+워크트리 브랜치를 squash merge로 피처 브랜치에 통합한다.
 워크트리 브랜치 히스토리는 건드리지 않음.
 Usage:
   python3 merge_worktrees.py {feature} --dry-run
   python3 merge_worktrees.py {feature} --issue {이슈키} --message "{메시지}"
-  python3 merge_worktrees.py {feature} --issue {이슈키} --continue
+  python3 merge_worktrees.py {feature} --issue {이슈키} --message "{메시지}" --continue
 Exit 0: 성공 / Exit 1: 실패 / Exit 2: 충돌
 """
-import argparse, json, os, subprocess, sys
+import argparse, json, os, re, shlex, subprocess, sys
+
 
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
     return r.stdout.strip(), r.stderr.strip(), r.returncode
 
+
 def find_git_root():
-    common, _, _ = run("git rev-parse --git-common-dir")
-    if common:
+    common, _, rc = run("git rev-parse --git-common-dir")
+    if rc == 0 and common:
         return os.path.abspath(os.path.join(common, ".."))
-    out, _, _ = run("git rev-parse --show-toplevel")
-    return out or None
+    out, _, rc2 = run("git rev-parse --show-toplevel")
+    return out if rc2 == 0 else None
+
+
+def sanitize_name(issue_key):
+    name = re.sub(r"[^a-zA-Z0-9._-]", "-", issue_key)
+    return name[:64]
+
+
+def wt_branch(issue_key):
+    return f"worktree-{sanitize_name(issue_key)}"
+
+
+def wt_path(root, issue_key):
+    return os.path.join(root, ".claude", "worktrees", sanitize_name(issue_key))
+
 
 def get_wt_branches(root, feature):
-    out, _, _ = run("git branch --list", cwd=root)
-    if not out: return []
-    prefix = f"{feature}--wt-"
-    return [{"branch": b.strip().lstrip("* "), "issue": b.strip().lstrip("* ")[len(prefix):]}
-            for b in out.split("\n") if b.strip().lstrip("* ").startswith(prefix)]
+    """feature 브랜치 기준으로 분기한 worktree- 브랜치 목록 반환"""
+    out, _, _ = run("git branch --list worktree-*", cwd=root)
+    if not out:
+        return []
+    results = []
+    for b in out.split("\n"):
+        branch = b.strip().lstrip("* ")
+        if not branch:
+            continue
+        # feature 브랜치에서 분기했는지 merge-base로 확인
+        base, _, rc = run(f"git merge-base '{feature}' '{branch}'", cwd=root)
+        feature_tip, _, ft_rc = run(f"git rev-parse '{feature}'", cwd=root)
+        if rc == 0 and ft_rc == 0 and feature_tip and base == feature_tip:
+            issue = branch[len("worktree-"):]
+            results.append({"branch": branch, "issue": issue})
+    return results
+
 
 def count_conflicts(root, target, source):
-    orig, _, _ = run("git rev-parse --abbrev-ref HEAD", cwd=root)
-    run(f"git checkout '{target}'", cwd=root)
+    """stash 후 충돌 예측, 완료 후 복원"""
+    stash_out, _, stash_rc = run("git stash", cwd=root)
+    stashed = stash_rc == 0 and "No local changes" not in stash_out
+
+    orig, _, orig_rc = run("git rev-parse --abbrev-ref HEAD", cwd=root)
+    if orig_rc != 0 or not orig:
+        if stashed:
+            run("git stash pop", cwd=root)
+        return []
+
+    _, checkout_err, checkout_rc = run(f"git checkout '{target}'", cwd=root)
+    if checkout_rc != 0:
+        if stashed:
+            run("git stash pop", cwd=root)
+        return []
+
     _, _, code = run(f"git merge --squash '{source}'", cwd=root)
     conflicts = []
     if code != 0:
         out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
-        if out: conflicts = [f for f in out.split("\n") if f.strip()]
-    run("git reset --hard HEAD 2>/dev/null || true", cwd=root)
-    run(f"git checkout '{orig}'", cwd=root)
+        if out:
+            conflicts = [f for f in out.split("\n") if f.strip()]
+    run("git reset --hard HEAD", cwd=root)
+    _, restore_err, restore_rc = run(f"git checkout '{orig}'", cwd=root)
+    if restore_rc != 0:
+        # orig 복원 실패 — stash pop 시도는 하되 conflicts는 그대로 반환
+        pass
+
+    if stashed:
+        run("git stash pop", cwd=root)
     return conflicts
+
 
 def get_wip_count(root, branch, feature):
     base, _, _ = run(f"git merge-base '{feature}' '{branch}'", cwd=root)
-    if not base: return 0
+    if not base:
+        return 0
     out, _, _ = run(f"git log {base}..{branch} --oneline", cwd=root)
-    return sum(1 for line in out.split("\n") if "WIP(" in line)
+    return sum(1 for line in out.split("\n") if "wip(" in line.lower())
+
 
 def error(code, reason):
     print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
     sys.exit(1)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -65,31 +118,29 @@ def main():
 
     # 충돌 해결 후 계속
     if args.cont and args.issue:
-        _, err, code = run(f"git commit -m '{args.message or args.issue} (conflict resolved)'", cwd=root)
+        message = args.message or f"feat({args.issue}): squash merge"
+        _, err, code = run(f"git commit -m {shlex.quote(message)}", cwd=root)
         if code != 0:
             error("CONTINUE_FAILED", f"커밋 실패: {err}")
         print(json.dumps({"status": "ok", "data": {"continued": True}}, ensure_ascii=False))
         return
 
-    branches = get_wt_branches(root, args.feature)
-    if not branches:
-        error("NO_BRANCHES", f"'{args.feature}'의 워크트리 브랜치가 없습니다")
-
-    # 충돌 예측 및 순서 결정
-    matrix = []
-    for b in branches:
-        conflicts = count_conflicts(root, args.feature, b["branch"])
-        wip_count = get_wip_count(root, b["branch"], args.feature)
-        matrix.append({
-            "issue": b["issue"],
-            "branch": b["branch"],
-            "conflict_files": conflicts,
-            "conflict_count": len(conflicts),
-            "wip_count": wip_count
-        })
-    order = sorted(matrix, key=lambda x: x["conflict_count"])
-
     if args.dry_run:
+        branches = get_wt_branches(root, args.feature)
+        if not branches:
+            error("NO_BRANCHES", f"'{args.feature}' 기준 워크트리 브랜치가 없습니다")
+        matrix = []
+        for b in branches:
+            conflicts = count_conflicts(root, args.feature, b["branch"])
+            wip_count = get_wip_count(root, b["branch"], args.feature)
+            matrix.append({
+                "issue": b["issue"],
+                "branch": b["branch"],
+                "conflict_files": conflicts,
+                "conflict_count": len(conflicts),
+                "wip_count": wip_count,
+            })
+        order = sorted(matrix, key=lambda x: x["conflict_count"])
         print(json.dumps({
             "status": "ok",
             "data": {"feature": args.feature, "merge_order": order, "total": len(order)}
@@ -98,32 +149,44 @@ def main():
 
     # 단일 이슈 squash merge
     if args.issue:
-        branch = f"{args.feature}--wt-{args.issue}"
+        branch = wt_branch(args.issue)
         message = args.message or f"feat({args.issue}): squash merge"
 
-        run(f"git checkout '{args.feature}'", cwd=root)
+        # 브랜치 존재 확인
+        _, _, branch_rc = run(f"git rev-parse --verify '{branch}'", cwd=root)
+        if branch_rc != 0:
+            error("BRANCH_NOT_FOUND", f"워크트리 브랜치 '{branch}'가 존재하지 않습니다")
+
+        _, checkout_err, checkout_rc = run(f"git checkout '{args.feature}'", cwd=root)
+        if checkout_rc != 0:
+            error("CHECKOUT_FAILED", f"'{args.feature}' 브랜치 체크아웃 실패: {checkout_err}")
+
         _, err, code = run(f"git merge --squash '{branch}'", cwd=root)
         if code != 0:
             out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
             conflicts = [f for f in out.split("\n") if f.strip()]
+            if not conflicts:
+                # 충돌이 아닌 다른 원인의 실패
+                error("MERGE_FAILED", f"머지 실패: {err}")
             print(json.dumps({
                 "status": "conflict",
                 "issue": args.issue,
-                "conflicts": conflicts
+                "conflicts": conflicts,
             }, ensure_ascii=False, indent=2))
             sys.exit(2)
 
-        _, err, code = run(f"git commit -m '{message}'", cwd=root)
+        _, err, code = run(f"git commit -m {shlex.quote(message)}", cwd=root)
         if code != 0:
             error("COMMIT_FAILED", f"커밋 실패: {err}")
 
         print(json.dumps({
             "status": "ok",
-            "data": {"issue": args.issue, "branch": branch}
+            "data": {"issue": args.issue, "branch": branch},
         }, ensure_ascii=False, indent=2))
         return
 
     error("MISSING_ARGS", "--issue 또는 --dry-run 필요")
+
 
 if __name__ == "__main__":
     main()

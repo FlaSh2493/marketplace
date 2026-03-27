@@ -3,27 +3,37 @@
 머지 완료 후 워크트리 정리. 브랜치는 태그로 보존 후 삭제.
 Usage: python3 cleanup_worktrees.py {feature} --issues {PLAT-101} {PLAT-102} ...
 """
-import argparse, json, os, sys, subprocess
+import argparse, json, os, re, sys, subprocess
 from datetime import datetime
+
 
 def run(cmd, cwd=None):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
     return r.stdout.strip(), r.stderr.strip(), r.returncode
 
-def find_git_root():
-    common, _, _ = run("git rev-parse --git-common-dir")
-    if common:
-        return os.path.abspath(os.path.join(common, ".."))
-    out, _, _ = run("git rev-parse --show-toplevel")
-    return out or None
 
-def ok(data):
+def find_git_root():
+    common, _, rc = run("git rev-parse --git-common-dir")
+    if rc == 0 and common:
+        return os.path.abspath(os.path.join(common, ".."))
+    out, _, rc2 = run("git rev-parse --show-toplevel")
+    return out if rc2 == 0 else None
+
+
+def sanitize_name(issue_key):
+    name = re.sub(r"[^a-zA-Z0-9._-]", "-", issue_key)
+    return name[:64]
+
+
+def ok(data, has_errors=False):
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False, indent=2))
-    sys.exit(0)
+    sys.exit(1 if has_errors else 0)
+
 
 def error(code, reason):
     print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
     sys.exit(1)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -35,18 +45,23 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    wt_base = os.path.join(root, ".worktrees")
     cleaned = []
     errors = []
     date = datetime.now().strftime("%Y%m%d")
 
     for issue in args.issues:
-        branch = f"{args.feature}--wt-{issue}"
-        wt_path = os.path.join(wt_base, issue)
+        name = sanitize_name(issue)
+        branch = f"worktree-{name}"
+        wt_path = os.path.join(root, ".claude", "worktrees", name)
         tag = f"archive/{args.feature}/{issue}-wip-{date}"
 
-        # 태그 생성 (WIP 히스토리 보존)
-        run(f"git tag '{tag}' '{branch}'", cwd=root)
+        # 태그 생성 (WIP 히스토리 보존) — 이미 존재하면 스킵
+        _, _, tag_rc = run(f"git rev-parse --verify 'refs/tags/{tag}'", cwd=root)
+        if tag_rc != 0:
+            _, tag_err, tag_code = run(f"git tag '{tag}' '{branch}'", cwd=root)
+            if tag_code != 0:
+                errors.append({"issue": issue, "error": f"태그 생성 실패: {tag_err}"})
+                continue
 
         # 워크트리 제거
         if os.path.exists(wt_path):
@@ -55,16 +70,19 @@ def main():
                 errors.append({"issue": issue, "error": f"worktree remove 실패: {err}"})
                 continue
 
-        # 브랜치 삭제
-        run(f"git branch -D '{branch}'", cwd=root)
-
+        # 브랜치 삭제 (워크트리 제거 성공 후에만)
+        _, branch_err, branch_code = run(f"git branch -D '{branch}'", cwd=root)
+        if branch_code != 0:
+            errors.append({"issue": issue, "error": f"브랜치 삭제 실패: {branch_err}"})
+            continue
         cleaned.append({"issue": issue, "tag": tag})
 
     ok({
         "feature": args.feature,
         "cleaned": cleaned,
         **({"errors": errors} if errors else {})
-    })
+    }, has_errors=bool(errors))
+
 
 if __name__ == "__main__":
     main()

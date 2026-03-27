@@ -147,8 +147,8 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 ## 디렉토리 구조
 
 ```
-.worktrees/
-└── PLAT-101/           ← 워크트리 경로 (feat/sprint3--wt-PLAT-101 브랜치)
+.claude/worktrees/
+└── PLAT-101/           ← 워크트리 경로 (worktree-PLAT-101 브랜치)
 ```
 
 머지 후 WIP 히스토리는 git 태그로 보존됩니다 (파일시스템 폴더 아님):
@@ -208,8 +208,8 @@ git tag --list 'archive/feat/sprint3/*'
 git log archive/feat/sprint3/PLAT-101-wip-20260326
 
 # 수동 워크트리 복원
-git checkout -b feat/sprint3--wt-PLAT-101 archive/feat/sprint3/PLAT-101-wip-20260326
-git worktree add .worktrees/PLAT-101 feat/sprint3--wt-PLAT-101
+git checkout -b worktree-PLAT-101 archive/feat/sprint3/PLAT-101-wip-20260326
+git worktree add .claude/worktrees/PLAT-101 worktree-PLAT-101
 ```
 
 ---
