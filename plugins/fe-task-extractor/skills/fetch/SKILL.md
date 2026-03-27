@@ -59,7 +59,7 @@ STEP 1-C: 빈 파일 생성 (Bash)
 
 STEP 2: Writer 서브에이전트 런칭
   헤드리스 Writer 에이전트 런칭:
-    - 에이전트: fe-task-extractor (writer 역할)
+    - 에이전트: fe-task-extractor:fe-task-extractor
     - 프롬프트: `/fe-task-extractor:write {이슈키들 공백 구분}`
   출력:
     "Writer 에이전트 시작됨 ({N}개 이슈)."
