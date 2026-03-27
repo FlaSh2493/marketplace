@@ -2,7 +2,7 @@
 """
 이슈 워크트리를 보장한다. 없으면 생성, 있으면 재사용.
 Usage: python3 ensure_worktree.py {issue_key}
-Exit 0: ok (data.worktree_path, data.branch, data.created)
+Exit 0: ok (data.worktree_path, data.branch, data.root_path, data.main_branch, data.created)
 Exit 1: error
 """
 import json, os, re, subprocess, sys
@@ -29,6 +29,11 @@ def find_git_root():
         return os.path.abspath(os.path.join(common, ".."))
     toplevel, _, rc2 = run("git rev-parse --show-toplevel")
     return toplevel if rc2 == 0 else None
+
+
+def get_main_branch():
+    branch, _, rc = run("git rev-parse --abbrev-ref HEAD")
+    return branch if rc == 0 else "main"
 
 
 def sanitize_name(issue_key):
@@ -60,14 +65,18 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
+    main_branch = get_main_branch()
     name = sanitize_name(issue_key)
     worktree_path = os.path.join(root, ".claude", "worktrees", name)
     branch = f"worktree-{name}"
 
+    base = {"worktree_path": worktree_path, "branch": branch,
+            "root_path": root, "main_branch": main_branch}
+
     # 이미 존재하는 워크트리인지 확인
     worktrees = list_worktrees(root)
     if worktree_path in worktrees:
-        ok({"worktree_path": worktree_path, "branch": branch, "created": False})
+        ok({**base, "created": False})
 
     # 없으면 생성
     os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
@@ -84,7 +93,7 @@ def main():
     if rc2 != 0:
         error("WORKTREE_CREATE_FAILED", err)
 
-    ok({"worktree_path": worktree_path, "branch": branch, "created": True})
+    ok({**base, "created": True})
 
 
 if __name__ == "__main__":

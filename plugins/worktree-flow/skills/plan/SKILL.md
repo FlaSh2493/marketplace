@@ -6,11 +6,9 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 # Worktree Plan
 
 **실행 주체: Main Session**
-코드 수정은 STEP 1 완료 후 {worktree_path} 기반 절대경로로만 허용.
 `{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
 ## 사용법
-
 `/worktree-flow:plan {이슈키}`
 
 ---
@@ -19,12 +17,13 @@ description: 이슈 워크트리를 생성하고 플랜을 세운 뒤 사용자 
 
 STEP 0: 워크트리 확보
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {이슈키}`
-  성공: data.worktree_path, data.branch 보관
+  성공: data.worktree_path, data.branch, data.root_path, data.main_branch 보관
   실패: reason 그대로 출력 후 [STOP]
 
-  출력:
-  - created=true:  "워크트리 생성됨: {worktree_path} ({branch})"
-  - created=false: "워크트리 재사용: {worktree_path} ({branch})"
+  [GATE] AskUserQuestion("워크트리 {worktree_path} 에서 작업을 시작합니다.\n계속하려면 '워크트리 시작'을 입력하세요.")
+  → 사용자가 '워크트리 시작' 입력 → EnterWorktree 도구 호출 (name: {이슈키})
+    - 성공: CWD가 워크트리로 전환됨. STEP 1 진행
+    - 실패: 오류 출력 후 [TERMINATE]
 
 STEP 1: 이슈 명세 로드
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키} --sections 설명,메타데이터`
@@ -40,7 +39,7 @@ STEP 1: 이슈 명세 로드
       반영할 내용을 사용자에게 표시
       [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
       수정 입력 시: 반영 후 재표시 → 게이트 반복
-      확인 시: Edit 도구로 `.docs/task/{branch}/{이슈키}/{이슈키}.md` 파일 끝에 추가:
+      확인 시: Edit 도구로 {root_path}/.docs/task/{main_branch}/{이슈키}/{이슈키}.md 파일 끝에 추가:
         ```
         ## 추가 요구사항
 
@@ -64,7 +63,7 @@ STEP 2: 플랜 작성
        실패: fallback → 4번 진행
     4. [fallback] Claude가 직접 탐색
        이슈 명세 기반으로 Glob/Grep으로 관련 파일 직접 탐색
-    5. 영향 파일 목록 기준으로 필요한 파일만 Read ({worktree_path} 기반 절대경로)
+    5. 영향 파일 목록 기준으로 필요한 파일만 Read (CWD가 워크트리이므로 상대경로 사용)
 
   플랜 작성:
     ```
@@ -91,26 +90,25 @@ STEP 3: 플랜 저장
   실패: reason 그대로 출력 후 [STOP]
 
 STEP 4: 구현 실행
-  모든 파일 편집은 {worktree_path} 기반 절대경로를 사용한다.
-  예: Edit {worktree_path}/src/components/Login.tsx
+  CWD가 워크트리({worktree_path})이므로 상대경로로 파일을 편집한다.
 
   "구현 순서" 각 항목을 순서대로:
-    4-1. {worktree_path}/{파일} 읽기
+    4-1. 파일 읽기 (상대경로)
     4-2. 플랜 명세대로 코드 수정
   중간 실패 시: [STOP]
 
   구현 완료 후 커밋:
-    실행: `cd {worktree_path} && git add -A && git commit -m "wip({이슈키}): 구현"`
+    실행: `git add -A && git commit -m "wip({이슈키}): 구현"`
 
 STEP 5: 완료
-  출력: "구현 완료 [{이슈키}] — {worktree_path}"
+  출력: "구현 완료 [{이슈키}]"
   [GATE] AskUserQuestion("추가 작업이 있으면 입력하세요.\n(없으면 엔터, 머지하려면 '머지')")
   입력 있음:
     입력 내용을 분석하여 성격 판단:
       - 요구사항 성격: 반영할 내용을 사용자에게 표시
         [GATE] AskUserQuestion("요구사항을 위와 같이 업데이트합니다. 맞나요? (맞으면 엔터, 수정 필요 시 내용 입력)")
         수정 입력 시: 반영 후 재표시 → 게이트 반복
-        확인 시: Edit 도구로 `.docs/task/{branch}/{이슈키}/{이슈키}.md` 파일 끝에 추가:
+        확인 시: Edit 도구로 {root_path}/.docs/task/{main_branch}/{이슈키}/{이슈키}.md 파일 끝에 추가:
           ```
           ## 추가 요구사항
 
