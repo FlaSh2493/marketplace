@@ -1,5 +1,5 @@
 ---
-name: worktree-flow-init
+name: init
 description: worktree-flow 초기 설정을 도와준다. code-review-graph 설치 확인, 그래프 빌드, 사용법 안내까지 진행한다.
 ---
 
