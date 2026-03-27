@@ -137,7 +137,8 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 
 /worktree-flow:status             # 활성 워크트리 현황 확인
 
-/worktree-flow:merge feat/sprint3 # 충돌 예측 → 커밋 메시지 제안 → 승인 → squash merge → 정리
+/worktree-flow:merge feat/sprint3     # 단일 이슈 squash merge (워크트리 내부에서 실행)
+/worktree-flow:merge-all feat/sprint3 # 전체 이슈 일괄 merge (메인 세션에서 실행)
 ```
 
 ![alt text](image.png)
