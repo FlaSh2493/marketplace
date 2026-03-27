@@ -9,11 +9,14 @@ description: Writer 서브에이전트 전용. fetch에서 선택된 Jira 이슈
 내용 요약·해석·추가 절대 금지. Jira 원본을 마크다운으로 변환하여 그대로 저장한다.
 
 ## 사용법
-`/fe-task-extractor:write {이슈키} [{이슈키}...]`
+`/fe-task-extractor:write --branch {branch} {이슈키} [{이슈키}...]`
 
 ## 실행 절차
 
-STEP 0: 선택 검증 (Read 도구)
+STEP 0: 브랜치 및 선택 검증
+  인수에서 `--branch {값}` 파싱 → branch 변수로 보관
+  없으면: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.py fetch` 실행 → data.branch 사용
+
   Read: `.docs/task/{branch}/.state/pending.json`
   파일이 없으면:
     출력: "pending.json이 없습니다. /fe-task-extractor:fetch를 먼저 실행하세요."
