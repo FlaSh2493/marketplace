@@ -18,15 +18,15 @@
       "version": "0.1.0"
     },
     {
-      "name": "worktree-flow",
-      "source": "./plugins/worktree-flow",
-      "description": "Git worktree 병렬 작업 관리 플러그인",
+      "name": "autopilot",
+      "source": "./plugins/autopilot",
+      "description": "이슈 단위 워크트리 자동화 — 플랜·구현·머지",
       "version": "0.1.0"
     },
     {
-      "name": "fe-task-extractor",
-      "source": "./plugins/fe-task-extractor",
-      "description": "Frontend Task Extractor & Jira Story Creator",
+      "name": "task-sync",
+      "source": "./plugins/task-sync",
+      "description": "Task spec & Jira bidirectional sync",
       "version": "0.1.0"
     }
   ]

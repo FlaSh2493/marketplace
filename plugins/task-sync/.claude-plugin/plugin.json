@@ -1,0 +1,9 @@
+{
+  "name": "task-sync",
+  "description": "Task spec & Jira bidirectional sync — extract, fetch, publish, update.",
+  "version": "0.1.0",
+  "author": {
+    "name": "flash2493",
+    "email": "flash0211@naver.com"
+  }
+}

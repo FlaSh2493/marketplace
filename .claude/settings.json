@@ -6,7 +6,7 @@
         "actions": [
           {
             "type": "command",
-            "command": "/Users/madup/my/marketplace/plugins/worktree-flow/scripts/wip_commit.sh"
+            "command": "/Users/madup/my/marketplace/plugins/autopilot/scripts/wip_commit.sh"
           }
         ]
       }
