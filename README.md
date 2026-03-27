@@ -33,8 +33,7 @@
 ### autopilot 워크플로우
 
 ```
-plan/work → check → merge → cleanup
-                 ↘ pr
+plan/work → check → merge → pr → cleanup
 ```
 
 | 스킬 | 설명 |

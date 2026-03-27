@@ -159,6 +159,12 @@ STEP 6: 완료 출력
     재시도:   /autopilot:merge {피처브랜치}  (해당 워크트리 세션에서 실행)
   ```
 
-  AskUserQuestion("머지가 완료되었습니다. 이어서 `/autopilot:cleanup`으로 머지된 워크트리를 정리할까요?")
+  AskUserQuestion으로 다음 선택지 제시:
+  ```
+  머지가 완료되었습니다. 다음 중 선택하세요:
+  1. `/autopilot:pr` — develop 대상 PR 생성
+  2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
+  3. 추가 작업 계속
+  ```
 
 [TERMINATE]
