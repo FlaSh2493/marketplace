@@ -145,11 +145,15 @@ def main():
         if branch_rc != 0:
             error("BRANCH_NOT_FOUND", f"워크트리 브랜치 '{branch}'가 존재하지 않습니다")
 
+        worktree = wt_path(root, args.issue)
+        if not os.path.isdir(worktree):
+            error("WORKTREE_NOT_FOUND", f"워크트리 경로 '{worktree}'가 존재하지 않습니다")
+
         if args.cont:
-            # 충돌 해결 후 rebase 계속
-            _, err, code = run("git rebase --continue", cwd=root)
+            # 충돌 해결 후 rebase 계속 — worktree 안에서 실행
+            _, err, code = run("git rebase --continue", cwd=worktree)
             if code != 0:
-                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=worktree)
                 conflicts = [f for f in out.split("\n") if f.strip()]
                 if not conflicts:
                     error("REBASE_CONTINUE_FAILED", f"rebase --continue 실패: {err}")
@@ -160,10 +164,10 @@ def main():
                 }, ensure_ascii=False, indent=2))
                 sys.exit(2)
         else:
-            # 최초 rebase
-            _, err, code = run(f"git rebase '{args.feature}' '{branch}'", cwd=root)
+            # 최초 rebase — worktree 안에서 실행 (branch가 이미 체크아웃된 상태)
+            _, err, code = run(f"git rebase '{args.feature}'", cwd=worktree)
             if code != 0:
-                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=worktree)
                 conflicts = [f for f in out.split("\n") if f.strip()]
                 if not conflicts:
                     error("REBASE_FAILED", f"rebase 실패: {err}")
@@ -174,13 +178,13 @@ def main():
                 }, ensure_ascii=False, indent=2))
                 sys.exit(2)
 
-        # rebase 완료 → fast-forward merge
-        _, checkout_err, checkout_rc = run(f"git checkout '{args.feature}'", cwd=root)
-        if checkout_rc != 0:
-            error("CHECKOUT_FAILED", f"'{args.feature}' 체크아웃 실패: {checkout_err}")
-        _, err, code = run(f"git merge --ff-only '{branch}'", cwd=root)
+        # rebase 완료 → ref 직접 업데이트 (checkout 없이 ff와 동일 효과)
+        branch_tip, _, tip_rc = run(f"git rev-parse '{branch}'", cwd=root)
+        if tip_rc != 0 or not branch_tip:
+            error("REV_PARSE_FAILED", f"'{branch}' 커밋 해시를 읽을 수 없습니다")
+        _, err, code = run(f"git update-ref 'refs/heads/{args.feature}' '{branch_tip}'", cwd=root)
         if code != 0:
-            error("FF_MERGE_FAILED", f"fast-forward 머지 실패: {err}")
+            error("FF_MERGE_FAILED", f"fast-forward ref 업데이트 실패: {err}")
 
         print(json.dumps({
             "status": "ok",
