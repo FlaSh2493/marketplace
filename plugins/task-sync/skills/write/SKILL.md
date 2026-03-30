@@ -28,21 +28,40 @@ STEP 0: 브랜치 및 선택 검증
 STEP 1: 이슈별 처리 (각 이슈 순서대로)
 
   1-1. Jira 상세 조회 (Claude MCP)
-    - `jiraGetIssue({이슈키})` — summary, description, status, assignee, created
+    - `jiraGetIssue({이슈키})` — summary, description, status, assignee, created, fields.attachment
     - `jiraGetIssueComments({이슈키})` — 전체 댓글 (시간순)
-    - attachments — 이미지/파일 목록
+    - attachment 목록: response.fields.attachment (없으면 빈 배열)
+      각 항목: { filename, mimeType, content (다운로드 URL), size }
 
-  1-2. 템플릿 로드 (Read 도구)
+  1-2. 첨부파일 다운로드 (Bash 도구)
+    attachment 목록을 순서대로 처리한다.
+    이미지 MIME: image/png, image/jpeg, image/gif, image/svg+xml, image/webp
+    비이미지 MIME: 그 외 (pdf, doc, xlsx 등)
+
+    assets 디렉토리 생성:
+      경로: `.docs/task/{branch}/{이슈키}/assets/`
+
+    각 attachment에 대해 순번(1부터)을 부여하고 다운로드:
+      저장명: `{이슈키}-{순번}.{확장자}` (예: SPT-3771-1.png)
+      저장 경로: `.docs/task/{branch}/{이슈키}/assets/{저장명}`
+      다운로드 명령 (Bash):
+        `curl -sL -o "{저장 경로}" "{content URL}"`
+      50MB 초과(size > 52428800) 또는 다운로드 실패 시:
+        로그: "⚠ {이슈키} {파일명} 다운로드 실패 — 스킵"
+        해당 파일만 건너뛰고 계속 진행
+      성공한 파일은 이미지/비이미지로 분류하여 목록 유지
+
+  1-3. 템플릿 로드 (Read 도구)
     Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-template.md`
     Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-example.md`
     포맷과 필드 순서 파악
 
-  1-3. ADF → 마크다운 변환 (Claude 역할 — 유일한 자유 구간)
+  1-4. ADF → 마크다운 변환 (Claude 역할 — 유일한 자유 구간)
     - Jira ADF → 마크다운 변환
     - 요약 금지. 원본 구조(리스트, 테이블, 코드블록) 보존
     - description, deps, api, states 값 추출
 
-  1-4. 파일 채우기 (Edit 도구)
+  1-5. 파일 채우기 (Edit 도구)
     fetch가 이미 생성한 파일에 내용을 채운다:
     경로: `.docs/task/{branch}/{이슈키}/{이슈키}.md`
     파일이 없으면: "파일이 없습니다. /task-sync:fetch를 먼저 실행하세요." [STOP]
@@ -73,9 +92,22 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
     - states: {파싱 결과 또는 없음}
 
     ---
+
+    ## 첨부 이미지     ← 다운로드 성공한 이미지가 1개 이상일 때만 포함. 없으면 이 섹션 전체 생략.
+
+    ![{파일명}](./assets/{이슈키}-1.{확장자})
+    ![{파일명}](./assets/{이슈키}-2.{확장자})
+
+    ---
+
+    ## 첨부 파일      ← 다운로드 성공한 비이미지 파일이 1개 이상일 때만 포함. 없으면 이 섹션 전체 생략.
+
+    - [{파일명}](./assets/{이슈키}-{순번}.{확장자})
+
+    ---
     ```
 
-  1-5. 댓글 추가 (Edit 도구)
+  1-6. 댓글 추가 (Edit 도구)
     1-1에서 조회한 댓글 목록을 확인한다.
     댓글이 1개 이상이면 파일 끝에 반드시 추가한다 (작성자 무관, 전체 포함):
     ```
@@ -89,7 +121,7 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
     ```
     댓글이 0개이면 이 단계를 스킵한다.
 
-  1-6. 완료 마커 저장 (Write 도구)
+  1-7. 완료 마커 저장 (Write 도구)
     Jira에서 불러온 이슈는 이미 Jira에 존재하므로 PUBLISHED 상태로 저장:
     Write: `.docs/task/{branch}/.state/{이슈키}.published`
     내용: `{"issue": "{이슈키}", "written_at": "{현재시각}"}`

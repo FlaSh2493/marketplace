@@ -23,9 +23,46 @@ STEP 0: 전제조건 검증
 STEP 1: 이슈 목록 확인
   인수가 있으면 → STEP 1-B (선택 스킵)
   인수가 없으면:
-    Jira 조회 (Claude MCP):
-      JQL: `assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC`
-    결과를 번호 테이블로 출력:
+
+    [1차 시도] JQL Search (Claude MCP):
+      mcp__atlassian__search_issues_by_user_involvement(
+        searchType='assignee', maxResults=50
+      )
+      조건:
+        ✓ 성공 && 결과 있음 → Done 제외 필터링 후 STEP 1-A로 진행
+        ✗ 실패 OR 결과 없음 → [2차 시도]로 진행
+      로그: "✓ 1차 성공: N개 이슈" 또는 "⚠ 1차 실패: {오류명}: {메시지}"
+
+    [2차 시도] Agile Board 폴백 (Claude MCP):
+      1. mcp__atlassian__list_agile_boards(maxResults=50)
+      2. 각 보드에서 활성 스프린트: mcp__atlassian__list_sprints_for_board(boardId, state='active')
+      3. 스프린트 이슈: mcp__atlassian__get_sprint_details(sprintId)
+      4. 필터링: assignee == 현재 사용자 AND status != Done (중복 제거)
+      조건:
+        ✓ 성공 && 결과 있음 → STEP 1-A로 진행
+        ✗ 실패 OR 결과 없음 → [3차 시도]로 진행
+      로그: "✓ 2차 성공: N개 이슈" 또는 "⚠ 2차 실패: {오류명}: {메시지}"
+
+    [3차 시도] 사용자 직접 입력 유도:
+      로그: "❌ 자동 조회 전부 실패"
+      출력:
+        ```
+        ⚠️  자동 조회 실패 (Jira API 마이그레이션 중)
+
+        다음 중 하나를 선택하세요:
+
+        1  이슈 키 직접 입력:
+            /task-sync:fetch PROJ-101 PROJ-102
+
+        2  Jira 웹사이트에서 확인:
+            https://madup.atlassian.net/jira/your-work
+
+        3  나중에 다시 시도:
+            /task-sync:fetch
+        ```
+      [STOP] 추가 입력 대기
+
+    조회 성공 시 결과를 번호 테이블로 출력:
     ```
     | 번호 | Jira Key  | 제목                  | 상태        |
     |-----|-----------|-----------------------|------------|
