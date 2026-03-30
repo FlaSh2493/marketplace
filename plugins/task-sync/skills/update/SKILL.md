@@ -55,10 +55,17 @@ STEP 3: 변경 내용 분석 (Read 도구)
 
 STEP 5: Jira 업데이트 (MCP)
   각 이슈마다:
-  jiraUpdateIssue:
-    - summary: 작업 제목
-    - description: ## 설명 원문 + ## 추가 요구사항 (있는 경우) + 메타데이터 (요약 금지)
-  실패: 해당 이슈 오류 출력 후 다음 이슈 계속
+
+  5-1. 마크다운 → ADF 변환
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} {md_file_path}`
+    성공: ADF JSON 보관
+    실패: reason 그대로 출력 후 다음 이슈 계속
+
+  5-2. Jira 업데이트
+    jiraUpdateIssue:
+      - summary: 작업 제목
+      - description: 5-1에서 얻은 ADF JSON (마크다운 원문 절대 금지)
+    실패: 해당 이슈 오류 출력 후 다음 이슈 계속
 
 STEP 6: 완료 알림
   notify_user("Jira 동기화 완료 [{이슈키 목록}]")

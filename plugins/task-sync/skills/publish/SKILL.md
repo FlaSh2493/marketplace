@@ -53,11 +53,16 @@ STEP 4: Jira Story 생성
     실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} DRAFT PUBLISHING`
     실패: reason 그대로 출력 후 [STOP]
 
-  4-2. Jira Story 생성 (Claude MCP)
+  4-2. 마크다운 → ADF 변환
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {이슈키} {task_dir}/{이슈키}/{이슈키}.md`
+    성공: ADF JSON 보관
+    실패: reason 그대로 출력 후 [STOP]
+
+  4-3. Jira Story 생성 (Claude MCP)
     `jiraCreateIssue`:
       - issuetype: Story
       - summary: 파일의 작업 제목
-      - description: 파일의 ## 설명 섹션 원문
+      - description: 4-2에서 얻은 ADF JSON (마크다운 원문 절대 금지)
       - assignee: currentUser()
       - epic: (STEP 3에서 지정된 경우)
       - sprint: (STEP 3에서 지정된 경우)
