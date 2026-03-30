@@ -1,183 +1,319 @@
 ---
 name: autopilot-review-fix
-description: PR을 올린 후 CodeRabbit의 리뷰를 자동으로 대기하여 제안사항을 적용하고 결과를 보고한다.
+description: PR의 CodeRabbit 리뷰 코멘트를 가져와 코드를 자동 수정하고 커밋·push한다. "리뷰 반영", "코드래빗 수정", "review fix" 등을 요청할 때 사용한다.
 ---
 
-# CodeRabbit 리뷰 적용
-
-**실행 주체: Main Session**
+# CodeRabbit 리뷰 자동 반영
 
 ## 사용법
 `/autopilot:review-fix`
 
-## 실행 절차
+---
 
-STEP 0: 컨텍스트 확보
-  다음 명령을 각각 실행하여 컨텍스트 확보:
-  - `git rev-parse --show-toplevel` → worktree_path
-    실패 시: "git 저장소가 아닙니다." 출력 후 [STOP]
-  - `git rev-parse --abbrev-ref HEAD` → current_branch
-    출력이 `HEAD`(detached HEAD)이면: "detached HEAD 상태입니다. 브랜치를 checkout하세요." 출력 후 [STOP]
+## 흐름
 
-  current_branch가 `develop` 또는 `main`이면: "피처 브랜치에서 실행하세요." 출력 후 [STOP]
+```
+1. 컨텍스트 확보 (워크트리, 브랜치, PR)
+2. 리뷰 코멘트 수집 + 필터링 (1회 API)
+3. 분류 및 요약 표시
+4. [GATE] 적용 범위 확인
+5. 수정 → 검증 → 보고 → [GATE] 커밋 확인 → push → 처리 표시
+```
 
-  safe_branch: current_branch의 `/`를 `-`로 치환한 값
-  state_file: `/tmp/autopilot_review_{safe_branch}.json` (상태 파일 경로)
+---
 
-  **이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행**
+## STEP 1: 컨텍스트 확보
 
-STEP 0-A: PR 번호 확인
-  ```bash
-  cd '{worktree_path}' && gh pr list --head '{current_branch}' --base develop --state open --json number -q '.[0].number // empty'
+```bash
+git rev-parse --show-toplevel → worktree_path   # 실패 → [STOP]
+git rev-parse --abbrev-ref HEAD → current_branch # HEAD → [STOP], develop|main → [STOP]
+gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
+gh api user -q '.login' → my_login
+gh repo view --json nameWithOwner -q '.nameWithOwner' → owner_repo
+gh pr list --head '{current_branch}' --state open --json number -q '.[0].number // empty' → pr_number
+# 비어있으면 → "열린 PR이 없습니다." [STOP]
+```
+
+**이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행한다.**
+
+## STEP 2: 리뷰 코멘트 수집
+
+### 2-1. 전체 코멘트 1회 수집 (reactions 포함)
+
+```bash
+gh api repos/{owner_repo}/pulls/{pr_number}/comments \
+  --paginate \
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {
+    id: .id,
+    path: .path,
+    line: (.line // .original_line),
+    side: (.side // "RIGHT"),
+    body: .body,
+    in_reply_to_id: .in_reply_to_id,
+    created_at: .created_at,
+    diff_hunk: .diff_hunk,
+    resolved: ((.reactions // {})."+1" // 0) > 0
+  }]'
+```
+
+### 2-2. 필터링
+
+수집 결과를 아래 기준으로 분류한다:
+
+| 분류 | 조건 | 처리 |
+|------|------|------|
+| **처리 완료** | `resolved == true` (+1 reaction 존재) | 제외 |
+| **outdated** | `cd '{worktree_path}' && git ls-files --error-unmatch '{path}'` 실패 (파일 미존재) | 제외 |
+| **스레드 최초 코멘트** | `in_reply_to_id == null` | **수정 대상** |
+| **스레드 후속 코멘트** | `in_reply_to_id != null` | 해당 스레드 최초 코멘트의 **보충 맥락**으로 합산 |
+
+스레드 합산: 동일 `in_reply_to_id`를 가진 후속 코멘트의 body를 최초 코멘트에 `\n---\n` 구분자로 이어붙여 하나의 지시로 취급한다.
+
+### 2-3. Review body — 맥락 참고용
+
+```bash
+gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]" and .state == "CHANGES_REQUESTED") | {id: .id, body: .body}]'
+```
+
+- review body는 **수정 대상이 아닌 맥락 참고용**으로만 사용
+- Walkthrough, Summary 섹션은 코드 수정 지시가 아님
+
+### 2-4. 수집 결과 검증
+
+- 활성 코멘트 0건: "활성 CodeRabbit 리뷰가 없습니다." → `[STOP]`
+- gh api 실패: 에러 메시지 출력 → `[STOP]`
+
+## STEP 3: 분류 및 요약
+
+### 3-1. 심각도 분류
+
+| 심각도 | 기준 | 표시 |
+|--------|------|------|
+| **critical** | 버그, 보안 취약점, 데이터 손실 가능성 | `[!]` |
+| **important** | 로직 오류, 성능 문제, 타입 불일치 | `[*]` |
+| **suggestion** | 리팩토링, 네이밍, 코드 스타일 개선 | `[~]` |
+| **nitpick** | 포맷팅, 사소한 선호도 차이 | `[.]` |
+
+### 3-2. 요약 표시
+
+```
+CodeRabbit 리뷰 {active_count}건 (전체 {total_count}건 중 활성):
+
+[!] critical ({n}건):
+  {파일명}:{line} — {핵심 요약 1줄}
+
+[*] important ({n}건):
+  {파일명}:{line} — {핵심 요약 1줄}
+
+[~] suggestion ({n}건):
+  {파일명}:{line} — {핵심 요약 1줄}
+
+[.] nitpick ({n}건):
+  {파일명}:{line} — {핵심 요약 1줄}
+```
+
+## STEP 4: 적용 범위 확인
+
+```
+[GATE] AskUserQuestion:
+"위 코멘트를 수정하겠습니다. 선택하세요:
+1. 전체 자동 수정 (nitpick은 dismiss) ← 권장
+2. critical + important만 수정 (나머지 dismiss)
+3. 코멘트별 선택
+4. 상세 보기 — 원문 확인 후 결정
+5. 중단
+"
+[LOCK: 응답 전 파일 수정 금지]
+```
+
+| 응답 | 수정 대상 | nitpick 처리 |
+|------|----------|-------------|
+| "1" | critical + important + suggestion | dismiss |
+| "2" | critical + important | suggestion + nitpick dismiss |
+| "3" | 코멘트별 선택 모드 (아래) | 선택에 따름 |
+| "4" | 원문 표시 후 동일 질문 재제시 | — |
+| "5" | `[STOP]` | — |
+
+### nitpick/스킵 대상 dismiss
+
+수정하지 않는 코멘트에는 PR 코멘트로 답글을 달아 CodeRabbit에게 resolve 시그널을 보낸다:
+
+```bash
+gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
+  -f body="Acknowledged — skipping this as a style preference. Thanks for the suggestion!"
+```
+
+### 코멘트별 선택 모드 ("3" 선택 시)
+
+각 코멘트를 critical → important → suggestion → nitpick 순으로 표시:
+
+```
+[{심각도}] {파일명}:{line}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+{코멘트 요약 + 원문 핵심부}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+→ 적용 / 스킵 / 중단?
+```
+
+## STEP 5: 수정 → 검증 → 커밋 → push
+
+### 5-1. 수정 원칙
+
+- 코멘트가 가리키는 파일을 Read로 읽고 Edit으로 **최소 범위만** 수정
+- suggestion 블록(` ```suggestion `)이 있으면:
+  - 블록 안의 코드가 해당 `line` 범위의 대체 코드임
+  - 원본 diff_hunk에서 해당 라인을 찾아 suggestion 코드로 교체
+  - 주변 코드와의 일관성(import, 변수명 등) 확인
+- **동일 파일 다중 코멘트**: 파일별로 코멘트를 모아 라인 역순(아래→위)으로 수정하여 라인 번호 밀림 방지
+- **코멘트 간 수정 범위 충돌 시**: 심각도 높은 쪽 우선 적용, 충돌하는 낮은 쪽은 스킵
+- 판단이 애매한 코멘트 → 수정하지 않고 스킵 목록에 사유와 함께 표시
+- 경로: Read/Edit/Glob/Grep은 `{worktree_path}/파일경로` 절대경로, Bash는 `cd '{worktree_path}' && command`
+
+### 5-2. 검증 (lint → type-check → test 루프)
+
+수정 완료 후, `/autopilot:check`와 동일한 순차 검증 루프를 실행한다.
+
+#### 5-2-1. 환경 탐지
+
+`{worktree_path}`에서 `package.json` 탐색 → 패키지 매니저 판별 → run_cmd 확보.
+`package.json`의 scripts에서 검사 명령어 매핑:
+
+| 검사 | 후보 스크립트명 (우선순위순) |
+|------|----------------------------|
+| lint | `lint`, `eslint` |
+| check-types | `check-types`, `type-check`, `typecheck`, `tsc` |
+| test | `test`, `jest`, `vitest` |
+
+`node_modules`가 없으면 install 실행. 3개 모두 스킵이면 검증 단계 자체를 스킵.
+
+#### 5-2-2. 순차 실행 + 자동 수정 루프
+
+검사 순서: **lint → check-types → test**
+
+각 검사에 대해:
+
+1. **실행**: `cd '{worktree_path}' && {run_cmd} {script} 2>&1` (timeout 300초)
+2. **통과** (exit 0) → 다음 검사로
+3. **실패** → 자동 수정 루프 (최대 3회):
+   - 에러 출력에서 `파일경로:라인번호` 파싱 → 파일 Read → 수정 → 재실행
+   - lint: eslint면 `--fix`, biome이면 `--fix` 시도 후 나머지 직접 Edit
+   - check-types: TS 에러 메시지 기반 코드 수정
+   - test: expect/actual 비교 → **구현 코드 수정** (테스트는 스펙)
+   - 파싱 불가 (환경 에러 등): 자동 수정 불가 → 실패 확정
+4. **3회 실패** → 해당 검사 실패 확정
+
+**선행 검사 재검증**: 다음 검사로 넘어가기 전, 직전 검사에서 코드 수정이 있었으면 이미 통과한 검사를 순서대로 재실행. 재검증은 전체에서 최대 1회.
+
+**검사 실패 시**: 같은 프로젝트의 이후 검사는 실행하지 않는다.
+
+#### 5-2-3. 검증 실패 시
+
+검사 실패가 남은 채로 루프가 종료되면, 남은 에러를 보고하고 `[STOP]`. 롤백하지 않는다 — 수정 자체는 리뷰 반영이므로 유지하고, 사용자가 잔여 에러를 직접 해결한다.
+
+```
+❌ 검증 미통과 — 수정사항은 유지됩니다.
+실패 검사: {검사명}
+시도: {attempt}회
+남은 에러:
+{마지막 에러 출력}
+
+잔여 에러 해결 후 /autopilot:check 또는 /autopilot:review-fix를 재실행하세요.
+```
+
+### 5-3. 보고
+
+```
+## 수정 결과
+
+### 적용 ({n}건)
+| 파일 | 라인 | 심각도 | 변경 요약 |
+|------|------|--------|----------|
+| {파일} | {line} | {심각도} | {1줄 요약} |
+
+### 스킵 ({n}건)
+| 파일 | 라인 | 심각도 | 스킵 사유 |
+|------|------|--------|----------|
+| {파일} | {line} | {심각도} | {사유} |
+
+### dismiss ({n}건)
+| 파일 | 라인 | 심각도 | 사유 |
+|------|------|--------|------|
+| {파일} | {line} | {심각도} | nitpick/사용자 스킵 |
+```
+
+### 5-4. 커밋 확인
+
+수정된 파일이 없으면 → "적용할 수정사항이 없었습니다." `[STOP]`
+
+```
+[GATE] AskUserQuestion:
+"위 수정 결과를 확인하세요. 커밋하고 push하시겠습니까?
+1. 커밋 + push
+2. 커밋만 (push 안 함)
+3. 중단 (수정사항 롤백)
+"
+```
+
+| 응답 | 동작 |
+|------|------|
+| "1" | 커밋 → push → 처리 표시 |
+| "2" | 커밋 → 처리 표시 (push 스킵) |
+| "3" | `cd '{worktree_path}' && git checkout -- {modified_files}` → `[STOP]` |
+
+### 5-5. 커밋
+
+```bash
+cd '{worktree_path}' && git add {modified_files}
+cd '{worktree_path}' && git commit -m "$(cat <<'EOF'
+fix: apply CodeRabbit review feedback
+
+{변경 요약 (bullet list, 심각도 포함)}
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+### 5-6. Push (응답 "1" 선택 시)
+
+```bash
+cd '{worktree_path}' && git push
+```
+
+**push 실패 시:**
+
+```bash
+cd '{worktree_path}' && git pull --rebase && git push
+```
+
+- rebase 충돌 시: `cd '{worktree_path}' && git rebase --abort` 후 안내
   ```
-  출력이 비어있으면: "열린 PR이 없습니다. 먼저 /autopilot:pr로 PR을 생성하세요." 출력 후 [STOP]
-  → pr_number 변수에 보관
-
-STEP 1: 이전 상태 확인
-  state_file 존재 여부 확인:
-  - 존재 && "reviews_fetched" 필드가 true: 이미 리뷰를 가져온 상태 → STEP 3으로 점프
-  - 존재 && 필드 없음: 폴링 중 중단된 상태 → STEP 2 재개
-  - 없음: 처음 실행 → STEP 2 진행
-
-  상태 파일 구조:
-  ```json
-  {
-    "pr_number": 123,
-    "current_branch": "feature/foo",
-    "reviews_fetched": false,
-    "reviews": [],
-    "applied_count": 0,
-    "failed_count": 0,
-    "applied_files": []
-  }
+  "push 실패: remote에 충돌하는 변경이 있습니다.
+  1. /autopilot:merge로 머지 후 재시도
+  2. 수동으로 해결
+  "
   ```
+- 기타 실패: 에러 메시지 출력 → `[STOP]`
 
-STEP 2: CodeRabbit 리뷰 폴링
-  최대 10분(600초) 동안 30초마다 리뷰 확인:
-  ```bash
-  cd '{worktree_path}' && for i in {1..20}; do
-    reviews=$(gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
-      --jq '[.[] | select(.user.login | test("coderabbitai"))]')
-    if [ -n "$reviews" ] && [ "$reviews" != "[]" ]; then
-      echo "$reviews"
-      break
-    fi
-    echo "[$i/20] 리뷰 대기 중..." >&2
-    sleep 30
-  done
-  ```
+### 5-7. 처리 완료 표시
 
-  리뷰 감지 시:
-  - reviews 데이터를 상태 파일에 저장
-  - "reviews_fetched": true 마킹
-  - STEP 3 진행
+push 성공(또는 응답 "2"로 커밋만 한 경우 커밋 성공) 후, 적용한 각 코멘트에 `+1` reaction을 추가하여 멱등성 확보:
 
-  타임아웃(20회 반복 후):
-  - "CodeRabbit 리뷰가 아직 없습니다. 잠시 후 다시 실행하세요: /autopilot:review-fix" 출력
-  - [STOP]
+```bash
+gh api repos/{owner_repo}/pulls/comments/{comment_id}/reactions \
+  -f content="+1" --silent
+```
 
-STEP 3: 리뷰 파싱 및 제안 추출
-  상태 파일의 reviews에서:
+- reaction 추가 실패 시 무시 (수정 자체는 이미 커밋됨)
+- push 실패 시에는 reaction을 추가하지 않는다 — 다음 실행 시 해당 코멘트를 다시 처리하기 위함
 
-  3-A. suggestion 블록 추출:
-    - 각 comment의 body에서 ````suggestion` ... ````diff 패턴 추출
-    - 패턴: 파일경로 → 변경 전 코드 → 변경 후 코드
-    - 추출 실패하면 무시하고 계속
+### 5-8. 완료 안내
 
-  3-B. 일반 텍스트 코멘트 처리:
-    - suggestion 블록 없는 코멘트는 텍스트 요약만 기록
-    - 자동 적용하지 않고 결과 보고 시 사용자에게 표시
+```
+리뷰 반영 완료. 다음 액션:
+- /autopilot:check — lint/type/test 검사
+- /autopilot:review-fix — 새 리뷰가 달리면 재실행
+```
 
-  제안 항목 목록 구성:
-  ```json
-  {
-    "suggestions": [
-      {
-        "type": "code_change",
-        "file": "src/foo.ts",
-        "before": "...",
-        "after": "..."
-      },
-      {
-        "type": "text_only",
-        "author": "coderabbitai",
-        "comment": "..."
-      }
-    ]
-  }
-  ```
-
-  상태 파일에 suggestions 배열 저장
-
-STEP 4: 제안 자동 적용
-  각 suggestion별 순차 처리:
-
-  4-A. type == "code_change":
-    - 해당 파일 읽기 (Read 도구)
-    - 파일에서 "before" 코드 찾기 (정확 매칭 또는 퍼지 매칭)
-    - 매칭 성공: Edit 도구로 "before" → "after" 치환
-    - 성공 시: applied_count 증가, applied_files에 파일명 추가
-    - 실패 시: failed_count 증가, 실패 이유 기록 (matched not found 등)
-
-  4-B. type == "text_only":
-    - 자동 적용 불가 → 결과 보고 시 사용자에게 수동 검토 유도
-
-  모든 항목 처리 후 상태 파일 갱신
-
-STEP 5: 결과 보고
-  ```
-  ┌─────────────────────────────────────────┐
-  │ CodeRabbit 리뷰 적용 완료                  │
-  │ PR: #{pr_number}                         │
-  │ 적용된 제안: {applied_count}개             │
-  │ 실패한 제안: {failed_count}개             │
-  │ 수정 파일: {applied_files.join(", ")}    │
-  └─────────────────────────────────────────┘
-  ```
-
-  failed_count > 0이면 추가 표시:
-  ```
-  ⚠️  일부 제안을 자동 적용하지 못했습니다:
-  - {실패한 항목 설명}
-
-  텍스트 코멘트도 확인하세요:
-  - {text_only 코멘트 내용}
-  ```
-
-  applied_count == 0이고 실패도 있으면:
-  "자동으로 적용할 수 있는 제안이 없었습니다. PR 코멘트를 수동으로 확인하세요." 출력 후 STEP 7로
-
-STEP 6: 커밋 & Push
-  ```bash
-  cd '{worktree_path}' && git add -A && \
-    git commit -m "fix: apply coderabbit review suggestions" && \
-    git push
-  ```
-
-  실패 시: "커밋/푸시에 실패했습니다. 수동으로 확인하세요." [STOP]
-  성공 시: "리뷰 제안 적용 완료 (커밋됨)" → STEP 7
-
-[GATE] STEP 7: 완료 후 선택지 제시
-  AskUserQuestion으로 다음 선택지 제시:
-  ```
-  다음 중 선택하세요:
-  1. /autopilot:check — lint/type-check/test 실행
-  2. /autopilot:merge — 피처 브랜치에 통합
-  3. /autopilot:review-fix 재실행 — 새 리뷰 반영 (폴링 초기화)
-  4. 추가 작업 계속
-  ```
-
-[TERMINATE]
-
-## 중단 내성
-
-- **폴링 중 중단**: 상태 파일 없으면 STEP 2부터 재시작
-- **리뷰 가져온 후 중단**: 상태 파일 있으면 STEP 3부터 재개
-- **수정 적용 중 중단**: 미적용 제안만 이어서 처리
-- **재실행 시**: 기존 state_file을 읽어서 중복 폴링 방지
-
-## 실패 케이스 처리
-
-- 파일을 찾을 수 없음 → 실패로 기록, 계속 진행
-- "before" 코드가 정확히 매칭 안 됨 → 실패로 기록, 다음 제안으로
-- 편집 중 충돌 → 편집 도구 오류 메시지 표시, 사용자 확인 후 수동 처리 가능
+> **참고**: push 후 CodeRabbit이 다시 리뷰할 수 있다. 새 리뷰가 달리면 재실행하되, 동일 지적이 반복되면 dismiss를 고려하라.
