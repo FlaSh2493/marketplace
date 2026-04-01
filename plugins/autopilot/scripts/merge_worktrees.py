@@ -186,6 +186,11 @@ def main():
         if code != 0:
             error("FF_MERGE_FAILED", f"fast-forward ref 업데이트 실패: {err}")
 
+        # 피처 브랜치가 메인 워크트리에 체크아웃된 경우 index+working tree를 새 HEAD에 맞춤
+        cur_branch, _, cur_rc = run("git rev-parse --abbrev-ref HEAD", cwd=root)
+        if cur_rc == 0 and cur_branch == args.feature:
+            run("git reset HEAD", cwd=root)
+
         print(json.dumps({
             "status": "ok",
             "data": {"issue": args.issue, "branch": branch},
