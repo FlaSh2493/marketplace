@@ -118,7 +118,18 @@ STEP 5: 순서대로 rebase + fast-forward 머지 실행
     [충돌 해결 프로세스] — rebase 중 충돌
       실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py`
       충돌 파일마다:
-        [GATE] AskUserQuestion("충돌: {파일명}\n{diff}\n\n선택: [feature / base / 직접편집]")
+        [GATE] AskUserQuestion("충돌: {파일명}\n{diff}\n\n선택: [auto / feature / base / 직접편집]")
+        응답 "auto":
+          파일을 Read로 읽어 conflict marker(<<<<<<< / ======= / >>>>>>>)를 파악
+          충돌 내용 요약 출력 (ours / theirs 각각 무엇을 변경했는지)
+          양쪽 변경 내용을 분석하여 적절히 병합:
+            - 서로 다른 내용 추가 → 양쪽 모두 포함
+            - 같은 부분을 다르게 수정 → 맥락상 더 적절한 쪽 선택 (이유 명시)
+          Edit으로 conflict marker를 제거하고 병합 결과 적용
+          `git diff -- '{파일명}'` 실행하여 병합 결과 diff 출력
+          [GATE] AskUserQuestion("위 병합 결과를 확인하세요.\n\n확인: [ok / 직접편집]")
+          응답 "ok": `git add -- '{파일명}'` 실행
+          응답 "직접편집": 직접편집 흐름으로 이동
         응답 "feature": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' feature`
         응답 "base": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' base`
         응답 "직접편집":
