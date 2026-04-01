@@ -1,23 +1,47 @@
 ---
 name: autopilot-review-fix
-description: PR의 CodeRabbit 리뷰 코멘트를 가져와 코드를 자동 수정하고 커밋·push한다. "리뷰 반영", "코드래빗 수정", "review fix" 등을 요청할 때 사용한다.
+description: PR의 CodeRabbit 리뷰 코멘트를 루프 방식으로 자동 반영. 새 리뷰가 달릴 때마다 물어보고 수정한다. "리뷰 반영", "코드래빗 수정", "review fix" 등을 요청할 때 사용한다.
 ---
 
-# CodeRabbit 리뷰 자동 반영
+# CodeRabbit 리뷰 자동 반영 (loop)
 
 ## 사용법
 `/autopilot:review-fix`
 
+호출하면 loop을 시작합니다. 활성 리뷰가 있을 때마다 물어보고, 사용자 선택에 따라 수정 후 루프 계속 여부를 결정합니다. 활성 리뷰가 없으면 자동 종료.
+
 ---
 
-## 흐름
+## 전체 흐름
 
 ```
-1. 컨텍스트 확보 (워크트리, 브랜치, PR)
-2. 리뷰 코멘트 수집 + 필터링 (1회 API)
-3. 분류 및 요약 표시
-4. [GATE] 적용 범위 확인
-5. 수정 → 검증 → 보고 → [GATE] 커밋 확인 → push → 처리 표시
+[LOOP START] iteration_count = 1, max_iterations = 10
+
+STEP 1: 컨텍스트 확보 (worktree_path, branch, PR)
+  └─ 실패 → [STOP]
+
+STEP 2: 리뷰 코멘트 수집 + 필터링
+  └─ 활성 0건 → [AUTO STOP] ("새 리뷰 없음. 루프 자동 종료.")
+  └─ 활성 1건+ → STEP 3
+
+STEP 3: 원문 표시 ("[루프 N회차]" 헤더)
+
+[GATE-A] 적용 여부 확인 (PENDING)
+  └─ "1"~"2" → 수정 실행
+  └─ "3" → [STOP]
+
+STEP 5: 수정 → 검증 → 보고
+  └─ 검증 실패 → [STOP]
+  └─ 수정 파일 없음 → [STOP]
+
+[GATE-B] 커밋 확인 (PENDING)
+  └─ "1" → 커밋 + push → +1 reaction → [GATE-C]
+  └─ "2" → 커밋만 → [STOP]
+  └─ "3" → 롤백 → [STOP]
+
+[GATE-C] 루프 계속 여부 (NEW, PENDING)
+  └─ "1" → iteration_count++ → max 초과 체크 → STEP 1로 복귀
+  └─ "2" → [STOP]
 ```
 
 ---
@@ -81,10 +105,18 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
 
 ### 2-4. 수집 결과 검증
 
-- 활성 코멘트 0건: "활성 CodeRabbit 리뷰가 없습니다." → `[STOP]`
+- 활성 코멘트 0건:
+  - **1회차 (iteration_count == 1)**: "활성 CodeRabbit 리뷰가 없습니다." → `[STOP]`
+  - **N회차 (iteration_count > 1)**: "새 활성 리뷰가 없습니다. 루프 자동 종료. (push 후 CodeRabbit 리뷰가 생기면 /autopilot:review-fix를 다시 실행하세요)" → `[STOP]`
 - gh api 실패: 에러 메시지 출력 → `[STOP]`
 
-## STEP 3: 분류 및 요약
+## STEP 3: 원문 표시
+
+### 3-0. 루프 회차 헤더 표시
+
+```
+[루프 {iteration_count}회차] 새 리뷰 확인 중...
+```
 
 ### 3-1. 심각도 분류
 
@@ -95,45 +127,40 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
 | **suggestion** | 리팩토링, 네이밍, 코드 스타일 개선 | `[~]` |
 | **nitpick** | 포맷팅, 사소한 선호도 차이 | `[.]` |
 
-### 3-2. 요약 표시
+### 3-2. 원문 표시
+
+critical → important → suggestion → nitpick 순으로, 각 코멘트를 원문 그대로 표시한다:
 
 ```
-CodeRabbit 리뷰 {active_count}건 (전체 {total_count}건 중 활성):
+[루프 {iteration_count}회차] CodeRabbit 리뷰 {active_count}건 (전체 {total_count}건 중 활성):
 
-[!] critical ({n}건):
-  {파일명}:{line} — {핵심 요약 1줄}
-
-[*] important ({n}건):
-  {파일명}:{line} — {핵심 요약 1줄}
-
-[~] suggestion ({n}건):
-  {파일명}:{line} — {핵심 요약 1줄}
-
-[.] nitpick ({n}건):
-  {파일명}:{line} — {핵심 요약 1줄}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+[!] {파일명}:{line}
+{코멘트 body 원문}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+[*] {파일명}:{line}
+{코멘트 body 원문}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+...
 ```
 
-## STEP 4: 적용 범위 확인
+## STEP 4 → GATE-A: 적용 여부 확인
 
 ```
-[GATE] AskUserQuestion:
-"위 코멘트를 수정하겠습니다. 선택하세요:
-1. 전체 자동 수정 (nitpick은 dismiss) ← 권장
-2. critical + important만 수정 (나머지 dismiss)
-3. 코멘트별 선택
-4. 상세 보기 — 원문 확인 후 결정
-5. 중단
+[GATE-A] AskUserQuestion (PENDING — 파일 수정 금지):
+"위 리뷰를 적용하겠습니까?
+1. 전체 적용 (nitpick은 dismiss) ← 권장
+2. 코멘트별 선택
+3. 종료
 "
 [LOCK: 응답 전 파일 수정 금지]
 ```
 
-| 응답 | 수정 대상 | nitpick 처리 |
-|------|----------|-------------|
-| "1" | critical + important + suggestion | dismiss |
-| "2" | critical + important | suggestion + nitpick dismiss |
-| "3" | 코멘트별 선택 모드 (아래) | 선택에 따름 |
-| "4" | 원문 표시 후 동일 질문 재제시 | — |
-| "5" | `[STOP]` | — |
+| 응답 | 처리 |
+|------|------|
+| "1" | 전체 수정 (nitpick dismiss) |
+| "2" | 코멘트별 선택 모드 (아래) |
+| "3" | `[STOP]` |
 
 ### nitpick/스킵 대상 dismiss
 
@@ -144,14 +171,14 @@ gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
   -f body="Acknowledged — skipping this as a style preference. Thanks for the suggestion!"
 ```
 
-### 코멘트별 선택 모드 ("3" 선택 시)
+### 코멘트별 선택 모드 ("2" 선택 시)
 
-각 코멘트를 critical → important → suggestion → nitpick 순으로 표시:
+각 코멘트를 critical → important → suggestion → nitpick 순으로:
 
 ```
 [{심각도}] {파일명}:{line}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-{코멘트 요약 + 원문 핵심부}
+{코멘트 body 원문}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 → 적용 / 스킵 / 중단?
 ```
@@ -209,10 +236,10 @@ gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
 
 #### 5-2-3. 검증 실패 시
 
-검사 실패가 남은 채로 루프가 종료되면, 남은 에러를 보고하고 `[STOP]`. 롤백하지 않는다 — 수정 자체는 리뷰 반영이므로 유지하고, 사용자가 잔여 에러를 직접 해결한다.
+검사 실패가 남은 채로 루프가 종료되면, 남은 에러를 보고하고 `[STOP]`. 롤백하지 않는다 — 수정 자체는 리뷰 반영이므로 유지하고, 사용자가 잔여 에러를 직접 해결한다. **루프는 즉시 종료된다** (GATE-C 없음).
 
 ```
-❌ 검증 미통과 — 수정사항은 유지됩니다.
+❌ 검증 미통과 — 루프를 중단합니다.
 실패 검사: {검사명}
 시도: {attempt}회
 남은 에러:
@@ -242,24 +269,27 @@ gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
 | {파일} | {line} | {심각도} | nitpick/사용자 스킵 |
 ```
 
-### 5-4. 커밋 확인
+### 5-4. 커밋 확인 → GATE-B
 
 수정된 파일이 없으면 → "적용할 수정사항이 없었습니다." `[STOP]`
 
 ```
-[GATE] AskUserQuestion:
-"위 수정 결과를 확인하세요. 커밋하고 push하시겠습니까?
+[GATE-B] AskUserQuestion (PENDING):
+"위 수정 결과를 확인하세요. 처리하시겠습니까?
 1. 커밋 + push
 2. 커밋만 (push 안 함)
-3. 중단 (수정사항 롤백)
+3. 롤백 후 종료
 "
 ```
 
-| 응답 | 동작 |
-|------|------|
-| "1" | 커밋 → push → 처리 표시 |
-| "2" | 커밋 → 처리 표시 (push 스킵) |
-| "3" | `cd '{worktree_path}' && git checkout -- {modified_files}` → `[STOP]` |
+| 응답 | 동작 | 다음 |
+|------|------|------|
+| "1" | 커밋 → push → +1 reaction | GATE-C |
+| "2" | 커밋 (반응 없음) | `[STOP]` |
+| "3" | `cd '{worktree_path}' && git checkout -- {modified_files}` | `[STOP]` |
+
+**참고 (응답 "2" 선택 시):**
+push가 없으므로 +1 reaction은 추가되지 않습니다. 다음 루프 회차에서 동일 리뷰가 다시 나타날 수 있습니다. push를 완료한 후 /autopilot:review-fix를 재실행하는 것을 권장합니다.
 
 ### 5-5. 커밋
 
@@ -275,7 +305,7 @@ EOF
 )"
 ```
 
-### 5-6. Push (응답 "1" 선택 시)
+### 5-6. Push (GATE-B 응답 "1" 선택 시)
 
 ```bash
 cd '{worktree_path}' && git push
@@ -294,26 +324,65 @@ cd '{worktree_path}' && git pull --rebase && git push
   2. 수동으로 해결
   "
   ```
-- 기타 실패: 에러 메시지 출력 → `[STOP]`
+  **루프: 충돌 시 GATE-C 없이 즉시 [STOP]**
+- 기타 실패: 에러 메시지 출력 → `[STOP]` (루프 종료, +1 reaction 없음)
 
-### 5-7. 처리 완료 표시
+### 5-7. 처리 완료 표시 (+1 reaction)
 
-push 성공(또는 응답 "2"로 커밋만 한 경우 커밋 성공) 후, 적용한 각 코멘트에 `+1` reaction을 추가하여 멱등성 확보:
+GATE-B 선택에 따라:
+- "1" (커밋 + push) 성공 시: `+1` reaction 추가
+- "2" (커밋만) 선택 시: `+1` reaction 추가하지 않음 (push 미완료)
+- "3" (롤백) 선택 시: `+1` reaction 추가하지 않음
+
+**+1 reaction 추가 (push 성공 시만):**
 
 ```bash
 gh api repos/{owner_repo}/pulls/comments/{comment_id}/reactions \
   -f content="+1" --silent
 ```
 
-- reaction 추가 실패 시 무시 (수정 자체는 이미 커밋됨)
+- reaction 추가 실패 시 무시 (수정 자체는 이미 push됨)
 - push 실패 시에는 reaction을 추가하지 않는다 — 다음 실행 시 해당 코멘트를 다시 처리하기 위함
 
-### 5-8. 완료 안내
+### 5-8. 완료 후 GATE-C로 진행
+
+수정 + 커밋(+push) 완료 후, **GATE-C로 진행** (루프 계속 여부 확인).
+GATE-C는 push 성공 후에만 도달한다. 건너뛰기/종료 선택 시에는 GATE-C 없이 즉시 [STOP].
+
+---
+
+## STEP 6 → GATE-C: 루프 계속 여부 (NEW)
 
 ```
-리뷰 반영 완료. 다음 액션:
-- /autopilot:check — lint/type/test 검사
-- /autopilot:review-fix — 새 리뷰가 달리면 재실행
+[GATE-C] AskUserQuestion (PENDING — 루프 대기):
+"완료. 계속하시겠습니까?
+1. 루프 계속 — STEP 1로 돌아가 새 리뷰 확인 (지금 바로)
+2. 종료
+"
 ```
 
-> **참고**: push 후 CodeRabbit이 다시 리뷰할 수 있다. 새 리뷰가 달리면 재실행하되, 동일 지적이 반복되면 dismiss를 고려하라.
+| 응답 | 동작 |
+|------|------|
+| "1" | `iteration_count++` → max 초과 체크 → STEP 1로 복귀 |
+| "2" | `[STOP]` |
+
+### 6-1. 루프 상태 업데이트
+
+GATE-C "1" 선택 시:
+
+```
+iteration_count = iteration_count + 1
+if iteration_count > max_iterations (= 10):
+  "[STOP] 루프 {max_iterations}회 초과. 무한 루프 방지를 위해 자동 종료합니다. 반복되는 리뷰가 있다면 수동 확인을 권장합니다."
+else:
+  → STEP 1로 복귀 ("$[루프 {iteration_count}회차] 리뷰 확인 중..." 헤더 표시)
+```
+
+### 6-2. 무한 루프 안전장치
+
+`max_iterations = 10`으로 설정. iteration_count > 10이면 경고 후 [STOP].
+
+```
+⚠️ 루프 10회 초과. 무한 루프 방지를 위해 자동 종료합니다.
+반복되는 리뷰가 있다면 /autopilot:review-fix를 수동 확인 후 재실행하세요.
+```

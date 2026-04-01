@@ -25,7 +25,7 @@
 
 | 플러그인 | 설명 | 명령어 | 버전 |
 |---------|------|--------|------|
-| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·검사·머지·PR·리뷰 | `/autopilot:plan`, `/autopilot:work`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:pr`, `/autopilot:review-fix`, `/autopilot:status` | 0.1.0 |
+| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·검사·머지·PR·리뷰 | `/autopilot:plan`, `/autopilot:req`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:pr`, `/autopilot:review-fix`, `/autopilot:status` | 0.1.0 |
 | `task-sync` | 작업 명세와 Jira 양방향 동기화 | `/task-sync:extract`, `/task-sync:fetch`, `/task-sync:publish`, `/task-sync:update` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
@@ -33,19 +33,19 @@
 ### autopilot 워크플로우
 
 ```
-plan/work → check → merge → pr → review-fix → cleanup
+plan → req → check → merge → pr → review-fix → cleanup
 ```
 
 | 스킬 | 설명 |
 |------|------|
-| `plan {이슈키}` | Jira 이슈 명세를 로드하여 워크트리 생성 → 플랜 → 구현 |
-| `work {이슈키} {요구사항}` | 기존 워크트리에 추가/수정 작업 (이슈 명세 재로드 없이) |
+| `plan {브랜치명} [이슈키...] [--no-spec]` | 워크트리 생성 → 이슈 명세 로드 → 플랜 → 구현. `--no-spec`으로 명세 없이 요구사항 기반 작업 가능 |
+| `req [이슈키]` | 대화에서 추가 요구사항을 추출하여 이슈 문서에 기록 |
 | `check` | 워크트리 내 lint, type-check, test 순차 실행. 오류 시 자동 수정 (최대 3회) |
 | `merge {피처브랜치}` | 워크트리를 피처 브랜치에 rebase + fast-forward 머지 |
 | `merge-all {피처브랜치}` | 모든 활성 워크트리를 충돌 수 기준 정렬 후 순차 머지 |
 | `pr` | 현재 브랜치를 push하고 develop 대상 PR 생성 |
 | `review-fix` | CodeRabbit 리뷰를 자동으로 대기 → 제안사항 적용 → 결과 보고 |
-| `cleanup {피처브랜치} {이슈키...}` | 머지 완료된 워크트리 정리 (워크트리 제거 + 브랜치 삭제) |
+| `cleanup {피처브랜치} {브랜치명...}` | 머지 완료된 워크트리 정리 (워크트리 제거 + 브랜치 삭제) |
 | `status` | 활성 워크트리 상태 조회 (브랜치, 커밋 수, 마지막 커밋) |
 | `init` | 초기 설정 (code-review-graph 확인, 그래프 빌드, 사용법 안내) |
 

@@ -24,30 +24,19 @@ STEP 1: 이슈 목록 확인
   인수가 있으면 → STEP 1-B (선택 스킵)
   인수가 없으면:
 
-    [1차 시도] JQL Search (Claude MCP):
-      mcp__atlassian__search_issues_by_user_involvement(
-        searchType='assignee', maxResults=50
-      )
+    [1차 시도] JQL Search (Bash + jira_fetch.py):
+      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_fetch.py --search --out-dir {state_dir}`
+      결과: `{state_dir}/jira_search.json` 저장
       조건:
-        ✓ 성공 && 결과 있음 → Done 제외 필터링 후 STEP 1-A로 진행
+        ✓ 성공 && 결과 있음 → Read하여 Done 제외 필터링 후 STEP 1-A로 진행
         ✗ 실패 OR 결과 없음 → [2차 시도]로 진행
       로그: "✓ 1차 성공: N개 이슈" 또는 "⚠ 1차 실패: {오류명}: {메시지}"
 
-    [2차 시도] Agile Board 폴백 (Claude MCP):
-      1. mcp__atlassian__list_agile_boards(maxResults=50)
-      2. 각 보드에서 활성 스프린트: mcp__atlassian__list_sprints_for_board(boardId, state='active')
-      3. 스프린트 이슈: mcp__atlassian__get_sprint_details(sprintId)
-      4. 필터링: assignee == 현재 사용자 AND status != Done (중복 제거)
-      조건:
-        ✓ 성공 && 결과 있음 → STEP 1-A로 진행
-        ✗ 실패 OR 결과 없음 → [3차 시도]로 진행
-      로그: "✓ 2차 성공: N개 이슈" 또는 "⚠ 2차 실패: {오류명}: {메시지}"
-
-    [3차 시도] 사용자 직접 입력 유도:
-      로그: "❌ 자동 조회 전부 실패"
+    [2차 시도] 사용자 직접 입력 유도:
+      로그: "❌ Jira 조회 실패"
       출력:
         ```
-        ⚠️  자동 조회 실패 (Jira API 마이그레이션 중)
+        ⚠️  자동 조회에 실패했습니다.
 
         다음 중 하나를 선택하세요:
 
@@ -94,12 +83,12 @@ STEP 1-C: 빈 파일 생성 (Bash)
     성공: data.file_path 확인
     실패: reason 그대로 출력 후 [STOP]
 
-STEP 2: Writer 서브에이전트 런칭
-  헤드리스 Writer 에이전트 런칭:
-    - 에이전트: task-sync:task-sync
-    - 프롬프트: `/task-sync:write --branch {branch} {이슈키들 공백 구분}`
+STEP 2: write 스킬 실행
+  Skill 도구로 직접 호출:
+    `/task-sync:write --branch {branch} {이슈키들 공백 구분}`
+  (헤드리스 에이전트 런칭 제거 — 에이전트는 write 스킬을 인식하지 못하므로 메인 세션에서 직접 호출)
   출력:
-    "Writer 에이전트 시작됨 ({N}개 이슈)."
-    "완료 알림을 받으면 /task-sync:publish 를 실행하세요."
+    "문서 작성 완료 [{이슈키 목록}]"
+    "/task-sync:publish 를 실행하세요."
 
 [TERMINATE]

@@ -6,7 +6,7 @@ description: Main Session 전용. Writer가 작성한 로컬 문서를 검증하
 # Frontend Task Publish
 
 **실행 주체: Main Session 전용**
-사용자 승인 없이 jiraCreateIssue 실행 금지.
+사용자 승인 없이 jira_create.py 실행 금지.
 
 ## 사용법
 `/task-sync:publish`
@@ -43,10 +43,10 @@ STEP 2: DRAFT 목록 출력
   ```
 
 [GATE] STEP 3: Jira 설정 확인
-  AskUserQuestion("Jira Project Key / Epic (선택) / Sprint (선택)를 알려주세요")
-  [LOCK: 응답 전 jiraCreateIssue 절대 실행 금지]
+  AskUserQuestion("Jira Project Key / Epic (선택) / Sprint ID (선택)를 알려주세요")
+  [LOCK: 응답 전 jira_create.py 절대 실행 금지]
 
-STEP 4: Jira Story 생성
+STEP 4: Jira Story 생성 (Bash 스크립트)
   각 DRAFT 이슈마다:
 
   4-1. 상태 전이 (잠금)
@@ -54,18 +54,18 @@ STEP 4: Jira Story 생성
     실패: reason 그대로 출력 후 [STOP]
 
   4-2. 마크다운 → ADF 변환
-    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {이슈키} {task_dir}/{이슈키}/{이슈키}.md`
-    성공: ADF JSON 보관
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {이슈키} "$(pwd)/{task_dir}/{이슈키}/{이슈키}.md" > /tmp/{이슈키}_adf.json`
+    성공: /tmp/{이슈키}_adf.json 저장 확인
     실패: reason 그대로 출력 후 [STOP]
 
-  4-3. Jira Story 생성 (Claude MCP)
-    `jiraCreateIssue`:
-      - issuetype: Story
-      - summary: 파일의 작업 제목
-      - description: 4-2에서 얻은 ADF JSON (마크다운 원문 절대 금지)
-      - assignee: currentUser()
-      - epic: (STEP 3에서 지정된 경우)
-      - sprint: (STEP 3에서 지정된 경우)
+  4-3. Jira Story 생성 (Bash 스크립트)
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_create.py \
+      --project {project_key} \
+      --summary "{작업 제목}" \
+      --adf-file /tmp/{이슈키}_adf.json \
+      {--epic {epic} 지정된 경우} \
+      {--sprint {sprint} 지정된 경우}`
+    성공: {"ok": true, "key": "PROJ-101"} → key 보관
     실패:
       실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} PUBLISHING DRAFT` (복구)
       reason 출력 후 [STOP]

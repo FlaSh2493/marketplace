@@ -69,19 +69,44 @@ def get_jira_config():
 
 # ── Jira 첨부파일 업로드 ──────────────────────────────────────────────────────
 
-def upload_attachment(issue_key, file_path, jira_url, email, token):
-    """이미지를 Jira에 업로드하고 attachment id를 반환한다."""
+def get_existing_attachments(issue_key, jira_url, email, token):
+    """이슈의 기존 첨부파일 목록 조회. {filename: attachment_id} 반환."""
+    import urllib.request, urllib.error
+
+    credentials = base64.b64encode(f"{email}:{token}".encode()).decode()
+    url = f"{jira_url}/rest/api/3/issue/{issue_key}?fields=attachment"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Basic {credentials}",
+        "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+            attachments = data.get("fields", {}).get("attachment", [])
+            return {att["filename"]: att["id"] for att in attachments}
+    except Exception:
+        return {}
+
+
+def upload_attachment(issue_key, file_path, jira_url, email, token, existing=None):
+    """이미지를 Jira에 업로드하고 attachment id를 반환한다.
+    existing: {filename: id} — 이미 있는 파일은 업로드 없이 기존 ID 반환."""
     import urllib.request, urllib.error
 
     if not os.path.exists(file_path):
         return None, f"이미지 파일이 없습니다: {file_path} (건너뜀)"
+
+    filename = os.path.basename(file_path)
+
+    # 기존 첨부파일 재사용
+    if existing and filename in existing:
+        return existing[filename], None
 
     credentials = base64.b64encode(f"{email}:{token}".encode()).decode()
     upload_url = f"{jira_url}/rest/api/3/issue/{issue_key}/attachments"
 
     # multipart/form-data 수동 구성
     boundary = "----TaskSyncBoundary"
-    filename = os.path.basename(file_path)
 
     with open(file_path, "rb") as f:
         file_data = f.read()
@@ -261,6 +286,8 @@ def convert(md_text, issue_key, md_dir, jira_url, email, token, upload_images):
     content = []
     lines = md_text.splitlines()
     i = 0
+    # 기존 첨부파일 목록 한 번만 조회 (중복 업로드 방지)
+    existing_attachments = get_existing_attachments(issue_key, jira_url, email, token) if upload_images else {}
 
     while i < len(lines):
         line = lines[i]
@@ -348,7 +375,7 @@ def convert(md_text, issue_key, md_dir, jira_url, email, token, upload_images):
             abs_path = img_path if os.path.isabs(img_path) else os.path.join(md_dir, img_path)
 
             if upload_images:
-                att_id, warn = upload_attachment(issue_key, abs_path, jira_url, email, token)
+                att_id, warn = upload_attachment(issue_key, abs_path, jira_url, email, token, existing_attachments)
                 if att_id:
                     content.append(media_single(att_id))
                 else:

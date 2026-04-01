@@ -27,11 +27,20 @@ STEP 0: 브랜치 및 선택 검증
 
 STEP 1: 이슈별 처리 (각 이슈 순서대로)
 
-  1-1. Jira 상세 조회 (Claude MCP)
-    - `jiraGetIssue({이슈키})` — summary, description, status, assignee, created, fields.attachment
-    - `jiraGetIssueComments({이슈키})` — 전체 댓글 (시간순)
-    - attachment 목록: response.fields.attachment (없으면 빈 배열)
-      각 항목: { filename, mimeType, content (다운로드 URL), size }
+  1-1. Jira 상세 조회 (Bash 스크립트)
+    실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_fetch.py {이슈키} --out-dir {state_dir}`
+    성공: 결과가 JSON으로 `{state_dir}/{이슈키}_raw.json` 저장
+    실패: reason 출력 후 [STOP]
+
+    Read: `{state_dir}/{이슈키}_raw.json`
+    파일에서 다음 필드 추출:
+      - summary: 이슈 제목
+      - description: ADF 형식 설명 (또는 null)
+      - status: {"name": "..."}
+      - assignee: {"displayName": "..."}
+      - created: ISO 8601 형식
+      - fields.attachment: [{ filename, mimeType, content (다운로드 URL), size }] (없으면 [])
+      - fields.comment.comments: [{ author, body (ADF), created, ... }] (없으면 [])
 
   1-2. 첨부파일 다운로드 (Bash 도구)
     attachment 목록을 순서대로 처리한다.
@@ -51,6 +60,10 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
         해당 파일만 건너뛰고 계속 진행
       성공한 파일은 이미지/비이미지로 분류하여 목록 유지
 
+    attachment ID → 로컬 파일명 매핑 테이블 유지:
+      `{ "{attachment.id}": "{저장명}" }` (예: { "10001": "SPT-3771-1.png" })
+      1-4 단계에서 description 내 mediaSingle 노드 위치 복원에 사용한다.
+
   1-3. 템플릿 로드 (Read 도구)
     Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-template.md`
     Read: `${CLAUDE_PLUGIN_ROOT}/templates/fe-task-example.md`
@@ -60,6 +73,10 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
     - Jira ADF → 마크다운 변환
     - 요약 금지. 원본 구조(리스트, 테이블, 코드블록) 보존
     - description, deps, api, states 값 추출
+    - description ADF 내 mediaSingle 노드를 만나면:
+        1-2에서 만든 매핑 테이블로 attachment ID → 로컬 파일명 조회
+        해당 위치에 `![{파일명}](./assets/{저장명})` 인라인 삽입 (본문 흐름 유지)
+        인라인 삽입된 이미지는 "description 참조 이미지" 목록에 추가
 
   1-5. 파일 채우기 (Edit 도구)
     fetch가 이미 생성한 파일에 내용을 채운다:
@@ -93,7 +110,7 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
 
     ---
 
-    ## 첨부 이미지     ← 다운로드 성공한 이미지가 1개 이상일 때만 포함. 없으면 이 섹션 전체 생략.
+    ## 첨부 이미지     ← description에서 참조되지 않은 이미지가 1개 이상일 때만 포함. 없으면 이 섹션 전체 생략.
 
     ![{파일명}](./assets/{이슈키}-1.{확장자})
     ![{파일명}](./assets/{이슈키}-2.{확장자})

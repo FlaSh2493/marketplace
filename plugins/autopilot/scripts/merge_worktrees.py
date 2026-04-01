@@ -3,11 +3,12 @@
 워크트리 브랜치를 rebase 후 fast-forward로 피처 브랜치에 통합한다.
 Usage:
   python3 merge_worktrees.py {feature} --dry-run
-  python3 merge_worktrees.py {feature} --issue {이슈키}
-  python3 merge_worktrees.py {feature} --issue {이슈키} --continue
+  python3 merge_worktrees.py {feature} --branch {브랜치명}
+  python3 merge_worktrees.py {feature} --branch {브랜치명} --continue
 Exit 0: 성공 / Exit 1: 실패 / Exit 2: 충돌
 """
-import argparse, json, os, re, shlex, subprocess, sys
+import argparse, json, os, re, subprocess, sys
+from pathlib import Path
 
 
 def run(cmd, cwd=None):
@@ -23,40 +24,74 @@ def find_git_root():
     return out if rc2 == 0 else None
 
 
-def sanitize_name(issue_key):
-    name = re.sub(r"[^a-zA-Z0-9._-]", "-", issue_key)
+def find_worktree_root(git_root):
+    candidates = [
+        Path(git_root) / ".claude" / "settings.local.json",
+        Path(git_root) / ".claude" / "settings.json",
+        Path.home() / ".claude" / "settings.local.json",
+        Path.home() / ".claude" / "settings.json",
+    ]
+    for settings_path in candidates:
+        if not settings_path.exists():
+            continue
+        try:
+            data = json.loads(settings_path.read_text())
+            raw = data.get("autopilot", {}).get("worktreeRoot")
+            if raw:
+                p = Path(raw)
+                if not p.is_absolute():
+                    p = (settings_path.parent / p).resolve()
+                return str(p)
+        except (json.JSONDecodeError, OSError):
+            continue
+    return os.path.join(git_root, ".claude", "worktrees")
+
+
+def sanitize_name(branch):
+    name = re.sub(r"[^a-zA-Z0-9._-]", "-", branch)
     return name[:64]
 
 
-def wt_branch(issue_key):
-    return f"worktree-{sanitize_name(issue_key)}"
+def wt_path(worktree_root, branch):
+    return os.path.join(worktree_root, sanitize_name(branch))
 
 
-def wt_path(root, issue_key):
-    return os.path.join(root, ".claude", "worktrees", sanitize_name(issue_key))
+def read_autopilot_meta(worktree_path):
+    meta_path = os.path.join(worktree_path, ".autopilot")
+    if os.path.exists(meta_path):
+        try:
+            return json.loads(Path(meta_path).read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
 
 
-def get_wt_branches(root, feature):
-    """feature 브랜치 기준으로 분기한 worktree- 브랜치 목록 반환"""
-    out, _, _ = run("git branch --list worktree-*", cwd=root)
-    if not out:
-        return []
+def get_autopilot_worktrees(root, worktree_root, feature):
+    """autopilot 워크트리 목록 반환 — .autopilot 파일 존재 여부로 판별"""
+    out, _, _ = run("git worktree list --porcelain", cwd=root)
     results = []
-    for b in out.split("\n"):
-        branch = b.strip().lstrip("* ")
-        if not branch:
-            continue
-        # feature 브랜치에서 분기했는지 merge-base로 확인
-        base, _, rc = run(f"git merge-base '{feature}' '{branch}'", cwd=root)
-        feature_tip, _, ft_rc = run(f"git rev-parse '{feature}'", cwd=root)
-        if rc == 0 and ft_rc == 0 and feature_tip and base == feature_tip:
-            issue = branch[len("worktree-"):]
-            results.append({"branch": branch, "issue": issue})
+    current = {}
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            current = {"path": line[9:]}
+        elif line.startswith("branch "):
+            current["branch"] = line[7:].removeprefix("refs/heads/")
+        elif line == "" and current.get("path"):
+            path = current["path"]
+            branch = current.get("branch", "")
+            # 메인 워크트리(root)는 제외, .autopilot 파일 있는 것만
+            if path != root and os.path.exists(os.path.join(path, ".autopilot")):
+                # feature 브랜치에서 분기했는지 확인
+                base, _, rc = run(f"git merge-base '{feature}' '{branch}'", cwd=root)
+                feature_tip, _, ft_rc = run(f"git rev-parse '{feature}'", cwd=root)
+                if rc == 0 and ft_rc == 0 and feature_tip and base == feature_tip:
+                    meta = read_autopilot_meta(path)
+                    results.append({"branch": branch, "path": path, "issues": meta.get("issues", [])})
+            current = {}
     return results
 
 
 def count_conflicts(root, target, source):
-    """stash 후 충돌 예측, 완료 후 복원"""
     stash_out, _, stash_rc = run("git stash", cwd=root)
     stashed = stash_rc == 0 and "No local changes" not in stash_out
 
@@ -66,7 +101,7 @@ def count_conflicts(root, target, source):
             run("git stash pop", cwd=root)
         return []
 
-    _, checkout_err, checkout_rc = run(f"git checkout '{target}'", cwd=root)
+    _, _, checkout_rc = run(f"git checkout '{target}'", cwd=root)
     if checkout_rc != 0:
         if stashed:
             run("git stash pop", cwd=root)
@@ -79,11 +114,7 @@ def count_conflicts(root, target, source):
         if out:
             conflicts = [f for f in out.split("\n") if f.strip()]
     run("git reset --hard HEAD", cwd=root)
-    _, restore_err, restore_rc = run(f"git checkout '{orig}'", cwd=root)
-    if restore_rc != 0:
-        # orig 복원 실패 — stash pop 시도는 하되 conflicts는 그대로 반환
-        pass
-
+    run(f"git checkout '{orig}'", cwd=root)
     if stashed:
         run("git stash pop", cwd=root)
     return conflicts
@@ -106,7 +137,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("feature")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--issue", default=None)
+    parser.add_argument("--branch", default=None)
     parser.add_argument("--continue", action="store_true", dest="cont")
     args = parser.parse_args()
 
@@ -114,17 +145,20 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
+    worktree_root = find_worktree_root(root)
+
     if args.dry_run:
-        branches = get_wt_branches(root, args.feature)
+        branches = get_autopilot_worktrees(root, worktree_root, args.feature)
         if not branches:
-            error("NO_BRANCHES", f"'{args.feature}' 기준 워크트리 브랜치가 없습니다")
+            error("NO_BRANCHES", f"'{args.feature}' 기준 autopilot 워크트리가 없습니다")
         matrix = []
         for b in branches:
             conflicts = count_conflicts(root, args.feature, b["branch"])
             wip_count = get_wip_count(root, b["branch"], args.feature)
             matrix.append({
-                "issue": b["issue"],
                 "branch": b["branch"],
+                "path": b["path"],
+                "issues": b["issues"],
                 "conflict_files": conflicts,
                 "conflict_count": len(conflicts),
                 "wip_count": wip_count,
@@ -136,68 +170,52 @@ def main():
         }, ensure_ascii=False, indent=2))
         return
 
-    # 단일 이슈 rebase + ff merge
-    if args.issue:
-        branch = wt_branch(args.issue)
+    # 단일 브랜치 merge
+    if args.branch:
+        branch = args.branch
 
-        # 브랜치 존재 확인
         _, _, branch_rc = run(f"git rev-parse --verify '{branch}'", cwd=root)
         if branch_rc != 0:
-            error("BRANCH_NOT_FOUND", f"워크트리 브랜치 '{branch}'가 존재하지 않습니다")
-
-        worktree = wt_path(root, args.issue)
-        if not os.path.isdir(worktree):
-            error("WORKTREE_NOT_FOUND", f"워크트리 경로 '{worktree}'가 존재하지 않습니다")
+            error("BRANCH_NOT_FOUND", f"브랜치 '{branch}'가 존재하지 않습니다")
 
         if args.cont:
-            # 충돌 해결 후 rebase 계속 — worktree 안에서 실행
-            _, err, code = run("git rebase --continue", cwd=worktree)
+            _, err, code = run("git merge --continue --no-edit", cwd=root)
             if code != 0:
-                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=worktree)
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
                 conflicts = [f for f in out.split("\n") if f.strip()]
                 if not conflicts:
-                    error("REBASE_CONTINUE_FAILED", f"rebase --continue 실패: {err}")
+                    error("MERGE_CONTINUE_FAILED", f"merge --continue 실패: {err}")
                 print(json.dumps({
                     "status": "conflict",
-                    "issue": args.issue,
+                    "branch": branch,
                     "conflicts": conflicts,
                 }, ensure_ascii=False, indent=2))
                 sys.exit(2)
         else:
-            # 최초 rebase — worktree 안에서 실행 (branch가 이미 체크아웃된 상태)
-            _, err, code = run(f"git rebase '{args.feature}'", cwd=worktree)
+            _, err, co_rc = run(f"git checkout '{args.feature}'", cwd=root)
+            if co_rc != 0:
+                error("CHECKOUT_FAILED", f"'{args.feature}' 체크아웃 실패: {err}")
+
+            _, err, code = run(f"git merge --no-edit '{branch}'", cwd=root)
             if code != 0:
-                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=worktree)
+                out, _, _ = run("git diff --name-only --diff-filter=U", cwd=root)
                 conflicts = [f for f in out.split("\n") if f.strip()]
                 if not conflicts:
-                    error("REBASE_FAILED", f"rebase 실패: {err}")
+                    error("MERGE_FAILED", f"머지 실패: {err}")
                 print(json.dumps({
                     "status": "conflict",
-                    "issue": args.issue,
+                    "branch": branch,
                     "conflicts": conflicts,
                 }, ensure_ascii=False, indent=2))
                 sys.exit(2)
 
-        # rebase 완료 → ref 직접 업데이트 (checkout 없이 ff와 동일 효과)
-        branch_tip, _, tip_rc = run(f"git rev-parse '{branch}'", cwd=root)
-        if tip_rc != 0 or not branch_tip:
-            error("REV_PARSE_FAILED", f"'{branch}' 커밋 해시를 읽을 수 없습니다")
-        _, err, code = run(f"git update-ref 'refs/heads/{args.feature}' '{branch_tip}'", cwd=root)
-        if code != 0:
-            error("FF_MERGE_FAILED", f"fast-forward ref 업데이트 실패: {err}")
-
-        # 피처 브랜치가 메인 워크트리에 체크아웃된 경우 index+working tree를 새 HEAD에 맞춤
-        cur_branch, _, cur_rc = run("git rev-parse --abbrev-ref HEAD", cwd=root)
-        if cur_rc == 0 and cur_branch == args.feature:
-            run("git reset HEAD", cwd=root)
-
         print(json.dumps({
             "status": "ok",
-            "data": {"issue": args.issue, "branch": branch},
+            "data": {"branch": branch},
         }, ensure_ascii=False, indent=2))
         return
 
-    error("MISSING_ARGS", "--issue 또는 --dry-run 필요")
+    error("MISSING_ARGS", "--branch 또는 --dry-run 필요")
 
 
 if __name__ == "__main__":
