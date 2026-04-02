@@ -8,21 +8,28 @@ description: PR의 CodeRabbit 리뷰 코멘트를 루프 방식으로 자동 반
 ## 사용법
 `/autopilot:review-fix`
 
-호출하면 loop을 시작합니다. 활성 리뷰가 있을 때마다 물어보고, 사용자 선택에 따라 수정 후 루프 계속 여부를 결정합니다. 활성 리뷰가 없으면 자동 종료.
+호출하면 loop을 시작합니다. 활성 리뷰가 있을 때마다 물어보고, 수정·push 후 CodeRabbit이 새 리뷰를 올릴 때까지 폴링합니다. CodeRabbit이 리뷰를 완료했는데 활성 코멘트가 없으면 자동 종료. 사용자가 종료를 선택하면 즉시 멈춥니다.
 
 ---
 
 ## 전체 흐름
 
 ```
-[LOOP START] iteration_count = 1, max_iterations = 10
+[LOOP START] iteration_count = 1, max_iterations = 20
+             pushed_at = null  ← push 완료 시각. null이면 "최초 실행" 상태
 
 STEP 1: 컨텍스트 확보 (worktree_path, branch, PR)
   └─ 실패 → [STOP]
 
 STEP 2: 리뷰 코멘트 수집 + 필터링
-  └─ 활성 0건 → [AUTO STOP] ("새 리뷰 없음. 루프 자동 종료.")
-  └─ 활성 1건+ → STEP 3
+  pushed_at == null (최초 실행):
+    └─ 활성 0건 → [AUTO STOP] ("활성 CodeRabbit 리뷰가 없습니다.")
+    └─ 활성 1건+ → STEP 3
+  pushed_at != null (push 후 폴링 중):
+    └─ pushed_at 이후 새 CodeRabbit review가 있는지 확인
+         없음 → 30초 대기 → STEP 1 재시도 (폴링 루프)
+         있음 + 활성 0건 → [AUTO STOP] ("CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료.")
+         있음 + 활성 1건+ → STEP 3
 
 STEP 3: 원문 표시 ("[루프 N회차]" 헤더)
 
@@ -35,13 +42,9 @@ STEP 5: 수정 → 검증 → 보고
   └─ 수정 파일 없음 → [STOP]
 
 [GATE-B] 커밋 확인 (PENDING)
-  └─ "1" → 커밋 + push → +1 reaction → [GATE-C]
+  └─ "1" → 커밋 + push → pushed_at 갱신 → +1 reaction → iteration_count++ → STEP 1 복귀 (폴링)
   └─ "2" → 커밋만 → [STOP]
   └─ "3" → 롤백 → [STOP]
-
-[GATE-C] 루프 계속 여부 (NEW, PENDING)
-  └─ "1" → iteration_count++ → max 초과 체크 → STEP 1로 복귀
-  └─ "2" → [STOP]
 ```
 
 ---
@@ -105,10 +108,35 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
 
 ### 2-4. 수집 결과 검증
 
-- 활성 코멘트 0건:
-  - **1회차 (iteration_count == 1)**: "활성 CodeRabbit 리뷰가 없습니다." → `[STOP]`
-  - **N회차 (iteration_count > 1)**: "새 활성 리뷰가 없습니다. 루프 자동 종료. (push 후 CodeRabbit 리뷰가 생기면 /autopilot:review-fix를 다시 실행하세요)" → `[STOP]`
+**pushed_at == null (최초 실행):**
+- 활성 코멘트 0건: "활성 CodeRabbit 리뷰가 없습니다." → `[STOP]`
+- 활성 코멘트 1건+: STEP 3으로 진행
 - gh api 실패: 에러 메시지 출력 → `[STOP]`
+
+**pushed_at != null (push 후 폴링 중):**
+
+먼저 pushed_at 이후 새 CodeRabbit review가 올라왔는지 확인:
+```bash
+gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.submitted_at > "{pushed_at}"))] | length'
+```
+
+- 결과 == 0 (CodeRabbit이 아직 리뷰 중):
+  ```
+  ⏳ CodeRabbit 리뷰 대기 중... (push: {pushed_at}, 경과: {elapsed}초)
+  ```
+  30초 대기(`sleep 30`) → STEP 1 재시도
+  단, 총 대기 시간이 30분(1800초) 초과 시:
+  ```
+  ⚠️ CodeRabbit 응답 대기 30분 초과. 자동 종료합니다.
+  새 리뷰가 올라오면 /autopilot:review-fix를 재실행하세요.
+  ```
+  → `[STOP]`
+
+- 결과 > 0 (새 리뷰 있음):
+  - 활성 코멘트 0건: "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
+  - 활성 코멘트 1건+: STEP 3으로 진행
+  - gh api 실패: 에러 메시지 출력 → `[STOP]`
 
 ## STEP 3: 원문 표시
 
@@ -344,45 +372,15 @@ gh api repos/{owner_repo}/pulls/comments/{comment_id}/reactions \
 - reaction 추가 실패 시 무시 (수정 자체는 이미 push됨)
 - push 실패 시에는 reaction을 추가하지 않는다 — 다음 실행 시 해당 코멘트를 다시 처리하기 위함
 
-### 5-8. 완료 후 GATE-C로 진행
+### 5-8. Push 후 폴링 루프 진입
 
-수정 + 커밋(+push) 완료 후, **GATE-C로 진행** (루프 계속 여부 확인).
-GATE-C는 push 성공 후에만 도달한다. 건너뛰기/종료 선택 시에는 GATE-C 없이 즉시 [STOP].
-
----
-
-## STEP 6 → GATE-C: 루프 계속 여부 (NEW)
-
-```
-[GATE-C] AskUserQuestion (PENDING — 루프 대기):
-"완료. 계속하시겠습니까?
-1. 루프 계속 — STEP 1로 돌아가 새 리뷰 확인 (지금 바로)
-2. 종료
-"
-```
-
-| 응답 | 동작 |
-|------|------|
-| "1" | `iteration_count++` → max 초과 체크 → STEP 1로 복귀 |
-| "2" | `[STOP]` |
-
-### 6-1. 루프 상태 업데이트
-
-GATE-C "1" 선택 시:
-
-```
-iteration_count = iteration_count + 1
-if iteration_count > max_iterations (= 10):
-  "[STOP] 루프 {max_iterations}회 초과. 무한 루프 방지를 위해 자동 종료합니다. 반복되는 리뷰가 있다면 수동 확인을 권장합니다."
-else:
-  → STEP 1로 복귀 ("$[루프 {iteration_count}회차] 리뷰 확인 중..." 헤더 표시)
-```
-
-### 6-2. 무한 루프 안전장치
-
-`max_iterations = 10`으로 설정. iteration_count > 10이면 경고 후 [STOP].
-
-```
-⚠️ 루프 10회 초과. 무한 루프 방지를 위해 자동 종료합니다.
-반복되는 리뷰가 있다면 /autopilot:review-fix를 수동 확인 후 재실행하세요.
-```
+push 성공 후:
+1. `pushed_at` = 현재 시각 (ISO 8601, UTC) 으로 갱신
+2. `iteration_count++`
+3. max_iterations(= 20) 초과 시:
+   ```
+   ⚠️ 루프 20회 초과. 무한 루프 방지를 위해 자동 종료합니다.
+   ```
+   → `[STOP]`
+4. GATE-B 건너뛰기/종료 선택 시에는 pushed_at 갱신 없이 즉시 `[STOP]`
+5. 정상 진행: STEP 1으로 복귀 (폴링 루프 시작)
