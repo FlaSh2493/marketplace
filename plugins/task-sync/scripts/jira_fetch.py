@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Jira API 직접 호출을 통한 이슈 데이터 조회 및 파일 저장
-환경변수 기반 인증 (JIRA_URL, JIRA_EMAIL, JIRA_TOKEN)
+환경변수 기반 인증 (JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN)
 """
 
 import os
@@ -47,8 +47,8 @@ _load_claude_env()
 
 def get_auth_header() -> Optional[str]:
     """Basic Auth 헤더 생성"""
-    email = os.environ.get('JIRA_EMAIL')
-    token = os.environ.get('JIRA_TOKEN')
+    email = os.environ.get('JIRA_USERNAME')
+    token = os.environ.get('JIRA_API_TOKEN')
 
     if not email or not token:
         return None
@@ -70,7 +70,7 @@ def fetch_issue(issue_key: str) -> Dict[str, Any]:
     if not jira_url or not auth:
         return {
             "ok": False,
-            "reason": "JIRA_URL, JIRA_EMAIL, JIRA_TOKEN 환경변수가 필요합니다"
+            "reason": "JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN 환경변수가 필요합니다"
         }
 
     url = (
@@ -108,12 +108,12 @@ def search_issues(jql: str = None) -> Dict[str, Any]:
     """
     jira_url = os.environ.get('JIRA_URL')
     auth = get_auth_header()
-    email = os.environ.get('JIRA_EMAIL')
+    email = os.environ.get('JIRA_USERNAME')
 
     if not jira_url or not auth:
         return {
             "ok": False,
-            "reason": "JIRA_URL, JIRA_EMAIL, JIRA_TOKEN 환경변수가 필요합니다"
+            "reason": "JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN 환경변수가 필요합니다"
         }
 
     if jql is None:
@@ -121,7 +121,7 @@ def search_issues(jql: str = None) -> Dict[str, Any]:
         jql = f'assignee = "{email}" AND statusCategory != Done'
 
     url = (
-        f"{jira_url.rstrip('/')}/rest/api/3/search"
+        f"{jira_url.rstrip('/')}/rest/api/3/search/jql"
         f"?jql={urllib.parse.quote(jql)}"
         f"&fields=summary,status,assignee"
         f"&maxResults=50"

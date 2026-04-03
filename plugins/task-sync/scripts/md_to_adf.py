@@ -9,8 +9,8 @@ Usage:
 
 환경변수:
   JIRA_URL    예: https://yourcompany.atlassian.net
-  JIRA_TOKEN  Jira API 토큰 (Basic auth: email:token base64)
-  JIRA_EMAIL  Jira 계정 이메일
+  JIRA_API_TOKEN  Jira API 토큰 (Basic auth: email:token base64)
+  JIRA_USERNAME  Jira 계정 이메일
 
 Exit 0: ADF JSON 출력 (stdout)
 Exit 1: 오류 JSON 출력 (stdout)
@@ -45,16 +45,16 @@ def error(code, reason):
 
 def get_jira_config():
     url = os.environ.get("JIRA_URL", "").rstrip("/")
-    email = os.environ.get("JIRA_EMAIL", "")
-    token = os.environ.get("JIRA_TOKEN", "")
+    email = os.environ.get("JIRA_USERNAME", "")
+    token = os.environ.get("JIRA_API_TOKEN", "")
 
     missing = []
     if not url:
         missing.append("JIRA_URL")
     if not email:
-        missing.append("JIRA_EMAIL")
+        missing.append("JIRA_USERNAME")
     if not token:
-        missing.append("JIRA_TOKEN")
+        missing.append("JIRA_API_TOKEN")
 
     if missing:
         error(
@@ -62,8 +62,8 @@ def get_jira_config():
             f"환경변수가 설정되지 않았습니다: {', '.join(missing)}\n"
             "예:\n"
             "  export JIRA_URL=https://yourcompany.atlassian.net\n"
-            "  export JIRA_EMAIL=you@example.com\n"
-            "  export JIRA_TOKEN=your_api_token"
+            "  export JIRA_USERNAME=you@example.com\n"
+            "  export JIRA_API_TOKEN=your_api_token"
         )
     return url, email, token
 

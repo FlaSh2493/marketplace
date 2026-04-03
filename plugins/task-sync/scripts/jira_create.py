@@ -9,8 +9,8 @@ Usage:
 
 환경변수:
   JIRA_URL    예: https://yourcompany.atlassian.net
-  JIRA_EMAIL  Jira 계정 이메일
-  JIRA_TOKEN  Jira API 토큰
+  JIRA_USERNAME  Jira 계정 이메일
+  JIRA_API_TOKEN  Jira API 토큰
 
 Exit 0: {"ok": true, "key": "PROJ-101"}
 Exit 1: {"ok": false, "reason": "..."}
@@ -25,8 +25,8 @@ import urllib.error
 
 
 def get_auth_header():
-    email = os.environ.get("JIRA_EMAIL")
-    token = os.environ.get("JIRA_TOKEN")
+    email = os.environ.get("JIRA_USERNAME")
+    token = os.environ.get("JIRA_API_TOKEN")
     if not email or not token:
         return None
     creds = base64.b64encode(f"{email}:{token}".encode()).decode()
@@ -56,7 +56,7 @@ def create_issue(project_key, summary, adf, epic=None, sprint=None):
     if not jira_url:
         missing.append("JIRA_URL")
     if not auth:
-        missing.append("JIRA_EMAIL / JIRA_TOKEN")
+        missing.append("JIRA_USERNAME / JIRA_API_TOKEN")
     if missing:
         return {"ok": False, "reason": f"환경변수 누락: {', '.join(missing)}"}
 
