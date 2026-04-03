@@ -141,17 +141,20 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
   --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.submitted_at > "{pushed_at}"))] | length'
 ```
 
-- 결과 == 0 (CodeRabbit이 아직 리뷰 중):
-  ```
-  ⏳ CodeRabbit 리뷰 대기 중... (push: {pushed_at}, 경과: {elapsed}초)
-  ```
-  30초 대기(`sleep 30`) → STEP 1 재시도
-  단, 총 대기 시간이 30분(1800초) 초과 시:
-  ```
-  ⚠️ CodeRabbit 응답 대기 30분 초과. 자동 종료합니다.
-  새 리뷰가 올라오면 /autopilot:review-fix를 재실행하세요.
-  ```
-  → `[STOP]`
+- 결과 == 0 (push 이후 새 CodeRabbit 리뷰 없음):
+  먼저 현재 활성 코멘트 수 확인:
+  - 활성 코멘트 0건: "✅ 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
+  - 활성 코멘트 1건+: CodeRabbit이 아직 리뷰 중
+    ```
+    ⏳ CodeRabbit 리뷰 대기 중... (push: {pushed_at}, 경과: {elapsed}초)
+    ```
+    30초 대기(`sleep 30`) → STEP 1 재시도
+    단, 총 대기 시간이 30분(1800초) 초과 시:
+    ```
+    ⚠️ CodeRabbit 응답 대기 30분 초과. 자동 종료합니다.
+    새 리뷰가 올라오면 /autopilot:review-fix를 재실행하세요.
+    ```
+    → `[STOP]`
 
 - 결과 > 0 (새 리뷰 있음):
   - 활성 코멘트 0건: "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
