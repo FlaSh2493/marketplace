@@ -8,7 +8,7 @@ description: PR의 CodeRabbit 리뷰 코멘트를 루프 방식으로 자동 반
 ## 사용법
 `/autopilot:review-fix`
 
-호출하면 loop을 시작합니다. 활성 리뷰가 있을 때마다 물어보고, 수정·push 후 CodeRabbit이 새 리뷰를 올릴 때까지 폴링합니다. CodeRabbit이 리뷰를 완료했는데 활성 코멘트가 없으면 자동 종료. 사용자가 종료를 선택하면 즉시 멈춥니다.
+호출하면 loop을 시작합니다. 활성 리뷰가 있으면 수정·push 후 CodeRabbit이 새 리뷰를 올릴 때까지 자동 폴링합니다. CodeRabbit이 리뷰를 완료했는데 활성 코멘트가 없으면 자동 종료. 사용자가 종료를 선택하면 즉시 멈춥니다.
 
 ---
 
@@ -42,7 +42,7 @@ STEP 5: 수정 → 검증 → 보고
   └─ 수정 파일 없음 → [STOP]
 
 [GATE-B] 커밋 확인 (PENDING)
-  └─ "1" → 커밋 + push → pushed_at 갱신 → +1 reaction → iteration_count++ → STEP 1 복귀 (폴링)
+  └─ "1" → 커밋 + push → pushed_at 갱신 → +1 reaction → iteration_count++ → STEP 1 자동 복귀 (폴링)
   └─ "2" → 커밋만 → [STOP]
   └─ "3" → 롤백 → [STOP]
 ```
@@ -312,7 +312,7 @@ gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
 
 | 응답 | 동작 | 다음 |
 |------|------|------|
-| "1" | 커밋 → push → +1 reaction | GATE-C |
+| "1" | 커밋 → push → +1 reaction | 5-5 → 폴링 루프 (자동 진행) |
 | "2" | 커밋 (반응 없음) | `[STOP]` |
 | "3" | `cd '{worktree_path}' && git checkout -- {modified_files}` | `[STOP]` |
 
