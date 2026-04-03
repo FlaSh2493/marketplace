@@ -52,7 +52,15 @@ STEP 2: 사용자 확인
   사용자가 수정 요청 시: 반영 후 재확인
   'ok' 또는 확인 응답 시: STEP 3 진행
 
-STEP 3: 이슈 문서에 기록
+STEP 3: API 목록 추출
+  이슈 설명과 추가 요구사항에서 도메인 키워드 추출 → 코드베이스에서 관련 API 호출 탐색:
+  ```
+  cd {worktree_path} && rg -n "(fetch|axios|apiClient|useMutation|useQuery|useInfiniteQuery)\(" --type ts -l | head -20
+  ```
+  키워드와 관련된 파일만 Read → 실제 호출되는 엔드포인트 경로·메서드 수집.
+  추출 결과를 STEP 4에서 문서에 기록한다.
+
+STEP 4: 이슈 문서에 기록
   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` → data.md_path 확보
   실패 시: 경고 출력 후 [STOP]
 
@@ -72,9 +80,24 @@ STEP 3: 이슈 문서에 기록
   - {항목2}
   ```
 
+  이어서 `## 사용 API 목록` 섹션을 upsert (없으면 생성, 있으면 전체 교체):
+  ```
+  ## 사용 API 목록
+
+  | 메서드 | 엔드포인트 | 호출 위치 |
+  |--------|-----------|----------|
+  | GET    | /api/example | src/entities/example/api.ts |
+  ```
+  추출된 API가 없으면:
+  ```
+  ## 사용 API 목록
+
+  (없음 — 신규 API 작성 필요)
+  ```
+
   완료 출력:
   ```
-  [{이슈키}] 추가 요구사항 {N}건 기록 완료
+  [{이슈키}] 추가 요구사항 {N}건 기록 완료 / 사용 API {M}건 기록 완료
   ```
 
 [TERMINATE]
