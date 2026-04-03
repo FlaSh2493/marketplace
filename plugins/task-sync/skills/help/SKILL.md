@@ -1,0 +1,99 @@
+---
+name: task-sync-help
+description: task-sync 플러그인의 환경설정 방법과 사용법을 안내한다. "task-sync 설정", "task-sync 도움말", "help" 등을 요청할 때 사용한다.
+---
+
+# Task-Sync Help
+
+**실행 주체: Main Session**
+
+## 사용법
+`/task-sync:help`
+
+## 실행 절차
+
+아래 내용을 그대로 출력한다.
+
+---
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║              task-sync 환경설정 가이드                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+task-sync는 Jira 이슈를 로컬 마크다운 문서와 양방향 동기화하는 플러그인입니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 필수 환경변수 설정
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Jira API 연동에 아래 3개 환경변수가 필요합니다.
+
+  JIRA_URL          Jira 인스턴스 URL
+                    예: https://yourcompany.atlassian.net
+
+  JIRA_USERNAME     Atlassian 계정 이메일
+                    예: you@company.com
+
+  JIRA_API_TOKEN    Atlassian API 토큰
+                    발급: https://id.atlassian.com/manage-profile/security/api-tokens
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 권장 설정 방법 — .claude/settings.local.json
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+프로젝트 루트의 .claude/settings.local.json 에 env 블록을 추가합니다.
+이 파일은 개인 설정이므로 git에 커밋하지 않습니다.
+
+  {
+    "env": {
+      "JIRA_URL": "https://yourcompany.atlassian.net",
+      "JIRA_USERNAME": "you@company.com",
+      "JIRA_API_TOKEN": "your-api-token-here"
+    }
+  }
+
+  ⚠  .claude/settings.local.json 은 .gitignore에 등록하세요.
+     credentials를 원격 저장소에 절대 올리지 않아야 합니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 대안 — 셸 환경변수 (터미널 세션 한정)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  export JIRA_URL="https://yourcompany.atlassian.net"
+  export JIRA_USERNAME="you@company.com"
+  export JIRA_API_TOKEN="your-api-token-here"
+
+  터미널을 닫으면 초기화됩니다. 영구 적용은 ~/.zshrc 또는 ~/.bashrc 에 추가.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Python 3 요구사항
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+스크립트 실행에 Python 3.8 이상이 필요합니다.
+
+  확인: python3 --version
+  설치: brew install python3   (macOS)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 설정 확인 — 연결 테스트
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+설정 완료 후 아래 스킬로 연결을 확인하세요:
+
+  /task-sync:init    브랜치 기반 작업 디렉토리 초기화
+  /task-sync:fetch   내 Jira 이슈 조회 (Jira 연결 확인용)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 스킬 목록
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /task-sync:init      작업 디렉토리 초기화 (브랜치 기반)
+  /task-sync:fetch     Jira 이슈 조회 → 로컬 문서 생성
+  /task-sync:extract   기획서/PRD에서 작업 추출 → 로컬 문서 생성
+  /task-sync:publish   로컬 문서 → Jira Story 생성
+  /task-sync:update    로컬 수정사항 → Jira 이슈 동기화
+  /task-sync:help      이 도움말 표시
+```
+
+[TERMINATE]
