@@ -155,20 +155,26 @@ def main():
     # 이미 존재하는 워크트리인지 확인
     worktrees = list_worktrees(root)
     branch_ref = f"refs/heads/{branch}"
-    already_exists = any(
-        v == branch_ref or v.endswith(f"/{branch}")
-        for v in worktrees.values()
-    ) or worktree_path in worktrees
 
+    # 경로 일치 또는 브랜치 일치로 기존 워크트리 탐색
+    existing_path = None
     if worktree_path in worktrees:
-        if os.path.isdir(worktree_path):
+        existing_path = worktree_path
+    else:
+        for wt_path, wt_branch in worktrees.items():
+            if wt_branch == branch_ref or wt_branch.endswith(f"/{branch}"):
+                existing_path = wt_path
+                break
+
+    if existing_path:
+        if os.path.isdir(existing_path):
             # 기존 .autopilot에서 이슈키 읽기 (새로 전달된 이슈 없으면 기존 유지)
-            meta = read_autopilot_meta(worktree_path)
+            meta = read_autopilot_meta(existing_path)
             resolved_issues = issues if issues else meta.get("issues", [])
             if issues:
                 # 새 이슈 전달 시 메타 업데이트
-                write_autopilot_meta(worktree_path, resolved_issues, current_branch)
-            ok({**base, "issues": resolved_issues, "created": False})
+                write_autopilot_meta(existing_path, resolved_issues, current_branch)
+            ok({**base, "worktree_path": existing_path, "issues": resolved_issues, "created": False})
         else:
             # registry에는 있지만 디렉토리가 없음 → stale 항목 제거 후 재생성
             run("git worktree prune")
