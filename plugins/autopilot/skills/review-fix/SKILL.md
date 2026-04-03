@@ -23,8 +23,9 @@ STEP 1: 컨텍스트 확보 (worktree_path, branch, PR)
 
 STEP 2: 리뷰 코멘트 수집 + 필터링
   pushed_at == null (최초 실행):
-    └─ 활성 0건 → [AUTO STOP] ("활성 CodeRabbit 리뷰가 없습니다.")
-    └─ 활성 1건+ → STEP 3
+    └─ CodeRabbit 리뷰 미제출 → 30초 대기 → STEP 1 재시도 (최대 30분)
+    └─ 리뷰 있음 + 활성 0건 → [AUTO STOP] ("CodeRabbit 리뷰 완료. 활성 코멘트 없음.")
+    └─ 리뷰 있음 + 활성 1건+ → STEP 3
   pushed_at != null (push 후 폴링 중):
     └─ pushed_at 이후 새 CodeRabbit review가 있는지 확인
          없음 → 30초 대기 → STEP 1 재시도 (폴링 루프)
@@ -117,7 +118,16 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
 ```
 
 - 결과 == 0 (CodeRabbit 리뷰 미제출):
-  "⏳ CodeRabbit이 아직 리뷰를 올리지 않았습니다. 잠시 후 다시 실행하세요." → `[STOP]`
+  ```
+  ⏳ CodeRabbit 리뷰 대기 중... (경과: {elapsed}초)
+  ```
+  30초 대기(`sleep 30`) → STEP 1 재시도
+  단, 총 대기 시간이 30분(1800초) 초과 시:
+  ```
+  ⚠️ CodeRabbit 응답 대기 30분 초과. 자동 종료합니다.
+  새 리뷰가 올라오면 /autopilot:review-fix를 재실행하세요.
+  ```
+  → `[STOP]`
 - 결과 > 0 + 활성 코멘트 0건:
   "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
 - 결과 > 0 + 활성 코멘트 1건+: STEP 3으로 진행
