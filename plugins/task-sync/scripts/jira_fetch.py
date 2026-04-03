@@ -14,6 +14,37 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+
+def _load_claude_env():
+    """
+    .claude/settings.local.json → .claude/settings.json 순서로 env 필드를 읽어
+    os.environ에 없는 키만 주입한다.
+    """
+    import subprocess
+    result = subprocess.run(
+        "git rev-parse --show-toplevel",
+        shell=True, capture_output=True, text=True
+    )
+    git_root = result.stdout.strip()
+    if not git_root:
+        return
+
+    for fname in ("settings.local.json", "settings.json"):
+        settings_path = Path(git_root) / ".claude" / fname
+        if not settings_path.exists():
+            continue
+        try:
+            with open(settings_path, encoding="utf-8") as f:
+                data = json.load(f)
+            for k, v in data.get("env", {}).items():
+                if k not in os.environ:
+                    os.environ[k] = v
+        except Exception:
+            pass
+
+_load_claude_env()
+
+
 def get_auth_header() -> Optional[str]:
     """Basic Auth 헤더 생성"""
     email = os.environ.get('JIRA_EMAIL')
