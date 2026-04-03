@@ -54,7 +54,7 @@ STEP 1: 이슈별 처리 (각 이슈 순서대로)
       저장명: `{이슈키}-{순번}.{확장자}` (예: SPT-3771-1.png)
       저장 경로: `.docs/task/{branch}/{이슈키}/assets/{저장명}`
       다운로드 명령 (Bash):
-        `curl -sL -o "{저장 경로}" "{content URL}"`
+        `curl -sL -u "$JIRA_EMAIL:$JIRA_TOKEN" -o "{저장 경로}" "{content URL}"`
       50MB 초과(size > 52428800) 또는 다운로드 실패 시:
         로그: "⚠ {이슈키} {파일명} 다운로드 실패 — 스킵"
         해당 파일만 건너뛰고 계속 진행

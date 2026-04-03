@@ -10,6 +10,7 @@ import json
 import base64
 import urllib.request
 import urllib.error
+import urllib.parse
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -154,6 +155,4 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
-    # urllib.parse import 추가
-    import urllib.parse
     main()
