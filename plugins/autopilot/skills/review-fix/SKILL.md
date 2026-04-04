@@ -135,13 +135,13 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
 
 **pushed_at != null (push 후 폴링 중):**
 
-먼저 pushed_at 이후 새 CodeRabbit review가 올라왔는지 확인:
+먼저 pushed_at 이후 새 CodeRabbit 코멘트가 달렸는지 확인:
 ```bash
-gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
-  --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.submitted_at > "{pushed_at}"))] | length'
+gh api repos/{owner_repo}/pulls/{pr_number}/comments \
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]" and .created_at > "{pushed_at}")] | length'
 ```
 
-- 결과 == 0 (push 이후 새 CodeRabbit 리뷰 없음):
+- 결과 == 0 (push 이후 새 CodeRabbit 코멘트 없음):
   먼저 현재 활성 코멘트 수 확인:
   - 활성 코멘트 0건: "✅ 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
   - 활성 코멘트 1건+: CodeRabbit이 아직 리뷰 중
@@ -156,7 +156,7 @@ gh api repos/{owner_repo}/pulls/{pr_number}/reviews \
     ```
     → `[STOP]`
 
-- 결과 > 0 (새 리뷰 있음):
+- 결과 > 0 (새 코멘트 있음):
   - 활성 코멘트 0건: "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → `[STOP]`
   - 활성 코멘트 1건+: STEP 3으로 진행
   - gh api 실패: 에러 메시지 출력 → `[STOP]`
