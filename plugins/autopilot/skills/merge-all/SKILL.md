@@ -73,6 +73,16 @@ STEP 3: 전체 워크트리 커밋 + 요구사항 동기화
          cd {worktree_path} && git add -- {shlex.quote(파일1)} ... && git commit -F /tmp/commit_msg_*.txt
          ```
 
+    [피처브랜치 최신화 (rebase)]
+    `cd {worktree_path} && git fetch origin {피처브랜치}` 실행
+    origin/{피처브랜치} 존재 시:
+      `cd {worktree_path} && git rebase origin/{피처브랜치}` 실행
+      충돌 시:
+        STEP 5 충돌 해결 프로세스와 동일 방식으로 충돌 해결
+        해결 완료 후 `cd {worktree_path} && git rebase --continue`
+      성공: 계속 진행
+    origin/{피처브랜치} 없으면 (로컬 only): rebase 생략, 계속 진행
+
     [요구사항 동기화] (issues가 비어있으면 스킵)
     단일 Bash 호출로 MERGE_BASE + log 전체 확보:
     ```bash
