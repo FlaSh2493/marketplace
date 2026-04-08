@@ -1,0 +1,86 @@
+╔══════════════════════════════════════════════════════════════╗
+║              autopilot 환경설정 가이드                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+autopilot은 git worktree 기반 병렬 작업 관리 플러그인입니다.
+이슈 명세를 로드하고, 워크트리를 생성·머지하며, PR까지 자동화합니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 필수 도구
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  git       2.x 이상, worktree 지원 확인
+            확인: git --version
+
+  gh        GitHub CLI (PR 생성에 사용)
+            설치: brew install gh
+            인증: gh auth login
+
+  python3   3.8 이상 (스크립트 실행용)
+            확인: python3 --version
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 필수 플러그인 — code-review-graph
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+autopilot:plan 실행 시 코드 구조 분석에 code-review-graph를 사용합니다.
+
+  1. 마켓플레이스 등록 (최초 1회):
+     /plugin marketplace add tirth8205/code-review-graph
+
+  2. 플러그인 설치:
+     /plugin install code-review-graph@code-review-graph
+
+  3. 그래프 빌드:
+     /code-review-graph:build-graph
+
+  설치 완료 확인: /autopilot:init
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 권장 설정 — task-sync 연동
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+autopilot:plan 이 이슈 명세를 읽으려면 task-sync가 설치되어 있어야 합니다.
+이슈 문서는 .docs/task/{브랜치}/ 에 위치해야 합니다.
+
+  task-sync 설치 확인: /task-sync:help
+  이슈 문서 생성:      /task-sync:fetch 또는 /task-sync:extract
+
+  ※ --no-spec 플래그를 사용하면 이슈 명세 없이도 플랜을 진행할 수 있습니다.
+     예: /autopilot:plan feature/my-branch --no-spec
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 워크트리 경로 규칙
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+autopilot은 git worktree를 활용합니다.
+Bash 명령은 매 호출마다 새 셸이므로 항상 cd prefix가 필요합니다.
+
+  코드 파일 작업:  {worktree_path}/파일경로
+  git 명령:        cd {worktree_path} && git ...
+  이슈 문서:       {issue_doc_root}/{이슈키}.md  (코드와 혼용 금지)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 초기 설정 절차 (순서대로)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. gh auth login                              GitHub 인증
+  2. /plugin install code-review-graph@...      그래프 플러그인 설치
+  3. /plugin install task-sync@...              task-sync 설치 (이슈 연동 시)
+  4. /autopilot:init                            설치 상태 확인 + 그래프 빌드
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 스킬 목록
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /autopilot:init        설치 상태 확인 + 그래프 빌드
+  /autopilot:plan        워크트리 생성 + 이슈 기반 구현
+  /autopilot:status      활성 워크트리 상태 조회
+  /autopilot:check       lint/type-check/test 실행 + 자동 수정
+  /autopilot:merge       현재 워크트리를 피처 브랜치에 머지
+  /autopilot:merge-all   모든 워크트리 순차 머지
+  /autopilot:pr          PR 생성 (develop 대상)
+  /autopilot:review-fix  CodeRabbit 리뷰 자동 반영
+  /autopilot:req         추가 요구사항 이슈 문서에 기록
+  /autopilot:cleanup     머지 완료된 워크트리 정리
+  /autopilot:help        이 도움말 표시

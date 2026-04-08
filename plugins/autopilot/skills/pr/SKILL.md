@@ -65,9 +65,10 @@ STEP 3: 커밋 목록 및 변경 파일 확보
   변경 파일이 없으면(커밋은 있지만 revert 등으로 diff가 비어있는 경우): "커밋은 있지만 develop 대비 변경된 파일이 없습니다. 브랜치 상태를 확인하세요." 출력 후 [STOP]
 
 STEP 4: 도메인 라벨 추론
-  STEP 3의 변경 파일 경로에서 최상위 의미 있는 폴더명을 추출한다.
-  프로젝트의 도메인 폴더(예: data-center, media-accounts 등)와 일치하는 이름이 있으면 도메인 라벨로 사용한다.
-  애매하거나 여러 도메인에 걸쳐 있으면 도메인 라벨은 생략한다.
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/infer_labels.py '{worktree_path}' '{owner_repo}'
+  ```
+  결과: `data.labels[]` — develop + 도메인 라벨 (존재하는 것만)
 
 STEP 5: 본인 계정 확보
   ```bash
@@ -76,18 +77,7 @@ STEP 5: 본인 계정 확보
   실패 시: "GitHub 사용자 정보를 가져올 수 없습니다." 출력 후 [STOP]
   → login 변수에 보관 (이후 재사용)
 
-STEP 6: 라벨 존재 여부 확인
-  확인할 라벨: `develop` + 도메인 라벨(있는 경우)
-  한 번의 호출로 전체 라벨 목록을 확보:
-  ```bash
-  cd '{worktree_path}' && gh label list --limit 200 --json name -q '.[].name'
-  ```
-  실패 시(권한 없음, 네트워크 오류 등): 라벨 없이 진행 (labels를 빈 값으로 설정)
-  성공 시: 출력에서 `develop`과 도메인 라벨이 각각 존재하는지 확인한다.
-  - 존재하는 라벨만 labels 변수에 구성
-  - 사용 가능한 라벨이 하나도 없으면 `--label` 옵션 자체를 생략
-
-STEP 7: PR 제목 및 본문 생성
+STEP 6: PR 제목 및 본문 생성
   커밋 로그와 diff를 분석하여 PR 제목과 본문을 작성한다.
 
   **제목 생성 규칙:**
@@ -111,23 +101,23 @@ STEP 7: PR 제목 및 본문 생성
 
   **제목과 본문은 Write 도구로 `/tmp/pr_{safe_branch}_title.txt`, `/tmp/pr_{safe_branch}_body.txt`에 각각 저장한다** (shell escaping 방지 + 동시 실행 충돌 방지)
 
-[GATE] STEP 8: PR 내용 확인
+[GATE] STEP 7: PR 내용 확인
   사용자에게 PR 제목, 본문, 라벨을 보여주고 확인을 요청한다.
   AskUserQuestion("위 내용으로 PR을 생성할까요? (yes / 수정사항 / no)")
   [LOCK: 응답 전 push/PR 생성 금지]
 
-  응답 "yes": STEP 9 진행
+  응답 "yes": STEP 8 진행
   응답 "no": "PR 생성 취소." [TERMINATE]
-  그 외 모든 응답(수정 요청, 질문 등): 요청에 따라 제목/본문/라벨을 수정하고 tmp 파일을 업데이트한 뒤 STEP 8을 다시 실행
+  그 외 모든 응답(수정 요청, 질문 등): 요청에 따라 제목/본문/라벨을 수정하고 tmp 파일을 업데이트한 뒤 STEP 7을 다시 실행
 
-STEP 9: Push
+STEP 8: Push
   ```bash
   cd '{worktree_path}' && git push -u origin HEAD
   ```
   (`HEAD`를 사용하여 브랜치명 특수문자 이슈를 회피. `-u`가 upstream을 현재 브랜치명으로 자동 설정)
   실패 시: 오류 메시지 출력 후 [STOP]
 
-STEP 10: PR 생성
+STEP 9: PR 생성
   labels 옵션: 각 라벨마다 `--label '{라벨}'`을 반복한다. 예: `--label 'develop' --label 'data-center'`. 라벨이 없으면 `--label` 자체를 생략한다.
   주의: `--label 'a,b'`는 쉼표를 포함한 단일 라벨로 해석되므로 **반드시 개별 `--label`로 분리**한다.
 
@@ -142,10 +132,10 @@ STEP 10: PR 생성
   ```
   `--body-file`로 본문을 파일에서 직접 읽는다 (gh 2.21.0+ 필요).
   `--body-file` 미지원 에러(`unknown flag`) 발생 시: `--body-file`을 `--body "$(cat '/tmp/pr_{safe_branch}_body.txt')"` 로 대체하여 재실행한다.
-  성공 시: stdout 출력(PR URL)을 pr_url 변수에 보관 → STEP 11 진행
+  성공 시: stdout 출력(PR URL)을 pr_url 변수에 보관 → STEP 10 진행
   실패 시: "PR 생성에 실패했습니다. push는 완료된 상태이므로 수동으로 PR을 생성하세요:\n`gh pr create --base develop --assignee '{login}'`" 출력 후 [STOP]
 
-STEP 11: 완료 출력
+STEP 10: 완료 출력
   ```
   ┌───────────────────────────────────────────────┐
   │ PR 생성 완료                                   │

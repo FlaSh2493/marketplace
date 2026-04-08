@@ -78,8 +78,10 @@ STEP 3: 전체 워크트리 커밋 + 요구사항 동기화
     origin/{피처브랜치} 존재 시:
       `cd {worktree_path} && git rebase origin/{피처브랜치}` 실행
       충돌 시:
-        STEP 5 충돌 해결 프로세스와 동일 방식으로 충돌 해결
-        해결 완료 후 `cd {worktree_path} && git rebase --continue`
+        Read(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CONFLICT_RESOLUTION.md`) 후 절차를 따른다.
+        변수: resolve_root={worktree_path}, 피처브랜치={피처브랜치}, branch={branch}
+        충돌 해결 완료 후 `cd {worktree_path} && git rebase --continue`
+        충돌 해결 실패 시: skipped_branches에 추가, 다음 브랜치로
       성공: 계속 진행
     origin/{피처브랜치} 없으면 (로컬 only): rebase 생략, 계속 진행
 
@@ -130,37 +132,14 @@ STEP 5: 순서대로 머지 실행
       cd {worktree_path} && git merge --ff-only {피처브랜치}
       ```
 
-    [충돌 해결 프로세스] — 머지 충돌은 root_path(피처 브랜치 체크아웃 상태)에서 발생
-      실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py`
-      충돌 파일마다:
-        [GATE] AskUserQuestion("충돌: {파일명}\n{diff}\n\n선택: [auto / feature / base / 직접편집]")
-        응답 "auto":
-          파일을 Read로 읽어 conflict marker(<<<<<<< / ======= / >>>>>>>)를 파악
-          충돌 내용 요약 출력 (ours = 피처브랜치 / theirs = 워크트리브랜치 각각 무엇을 변경했는지)
-          양쪽 변경 내용을 분석하여 적절히 병합:
-            - 서로 다른 내용 추가 → 양쪽 모두 포함
-            - 같은 부분을 다르게 수정 → 맥락상 더 적절한 쪽 선택 (이유 명시)
-          Edit으로 conflict marker를 제거하고 병합 결과 적용
-          `cd {root_path} && git diff -- '{파일명}'` 실행하여 병합 결과 diff 출력
-          [GATE] AskUserQuestion("위 병합 결과를 확인하세요.\n\n확인: [ok / 직접편집]")
-          응답 "ok": `cd {root_path} && git add -- '{파일명}'` 실행
-          응답 "직접편집": 직접편집 흐름으로 이동
-        응답 "feature": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' feature`
-        응답 "base": `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' base`
-        응답 "직접편집":
-          [GATE] AskUserQuestion("편집 완료 후 'done' 입력")
-          'done' 입력 시:
-            `grep -Ec "^(<{7} |>{7} )" '{root_path}/{파일명}'` 실행
-            exit 0 이면 (마커 존재): "충돌 마커가 아직 남아있습니다." 출력 후 → [GATE] 반복
-            exit 1 이면 (마커 없음): `cd {root_path} && git add -- '{파일명}'` 실행
+    [충돌 해결 프로세스] — 머지 충돌은 main_root_path(피처 브랜치 체크아웃 상태)에서 발생
+      Read(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CONFLICT_RESOLUTION.md`) 후 절차를 따른다.
+      변수: resolve_root={main_root_path}, 피처브랜치={피처브랜치}, branch={branch}
 
-      [--continue 전 최종 마커 검사]
-        `cd {root_path} && git diff --name-only --cached` 로 staged 파일 목록 확보
-        각 파일에 대해: `grep -lE "^(<{7} |>{7} )" '{root_path}/{파일명}'`
-        마커가 남은 파일이 있으면:
-          "아직 충돌 마커가 남아있는 파일: {목록}" 출력
-          해당 브랜치 건너뜀 (skipped_branches에 추가), 다음으로
+      충돌 해결 실패 시 (마커 잔존 또는 exit 1):
+        해당 브랜치 건너뜀 (skipped_branches에 추가), 다음으로
 
+      충돌 해결 완료 후:
       실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --branch {branch} --continue`
       exit 0: 워크트리 동기화 → merged_branches에 추가, 다음으로
       exit 2: 다음 충돌 — 충돌 해결 프로세스 반복
