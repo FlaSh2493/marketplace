@@ -90,13 +90,25 @@ FlaSh2493/marketplace/
     └── autopilot/
         ├── .claude-plugin/
         │   └── plugin.json
-        ├── scripts/
-        └── skills/
-            ├── plan/
-            │   └── SKILL.md
-            ├── check/
-            │   └── SKILL.md
-            └── ...
+        ├── agents/             ← 서브에이전트 정의
+        │   ├── checker.md      ← lint/type-check/test 자동 수정
+        │   └── review-fixer.md ← 리뷰 코멘트 일괄 적용
+        ├── scripts/            ← 순수 계산 로직 (Python)
+        │   ├── detect_env.py
+        │   ├── fetch_reviews.py
+        │   ├── extract_metadata.py
+        │   ├── infer_labels.py
+        │   └── ...
+        ├── skills/
+        │   ├── _shared/        ← 공유 절차 문서 (Read로 참조)
+        │   │   ├── CONFLICT_RESOLUTION.md
+        │   │   └── CHECK_LOOP.md
+        │   ├── plan/
+        │   │   └── SKILL.md
+        │   ├── check/
+        │   │   └── SKILL.md
+        │   └── ...
+        └── HELP.txt            ← 정적 도움말 텍스트
 ```
 
 ## 플러그인 기여하기
