@@ -13,26 +13,7 @@ Exit 0: ok (data.file_path) / Exit 1: error
 """
 import argparse, json, os, sys
 from datetime import datetime
-
-
-def find_git_root():
-    import subprocess
-    r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
-    common = r.stdout.strip()
-    if common:
-        return os.path.abspath(os.path.join(common, ".."))
-    r2 = subprocess.run("git rev-parse --show-toplevel", shell=True, capture_output=True, text=True)
-    return r2.stdout.strip() or None
-
-
-def ok(data):
-    print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False))
-    sys.exit(0)
-
-
-def error(code, reason):
-    print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
-    sys.exit(1)
+from common import find_git_root, get_task_dir, ok, error
 
 
 def build_content(issue_key, title, status, assignee, created_at, source,
@@ -103,7 +84,7 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = os.path.join(root, ".docs", "task", args.branch.replace("/", os.sep))
+    task_dir = get_task_dir(root, args.branch)
     issue_dir = os.path.join(task_dir, args.issue_key)
     os.makedirs(issue_dir, exist_ok=True)
     os.makedirs(os.path.join(issue_dir, "assets"), exist_ok=True)

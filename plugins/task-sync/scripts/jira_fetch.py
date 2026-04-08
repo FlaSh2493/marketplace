@@ -13,36 +13,9 @@ import urllib.error
 import urllib.parse
 from pathlib import Path
 from typing import Optional, Dict, Any
+from common import load_claude_env
 
-
-def _load_claude_env():
-    """
-    .claude/settings.local.json → .claude/settings.json 순서로 env 필드를 읽어
-    os.environ에 없는 키만 주입한다.
-    """
-    import subprocess
-    result = subprocess.run(
-        "git rev-parse --show-toplevel",
-        shell=True, capture_output=True, text=True
-    )
-    git_root = result.stdout.strip()
-    if not git_root:
-        return
-
-    for fname in ("settings.local.json", "settings.json"):
-        settings_path = Path(git_root) / ".claude" / fname
-        if not settings_path.exists():
-            continue
-        try:
-            with open(settings_path, encoding="utf-8") as f:
-                data = json.load(f)
-            for k, v in data.get("env", {}).items():
-                if k not in os.environ:
-                    os.environ[k] = v
-        except Exception:
-            pass
-
-_load_claude_env()
+load_claude_env()
 
 
 def get_auth_header() -> Optional[str]:
@@ -76,6 +49,7 @@ def fetch_issue(issue_key: str) -> Dict[str, Any]:
     url = (
         f"{jira_url.rstrip('/')}/rest/api/3/issue/{issue_key}"
         "?fields=summary,description,status,assignee,created,attachment,comment"
+        "&expand=renderedFields"
     )
 
     try:
@@ -155,6 +129,8 @@ def main():
     parser.add_argument('--search', action='store_true', help="JQL 검색 모드")
     parser.add_argument('--jql', default=None, help="JQL 쿼리 (--search와 함께 사용)")
     parser.add_argument('--out-dir', default='.', help="출력 디렉토리 (기본값: 현재 디렉토리)")
+    parser.add_argument('--format', default='json', choices=['json', 'table'],
+                        help="출력 형식: json(기본) 또는 table(번호 테이블+매핑)")
 
     args = parser.parse_args()
 
@@ -165,6 +141,20 @@ def main():
     if args.search:
         # 검색 모드
         result = search_issues(args.jql)
+        if not result["ok"]:
+            guide = (
+                "\n\n⚠️  자동 조회에 실패했습니다.\n\n"
+                "다음 중 하나를 선택하세요:\n\n"
+                "1  이슈 키 직접 입력:\n"
+                "    /task-sync:fetch PROJ-101 PROJ-102\n\n"
+                "2  Jira 웹사이트에서 확인:\n"
+                "    https://madup.atlassian.net/jira/your-work\n\n"
+                "3  나중에 다시 시도:\n"
+                "    /task-sync:fetch"
+            )
+            result["reason"] = result["reason"] + guide
+            print(json.dumps({"ok": False, "reason": result["reason"]}, ensure_ascii=False))
+            sys.exit(1)
         out_file = out_dir / "jira_search.json"
     else:
         # 이슈 조회 모드
@@ -179,7 +169,29 @@ def main():
     if result["ok"]:
         with open(out_file, 'w') as f:
             json.dump(result["data"], f, indent=2, ensure_ascii=False)
-        print(json.dumps({"ok": True, "file": str(out_file)}))
+
+        if args.search and args.format == 'table':
+            # 테이블 + 번호→이슈키 매핑 출력
+            issues = result["data"].get("issues", [])
+            mapping = {}
+            table_lines = ["| 번호 | Jira Key | 제목 | 상태 |",
+                           "|-----|----------|------|------|"]
+            for idx, issue in enumerate(issues, 1):
+                key = issue.get("key", "")
+                summary = issue.get("fields", {}).get("summary", "")
+                status = issue.get("fields", {}).get("status", {}).get("name", "")
+                table_lines.append(f"| {idx} | {key} | {summary} | {status} |")
+                mapping[str(idx)] = key
+            table_str = "\n".join(table_lines)
+            print(json.dumps({
+                "ok": True,
+                "file": str(out_file),
+                "table": table_str,
+                "mapping": mapping,
+                "count": len(issues),
+            }, ensure_ascii=False))
+        else:
+            print(json.dumps({"ok": True, "file": str(out_file)}))
         sys.exit(0)
     else:
         print(json.dumps({"ok": False, "reason": result["reason"]}))

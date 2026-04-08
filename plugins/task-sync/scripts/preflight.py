@@ -5,34 +5,11 @@ Usage: python3 preflight.py {skill} [args...]
 Exit 0: ok / Exit 1: error
 """
 import json, os, sys, glob
+from common import find_git_root, get_branch, get_task_dir, get_state_dir, ok, error
 
 PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_PATH = os.path.join(PLUGIN_ROOT, "templates", "fe-task-template.md")
 EXAMPLE_PATH = os.path.join(PLUGIN_ROOT, "templates", "fe-task-example.md")
-
-
-def find_git_root():
-    import subprocess
-    r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
-    common = r.stdout.strip()
-    if common:
-        return os.path.abspath(os.path.join(common, ".."))
-    r2 = subprocess.run("git rev-parse --show-toplevel", shell=True, capture_output=True, text=True)
-    return r2.stdout.strip() or None
-
-
-def get_branch():
-    import subprocess
-    r = subprocess.run("git rev-parse --abbrev-ref HEAD", shell=True, capture_output=True, text=True)
-    return r.stdout.strip() or None
-
-
-def get_task_dir(root, branch):
-    return os.path.join(root, ".docs", "task", branch.replace("/", os.sep))
-
-
-def get_state_dir(task_dir):
-    return os.path.join(task_dir, ".state")
 
 
 def get_pending_path(state_dir):
@@ -54,16 +31,6 @@ def list_state_files(state_dir, ext):
         os.path.splitext(os.path.basename(f))[0]
         for f in glob.glob(os.path.join(state_dir, f"*.{ext}"))
     ]
-
-
-def ok(data=None):
-    print(json.dumps({"status": "ok", "data": data or {}}, ensure_ascii=False))
-    sys.exit(0)
-
-
-def error(code, reason):
-    print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
-    sys.exit(1)
 
 
 def main():

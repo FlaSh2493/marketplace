@@ -5,6 +5,7 @@ Usage: python3 list_tasks.py {branch} [--state DRAFT|PUBLISHED|SYNCED|ALL]
 Exit 0: ok / Exit 1: error
 """
 import argparse, json, os, re, sys, glob
+from common import find_git_root, get_task_dir, get_state_dir, ok, error
 
 
 STATE_EXT = {
@@ -14,26 +15,6 @@ STATE_EXT = {
     "PUBLISHED": "published",
     "SYNCED": "synced",
 }
-
-
-def find_git_root():
-    import subprocess
-    r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
-    common = r.stdout.strip()
-    if common:
-        return os.path.abspath(os.path.join(common, ".."))
-    r2 = subprocess.run("git rev-parse --show-toplevel", shell=True, capture_output=True, text=True)
-    return r2.stdout.strip() or None
-
-
-def ok(data):
-    print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False, indent=2))
-    sys.exit(0)
-
-
-def error(code, reason):
-    print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
-    sys.exit(1)
 
 
 def get_issue_title(file_path):
@@ -56,8 +37,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = os.path.join(root, ".docs", "task", args.branch.replace("/", os.sep))
-    state_dir = os.path.join(task_dir, ".state")
+    task_dir = get_task_dir(root, args.branch)
+    state_dir = get_state_dir(task_dir)
 
     if not os.path.exists(task_dir):
         error("TASK_DIR_NOT_FOUND", f"작업 디렉토리가 없습니다: {task_dir}")

@@ -7,6 +7,7 @@ Exit 0: ok / Exit 1: error
 상태: NONE → DRAFT → PUBLISHING → PUBLISHED → SYNCED
 """
 import json, os, sys
+from common import find_git_root, get_task_dir, get_state_dir
 
 TRANSITIONS = {
     ("NONE",       "DRAFT"):      [("create", "{issue}.draft")],
@@ -18,17 +19,7 @@ TRANSITIONS = {
 }
 
 
-def find_git_root():
-    import subprocess
-    r = subprocess.run("git rev-parse --git-common-dir", shell=True, capture_output=True, text=True)
-    common = r.stdout.strip()
-    if common:
-        return os.path.abspath(os.path.join(common, ".."))
-    r2 = subprocess.run("git rev-parse --show-toplevel", shell=True, capture_output=True, text=True)
-    return r2.stdout.strip() or None
-
-
-def ok(msg):
+def ok_msg(msg):
     print(json.dumps({"status": "ok", "data": {"message": msg}}, ensure_ascii=False))
     sys.exit(0)
 
@@ -57,8 +48,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = os.path.join(root, ".docs", "task", branch.replace("/", os.sep))
-    state_dir = os.path.join(task_dir, ".state")
+    task_dir = get_task_dir(root, branch)
+    state_dir = get_state_dir(task_dir)
     os.makedirs(state_dir, exist_ok=True)
 
     for action, filename in TRANSITIONS[key]:
@@ -69,7 +60,7 @@ def main():
             if os.path.exists(path):
                 os.remove(path)
 
-    ok(f"{issue}: {from_state} → {to_state} 완료")
+    ok_msg(f"{issue}: {from_state} → {to_state} 완료")
 
 
 if __name__ == "__main__":

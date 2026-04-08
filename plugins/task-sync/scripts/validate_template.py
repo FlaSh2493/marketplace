@@ -5,21 +5,12 @@ Usage: python3 validate_template.py {file_path}
 Exit 0: ok / Exit 1: error (포맷 불일치)
 """
 import json, os, re, sys
+from common import ok, error
 
 
 REQUIRED_HEADER_FIELDS = ["jira", "상태", "담당자", "생성일", "최근 업데이트", "출처"]
 REQUIRED_SECTIONS = ["## 설명", "## 메타데이터"]
 REQUIRED_META_FIELDS = ["deps", "api", "states"]
-
-
-def ok(data=None):
-    print(json.dumps({"status": "ok", "data": data or {}}, ensure_ascii=False))
-    sys.exit(0)
-
-
-def error(code, reason):
-    print(json.dumps({"status": "error", "code": code, "reason": reason}, ensure_ascii=False))
-    sys.exit(1)
 
 
 def main():
