@@ -25,7 +25,7 @@
 
 | 플러그인 | 설명 | 명령어 | 버전 |
 |---------|------|--------|------|
-| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·검사·머지·PR·리뷰 | `/autopilot:plan`, `/autopilot:req`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:pr`, `/autopilot:review-fix`, `/autopilot:status`, `/autopilot:help` | 0.1.0 |
+| `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·검사·머지·PR·리뷰 | `/autopilot:plan`, `/autopilot:build`, `/autopilot:req`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:pr`, `/autopilot:review-fix`, `/autopilot:status`, `/autopilot:help` | 0.1.0 |
 | `task-sync` | 작업 명세와 Jira 양방향 동기화 | `/task-sync:extract`, `/task-sync:fetch`, `/task-sync:publish`, `/task-sync:update`, `/task-sync:help` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
@@ -33,12 +33,13 @@
 ### autopilot 워크플로우
 
 ```
-plan → req → check → merge → pr → review-fix → cleanup
+plan → build → req → check → merge → pr → review-fix → cleanup
 ```
 
 | 스킬 | 설명 |
 |------|------|
-| `plan {브랜치명} [이슈키...] [--no-spec]` | 워크트리 생성 → 이슈 명세 로드 → 플랜 → 구현. `--no-spec`으로 명세 없이 요구사항 기반 작업 가능 |
+| `plan {브랜치명} [이슈키...] [--no-spec] [--replan]` | 워크트리 생성 → 이슈 명세 로드 → 플랜 수립 → `{브랜치명}.plan.md` 생성. 구현은 수행하지 않음 |
+| `build [{브랜치명}]` | plan.md 를 읽어 구현만 수행. 이슈 명세/탐색 재호출을 생략하여 컨텍스트 최소화 |
 | `req [이슈키]` | 대화에서 추가 요구사항을 추출하여 이슈 문서에 기록 |
 | `check` | 워크트리 내 lint, type-check, test 순차 실행. 오류 시 자동 수정 (최대 3회) |
 | `merge {피처브랜치}` | 워크트리를 피처 브랜치에 rebase + fast-forward 머지 |
