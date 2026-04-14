@@ -9,8 +9,15 @@ from common import ok, error
 
 
 REQUIRED_HEADER_FIELDS = ["jira", "상태", "담당자", "생성일", "최근 업데이트", "출처"]
-REQUIRED_SECTIONS = ["## 설명", "## 메타데이터"]
-REQUIRED_META_FIELDS = ["deps", "api", "states"]
+# extract 전용 필수 섹션/필드
+EXTRACT_REQUIRED_SECTIONS = ["## 설명", "## 메타데이터"]
+EXTRACT_REQUIRED_META_FIELDS = ["deps", "api", "states"]
+
+
+def get_source(content: str) -> str:
+    """헤더의 출처 필드 값을 반환. 파싱 실패 시 빈 문자열."""
+    m = re.search(r"^- 출처:\s*(.+)$", content, re.MULTILINE)
+    return m.group(1).strip() if m else ""
 
 
 def main():
@@ -48,21 +55,26 @@ def main():
     if actual_order != REQUIRED_HEADER_FIELDS:
         failures.append(f"헤더 필드 순서 오류. 현재: {actual_order}, 필요: {REQUIRED_HEADER_FIELDS}")
 
-    # 4. 필수 섹션 존재 여부
-    for section in REQUIRED_SECTIONS:
-        if section not in content:
-            failures.append(f"필수 섹션 누락: '{section}'")
+    source = get_source(content)
 
-    # 5. 메타데이터 필드
-    for field in REQUIRED_META_FIELDS:
-        if not re.search(rf"^- {re.escape(field)}:", content, re.MULTILINE):
-            failures.append(f"메타데이터 필드 누락: '{field}'")
+    if source == "jira-fetch":
+        # jira-fetch: ## 설명 필수, 메타데이터 불필요
+        if "## 설명" not in content:
+            failures.append("필수 섹션 누락: '## 설명'")
+    else:
+        # extract (기본): 기존 규칙 유지
+        for section in EXTRACT_REQUIRED_SECTIONS:
+            if section not in content:
+                failures.append(f"필수 섹션 누락: '{section}'")
+        for field in EXTRACT_REQUIRED_META_FIELDS:
+            if not re.search(rf"^- {re.escape(field)}:", content, re.MULTILINE):
+                failures.append(f"메타데이터 필드 누락: '{field}'")
 
-    # 6. 섹션 구분선 (---)
+    # 섹션 구분선 (---)
     if content.count("\n---\n") < 2:
         failures.append("섹션 구분선('---')이 2개 이상 있어야 합니다")
 
-    # 7. 설명 섹션 내용 비어있지 않은지
+    # 설명 섹션 내용 비어있지 않은지
     desc_match = re.search(r"## 설명\n\n(.+?)(?=\n---|\n## |\Z)", content, re.DOTALL)
     if desc_match and not desc_match.group(1).strip():
         failures.append("'## 설명' 섹션이 비어 있습니다")

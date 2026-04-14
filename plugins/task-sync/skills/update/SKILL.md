@@ -39,7 +39,7 @@ STEP 3: 변경 내용 분석
 
 STEP 5: Jira 업데이트
   각 이슈:
-    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/.docs/task/{branch}/{이슈키}/{이슈키}.md" > /tmp/{이슈키}_adf.json`
+    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/.docs/task/{branch}/{이슈키}/{이슈키}.md" --sections "설명,화면/디자인,컴포넌트 힌트,영향 범위,완료 조건,추가 요구사항" > /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속
     `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_update.py {이슈키} --summary "{제목}" --adf-file /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속
@@ -48,4 +48,4 @@ STEP 6: 완료 알림
   notify_user("Jira 동기화 완료 [{이슈키 목록}]")
 
 [TERMINATE]
-댓글 역동기화 금지. ## 설명 + ## 추가 요구사항 + ## 첨부 이미지만 반영.
+댓글 역동기화 금지. 반영 섹션: 설명, 화면/디자인, 컴포넌트 힌트, 영향 범위, 완료 조건, 추가 요구사항. 헤더 메타데이터(- jira:, - 상태: 등)는 Jira에 반영하지 않는다.

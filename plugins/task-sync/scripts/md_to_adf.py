@@ -408,15 +408,31 @@ def convert(md_text, issue_key, md_dir, jira_url, email, token, upload_images):
 
 # ── 진입점 ────────────────────────────────────────────────────────────────────
 
+def extract_sections(md_text: str, section_names: list) -> str:
+    """지정된 ## 섹션 이름 목록에 해당하는 내용만 추출하여 합친다."""
+    parts = re.split(r'^(## .+)$', md_text, flags=re.MULTILINE)
+    result = []
+    for i in range(1, len(parts), 2):
+        heading = parts[i]
+        content = parts[i + 1] if i + 1 < len(parts) else ""
+        section_name = heading[3:].strip()  # "## 설명" → "설명"
+        if section_name in section_names:
+            result.append(heading + content)
+    return "\n".join(result)
+
+
 def main():
     check_mistune()  # mistune 설치 확인 (실제 파싱은 자체 구현 사용)
 
-    args = sys.argv[1:]
-    if len(args) < 2:
-        error("MISSING_ARGS", "사용법: md_to_adf.py {issue_key} {md_file_path|-}")
+    import argparse
+    parser = argparse.ArgumentParser(description="마크다운 → ADF 변환")
+    parser.add_argument("issue_key", help="Jira 이슈 키")
+    parser.add_argument("md_file", help="마크다운 파일 경로 또는 '-' (stdin)")
+    parser.add_argument("--sections", help="반영할 섹션 이름 (쉼표 구분, 예: '설명,완료 조건')", default=None)
+    parsed = parser.parse_args()
 
-    issue_key = args[0]
-    file_arg = args[1]
+    issue_key = parsed.issue_key
+    file_arg = parsed.md_file
 
     if file_arg == "-":
         md_text = sys.stdin.read()
@@ -427,6 +443,10 @@ def main():
         with open(file_arg, encoding="utf-8") as f:
             md_text = f.read()
         md_dir = os.path.dirname(os.path.abspath(file_arg))
+
+    if parsed.sections:
+        section_names = [s.strip() for s in parsed.sections.split(",")]
+        md_text = extract_sections(md_text, section_names)
 
     # 이미지가 포함된 경우에만 Jira 환경변수 필요
     has_images = bool(IMAGE_RE.search(md_text))

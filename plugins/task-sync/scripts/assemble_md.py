@@ -17,6 +17,29 @@ import sys
 from datetime import datetime
 
 
+def parse_description_sections(description_md: str):
+    """description_md의 ## 헤딩을 파싱하여 (heading, content) 리스트 반환.
+    ## 헤딩이 없으면 None 반환 → fallback."""
+    if not description_md:
+        return None
+    parts = re.split(r'^(## .+)$', description_md, flags=re.MULTILINE)
+    # parts = [preamble, heading1, content1, heading2, content2, ...]
+    if len(parts) < 3:
+        return None
+    sections = []
+    preamble = parts[0].strip()
+    for i in range(1, len(parts), 2):
+        heading = parts[i]
+        content = parts[i + 1].strip() if i + 1 < len(parts) else ""
+        if preamble and heading == "## 설명":
+            content = preamble + "\n\n" + content if content else preamble
+            preamble = ""
+        sections.append((heading, content))
+    if preamble:
+        sections.insert(0, ("## 설명", preamble))
+    return sections
+
+
 def find_inline_images(description_md: str) -> set:
     """description_md에서 참조된 이미지 파일명(./assets/ 이후)을 추출."""
     pattern = re.compile(r'!\[[^\]]*\]\(\./assets/([^)]+)\)')
@@ -86,13 +109,14 @@ def assemble(converted_path: str, target_md: str, issue_key: str, assets_dir: st
         "- 출처: jira-fetch",
         "",
         "---",
-        "",
-        "## 설명",
-        "",
-        description_md if description_md else "(내용 없음)",
-        "",
-        "---",
     ]
+
+    parsed_sections = parse_description_sections(description_md)
+    if parsed_sections:
+        for heading, content in parsed_sections:
+            lines += ["", heading, "", content if content else "(내용 없음)", "", "---"]
+    else:
+        lines += ["", "## 설명", "", description_md if description_md else "(내용 없음)", "", "---"]
 
     # 첨부 이미지 (description 미참조만)
     if extra_images:
