@@ -1,6 +1,6 @@
 ---
 name: autopilot-pr
-description: 현재 브랜치를 push하고 develop 대상 PR을 생성한다. assignee는 자신, label은 develop + 도메인영역.
+description: 현재 브랜치를 push하고 PR을 생성한다. base_branch는 .autopilot에서 자동 감지하며, 없으면 git 커밋 수 비교로 결정한다. assignee는 자신, label은 base_branch + 도메인영역.
 ---
 
 # PR 생성
@@ -8,29 +8,73 @@ description: 현재 브랜치를 push하고 develop 대상 PR을 생성한다. a
 **실행 주체: Main Session**
 
 ## 사용법
-`/autopilot:pr`
+`/autopilot:pr [{브랜치}]`
+- 브랜치 생략 시 현재 브랜치 또는 목록에서 선택
 
 ## 실행 절차
 
-STEP 0: 워크트리 확인
-  다음 명령을 각각 실행하여 컨텍스트 확보:
-  - `git rev-parse --show-toplevel` → worktree_path
-    실패 시: "git 저장소가 아닙니다." 출력 후 [STOP]
-  - `git rev-parse --abbrev-ref HEAD` → current_branch
-    출력이 `HEAD`(detached HEAD)이면: "detached HEAD 상태입니다. 브랜치를 checkout하세요." 출력 후 [STOP]
+STEP 0: 브랜치 및 base_branch 확인
 
-  current_branch가 `develop` 또는 `main`이면: "피처 브랜치에서 실행하세요." 출력 후 [STOP]
+  **브랜치 확보:**
+  브랜치명이 주어지면:
+    ```bash
+    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py '{브랜치}' --find-only
+    ```
+    성공: `data.worktree_path` 보관, `resolved_branch = 브랜치명`
+    실패 (WORKTREE_NOT_FOUND): 워크트리 없음 → 일반 브랜치로 간주, `worktree_path = null`, `resolved_branch = 브랜치명`
 
-  safe_branch: current_branch의 `/`를 `-`로 치환한 값 (파일명에 사용)
+  브랜치명이 없으면:
+    ```bash
+    git rev-parse --abbrev-ref HEAD
+    ```
+    → current_branch
+    current_branch가 피처 브랜치 (develop/main/master/staging 등이 아닌 경우):
+      `resolved_branch = current_branch`
+    아니면:
+      활성 워크트리 목록 파싱 후 AskUserQuestion 으로 선택
+      선택된 브랜치를 `resolved_branch`로 보관
 
-  **이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행**
+  **git 저장소 루트 확보:**
+  ```bash
+  git rev-parse --show-toplevel
+  ```
+  → worktree_path (워크트리 없는 경우) 또는 verify용
+
+  `resolved_branch`가 detached HEAD이면: "detached HEAD 상태입니다. 브랜치를 checkout하세요." 출력 후 [STOP]
+
+  **base_branch 결정:**
+  1순위 — `.autopilot` 파일:
+    ```bash
+    cd '{worktree_path 또는 git_root}' && python3 -c "
+    import json; d=json.load(open('.autopilot')); print(d.get('base_branch',''))
+    " 2>/dev/null
+    ```
+    값이 있으면 `base_branch` 확정
+
+  2순위 — git 커밋 수 비교 (1순위 실패 시):
+    ```bash
+    git fetch origin develop main 2>/dev/null; \
+    dev_count=$(git log origin/develop..HEAD --oneline 2>/dev/null | wc -l | tr -d ' '); \
+    main_count=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' '); \
+    echo "${dev_count} ${main_count}"
+    ```
+    - dev_count < main_count → `base_branch = develop`
+    - main_count < dev_count → `base_branch = main`
+    - 같거나 둘 다 실패 → `base_branch = develop`
+
+  **가드레일:**
+  `resolved_branch == base_branch` 이면: "PR 대상과 동일한 브랜치입니다." 출력 후 [STOP]
+
+  `safe_branch`: resolved_branch의 `/`를 `-`로 치환한 값 (파일명에 사용)
+
+  **이후 모든 Bash 명령은 `cd '{worktree_path 또는 git_root}' && command` 형태로 실행**
 
 STEP 1: 사전 검증
-  1-a. origin/develop fetch:
+  1-a. origin/{base_branch} fetch:
     ```bash
-    cd '{worktree_path}' && git fetch origin develop 2>&1
+    cd '{worktree_path}' && git fetch origin {base_branch} 2>&1
     ```
-    실패 시: "origin/develop을 fetch할 수 없습니다. remote 설정을 확인하세요." 출력 후 [STOP]
+    실패 시: "origin/{base_branch}을 fetch할 수 없습니다. remote 설정을 확인하세요." 출력 후 [STOP]
 
   1-b. gh CLI 확인:
     ```bash
@@ -41,7 +85,7 @@ STEP 1: 사전 검증
 
   1-c. 기존 PR 확인:
     ```bash
-    cd '{worktree_path}' && gh pr list --head '{current_branch}' --base develop --state open --json number,url -q '.[0].url // empty'
+    cd '{worktree_path}' && gh pr list --head '{resolved_branch}' --base {base_branch} --state open --json number,url -q '.[0].url // empty'
     ```
     출력이 비어있지 않으면: "이미 열린 PR이 있습니다: {url}" 출력 후 [STOP]
 
@@ -51,24 +95,24 @@ STEP 2: 미커밋 변경사항 확인
 
 STEP 3: 커밋 목록 및 변경 파일 확보
   ```bash
-  cd '{worktree_path}' && git log origin/develop..HEAD --oneline | head -51
+  cd '{worktree_path}' && git log origin/{base_branch}..HEAD --oneline | head -51
   ```
-  출력이 비어있으면: "develop 대비 새 커밋이 없습니다." 출력 후 [STOP]
-  출력이 51줄이면 (50개 초과): "커밋이 50개를 초과합니다. 브랜치를 확인하세요 (develop과 공통 조상이 없을 수 있습니다)." 출력 후 [STOP]
+  출력이 비어있으면: "{base_branch} 대비 새 커밋이 없습니다." 출력 후 [STOP]
+  출력이 51줄이면 (50개 초과): "커밋이 50개를 초과합니다. 브랜치를 확인하세요 ({base_branch}과 공통 조상이 없을 수 있습니다)." 출력 후 [STOP]
   커밋 목록 보관.
 
   ```bash
-  cd '{worktree_path}' && git diff --name-only origin/develop...HEAD
+  cd '{worktree_path}' && git diff --name-only origin/{base_branch}...HEAD
   ```
   주의: three-dot(`...`)을 사용한다 — 분기점 이후 현재 브랜치에서만 변경된 파일을 정확히 추출하기 위함.
   변경 파일 목록 보관.
-  변경 파일이 없으면(커밋은 있지만 revert 등으로 diff가 비어있는 경우): "커밋은 있지만 develop 대비 변경된 파일이 없습니다. 브랜치 상태를 확인하세요." 출력 후 [STOP]
+  변경 파일이 없으면(커밋은 있지만 revert 등으로 diff가 비어있는 경우): "커밋은 있지만 {base_branch} 대비 변경된 파일이 없습니다. 브랜치 상태를 확인하세요." 출력 후 [STOP]
 
 STEP 4: 도메인 라벨 추론
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/infer_labels.py '{worktree_path}' '{owner_repo}'
   ```
-  결과: `data.labels[]` — develop + 도메인 라벨 (존재하는 것만)
+  결과: `data.labels[]` — {base_branch} + 도메인 라벨 (존재하는 것만)
 
 STEP 5: 본인 계정 확보
   ```bash
@@ -118,13 +162,13 @@ STEP 8: Push
   실패 시: 오류 메시지 출력 후 [STOP]
 
 STEP 9: PR 생성
-  labels 옵션: 각 라벨마다 `--label '{라벨}'`을 반복한다. 예: `--label 'develop' --label 'data-center'`. 라벨이 없으면 `--label` 자체를 생략한다.
+  labels 옵션: 각 라벨마다 `--label '{라벨}'`을 반복한다. 예: `--label '{base_branch}' --label 'data-center'`. 라벨이 없으면 `--label` 자체를 생략한다.
   주의: `--label 'a,b'`는 쉼표를 포함한 단일 라벨로 해석되므로 **반드시 개별 `--label`로 분리**한다.
 
   ```bash
   cd '{worktree_path}' && TITLE=$(cat '/tmp/pr_{safe_branch}_title.txt') && \
     gh pr create \
-      --base develop \
+      --base {base_branch} \
       --assignee '{login}' \
       {각 라벨별 --label '{라벨}'} \
       --title "$TITLE" \
@@ -133,14 +177,14 @@ STEP 9: PR 생성
   `--body-file`로 본문을 파일에서 직접 읽는다 (gh 2.21.0+ 필요).
   `--body-file` 미지원 에러(`unknown flag`) 발생 시: `--body-file`을 `--body "$(cat '/tmp/pr_{safe_branch}_body.txt')"` 로 대체하여 재실행한다.
   성공 시: stdout 출력(PR URL)을 pr_url 변수에 보관 → STEP 10 진행
-  실패 시: "PR 생성에 실패했습니다. push는 완료된 상태이므로 수동으로 PR을 생성하세요:\n`gh pr create --base develop --assignee '{login}'`" 출력 후 [STOP]
+  실패 시: "PR 생성에 실패했습니다. push는 완료된 상태이므로 수동으로 PR을 생성하세요:\n`gh pr create --base {base_branch} --assignee '{login}'`" 출력 후 [STOP]
 
 STEP 10: 완료 출력
   ```
   ┌───────────────────────────────────────────────┐
   │ PR 생성 완료                                   │
   │ URL: {pr_url}                                  │
-  │ Base: develop ← {current_branch}               │
+  │ Base: {base_branch} ← {resolved_branch}        │
   │ Labels: {labels 또는 "없음"}                    │
   └───────────────────────────────────────────────┘
   ```

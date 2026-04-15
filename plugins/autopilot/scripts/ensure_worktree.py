@@ -128,10 +128,13 @@ def write_autopilot_meta(worktree_path, issues, base_branch):
 
 
 def main():
-    # 인수 파싱: {브랜치명} [--issues KEY1 KEY2 ...]
+    # 인수 파싱: {브랜치명} [--issues KEY1 KEY2 ...] [--find-only]
     args = sys.argv[1:]
     if not args:
-        error("MISSING_ARGS", "사용법: ensure_worktree.py {브랜치명} [--issues PLAT-101 ...]")
+        error("MISSING_ARGS", "사용법: ensure_worktree.py {브랜치명} [--issues PLAT-101 ...] [--find-only]")
+
+    find_only = "--find-only" in args
+    args = [a for a in args if a != "--find-only"]
 
     branch = args[0]
     issues = []
@@ -178,6 +181,12 @@ def main():
         else:
             # registry에는 있지만 디렉토리가 없음 → stale 항목 제거 후 재생성
             run("git worktree prune")
+    elif find_only:
+        error("WORKTREE_NOT_FOUND", f"워크트리가 없습니다: {branch}")
+
+    # --find-only는 생성하지 않음
+    if find_only:
+        error("WORKTREE_NOT_FOUND", f"워크트리가 없습니다: {branch}")
 
     # 없으면 생성
     parent_dir = os.path.dirname(worktree_path)

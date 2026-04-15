@@ -9,7 +9,8 @@ description: 피처 브랜치의 모든 활성 워크트리를 충돌 수 기준
 git push 금지.
 
 ## 사용법
-`/autopilot:merge-all {피처브랜치}`
+`/autopilot:merge-all [{피처브랜치}]`
+- 피처브랜치 생략 시 활성 워크트리의 `.autopilot`에서 공통 `base_branch` 자동 감지
 
 ## 실행 절차
 
@@ -19,6 +20,21 @@ STEP 0: 컨텍스트 확보
   - `cd {main_root_path} && git rev-parse --abbrev-ref HEAD` → main_root_branch
   - `git rev-parse --abbrev-ref HEAD` → current_branch (가드 체크 + 현재 위치 확인용)
 
+  **피처브랜치 자동 감지** (인수 없을 때):
+  `git worktree list --porcelain` 에서 main_root_path 제외한 워크트리 목록 파싱.
+  각 워크트리 경로별:
+    ```bash
+    python3 -c "
+    import json; d=json.load(open('{wt_path}/.autopilot')); print(d.get('base_branch',''))
+    " 2>/dev/null
+    ```
+  읽힌 base_branch 값들 수집:
+  - 모두 동일한 값이면 → 그 값을 피처브랜치로 확정
+  - 값이 없거나 서로 다르면 → 읽힌 고유 값들을 목록으로 제시:
+    AskUserQuestion("피처브랜치를 선택하세요:\n{브랜치 목록}")
+    선택한 값을 피처브랜치로 확정
+
+  **가드레일:**
   current_branch == {피처브랜치}이면: "피처 브랜치에서는 실행할 수 없습니다." 출력 후 [STOP]
 
 STEP 1: 머지 계획 조회
@@ -160,13 +176,13 @@ STEP 6: 완료 출력
   ```
   ⚠ 머지 실패 워크트리:
   {브랜치마다 한 줄씩}
-    재시도: /autopilot:merge {피처브랜치}  (해당 워크트리 세션에서 실행)
+    재시도: /autopilot:merge {워크트리브랜치}  (메인 세션에서 실행)
   ```
 
   AskUserQuestion으로 다음 선택지 제시:
   ```
   머지가 완료되었습니다. 다음 중 선택하세요:
-  1. `/autopilot:pr` — develop 대상 PR 생성
+  1. `/autopilot:pr` — PR 생성
   2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
   3. 추가 작업 계속
   ```
