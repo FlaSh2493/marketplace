@@ -1,6 +1,6 @@
 ---
 name: autopilot-merge
-description: base_branch가 main/develop 계열이면 베이스를 워크트리로 rebase(싱크), umbrella 브랜치면 워크트리를 umbrella에 머지(커밋 통합)한다.
+description: base_branch가 main/develop 계열이면 origin/base를 워크트리에 merge(싱크), umbrella 브랜치면 origin/umbrella를 워크트리에 rebase 후 워크트리를 umbrella에 머지(커밋 통합)한다.
 ---
 
 # Worktree Merge
@@ -10,8 +10,8 @@ git push 금지.
 
 ## 사용법
 `/autopilot:merge [{워크트리브랜치}]` — 워크트리명 지정 또는 목록에서 선택
-- `base_branch`가 main/develop 등이면 → **케이스 1**: 베이스 → 워크트리 rebase (PR 전 싱크)
-- `base_branch`가 umbrella 브랜치면 → **케이스 2**: 워크트리 → umbrella 머지 (커밋 통합)
+- `base_branch`가 main/develop 등이면 → **케이스 1**: origin/base → 워크트리 merge (PR 전 싱크)
+- `base_branch`가 umbrella 브랜치면 → **케이스 2**: origin/umbrella → 워크트리 rebase 후 워크트리 → umbrella 머지
 
 ## 실행 절차
 
@@ -69,7 +69,6 @@ STEP 0: 워크트리 및 타겟 브랜치 확인
 ## [케이스 1] 베이스 → 워크트리 rebase (PR 전 싱크)
 
 베이스(main/develop 등)의 최신 커밋을 워크트리에 반영한다.
-머지커밋 없이 선형 히스토리를 유지하여 이후 PR diff를 깔끔하게 만든다.
 
 STEP 1: 미커밋 변경사항 커밋
   `cd {worktree_path} && git status --porcelain` 실행
@@ -95,20 +94,20 @@ STEP 1: 미커밋 변경사항 커밋
        cd {worktree_path} && git add -- {shlex.quote(파일1)} ... && git commit -F /tmp/commit_msg.txt
        ```
 
-STEP 2: fetch + rebase
+STEP 2: fetch + merge
   ```bash
   cd '{worktree_path}' && git fetch origin {target_branch}
   ```
   실패 시: 에러 출력 후 [STOP]
 
   ```bash
-  cd '{worktree_path}' && git rebase origin/{target_branch}
+  cd '{worktree_path}' && git merge origin/{target_branch}
   ```
   성공 (exit 0): STEP 3으로
   충돌 (exit 1):
     Read(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CONFLICT_RESOLUTION.md`) 후 절차를 따른다.
     변수: resolve_root={worktree_path}, 피처브랜치={target_branch}, branch={worktree_branch}
-    충돌 해결 완료 후: `cd {worktree_path} && git rebase --continue`
+    충돌 해결 완료 후: `cd {worktree_path} && git merge --continue`
     충돌 해결 실패 시: [STOP]
 
 STEP 3: 완료 출력
