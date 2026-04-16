@@ -93,9 +93,10 @@ checks가 3개 모두 없으면 해당 앱 스킵. 단일 앱에서 스킵되면
 전체 통과 시 AskUserQuestion으로 다음 선택지 제시:
 ```
 검사를 모두 통과했습니다. 다음 중 선택하세요:
-1. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
-2. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
-3. 추가 작업 계속
+1. `/autopilot:check-all` — 모든 워크트리 검사 후 merge-all 준비 (메인 세션에서 실행)
+2. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
+3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
+4. 추가 작업 계속
 ```
 
 [TERMINATE]

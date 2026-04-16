@@ -54,6 +54,7 @@ STEP 1: 머지 계획 조회
   ```
 
 [GATE] STEP 2: 머지 계획 승인
+  ⚡ 품질 검사를 아직 실행하지 않았다면 `/autopilot:check-all`로 먼저 검사를 권장합니다.
   AskUserQuestion("위 순서로 전체 머지를 진행할까요? (yes / no)")
   응답 "no": "머지 취소." [TERMINATE]
   응답 "yes": STEP 3 진행

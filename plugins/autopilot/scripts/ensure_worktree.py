@@ -68,7 +68,7 @@ def find_worktree_root(git_root):
                 return str(p)
         except (json.JSONDecodeError, OSError):
             continue
-    return os.path.join(git_root, ".claude", "worktrees")
+    return os.path.join(git_root, "worktree")
 
 
 def find_git_root():
