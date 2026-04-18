@@ -3,8 +3,7 @@
 머지 완료 후 워크트리 정리. 워크트리 제거 + 브랜치 삭제.
 Usage: python3 cleanup_worktrees.py {feature} --branches {브랜치명1} {브랜치명2} ...
 """
-import argparse, json, os, re, sys, subprocess
-from pathlib import Path
+import argparse, json, os, sys, subprocess
 
 
 def run(cmd, cwd=None):
@@ -20,32 +19,19 @@ def find_git_root():
     return out if rc2 == 0 else None
 
 
-def find_worktree_root(git_root):
-    candidates = [
-        Path(git_root) / ".claude" / "settings.local.json",
-        Path(git_root) / ".claude" / "settings.json",
-        Path.home() / ".claude" / "settings.local.json",
-        Path.home() / ".claude" / "settings.json",
-    ]
-    for settings_path in candidates:
-        if not settings_path.exists():
-            continue
-        try:
-            data = json.loads(settings_path.read_text())
-            raw = data.get("autopilot", {}).get("worktreeRoot")
-            if raw:
-                p = Path(raw)
-                if not p.is_absolute():
-                    p = (settings_path.parent / p).resolve()
-                return str(p)
-        except (json.JSONDecodeError, OSError):
-            continue
-    return os.path.join(git_root, "worktree")
 
-
-def sanitize_name(branch):
-    name = re.sub(r"[^a-zA-Z0-9._-]", "-", branch)
-    return name[:64]
+def find_worktree_path_for_branch(branch, root):
+    """git worktree list --porcelain으로 브랜치의 실제 워크트리 경로 탐색"""
+    out, _, rc = run("git worktree list --porcelain", cwd=root)
+    if rc != 0:
+        return None
+    current_wt = None
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            current_wt = line[len("worktree "):]
+        elif line.startswith("branch refs/heads/") and line[len("branch refs/heads/"):] == branch:
+            return current_wt
+    return None
 
 
 def ok(data, has_errors=False):
@@ -68,16 +54,14 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    worktree_root = find_worktree_root(root)
     cleaned = []
     errors = []
 
     for branch in args.branches:
-        name = sanitize_name(branch)
-        wt_path = os.path.join(worktree_root, name)
+        wt_path = find_worktree_path_for_branch(branch, root)
 
         # 워크트리 제거
-        if os.path.exists(wt_path):
+        if wt_path:
             _, err, code = run(f"git worktree remove '{wt_path}' --force", cwd=root)
             if code != 0:
                 errors.append({"branch": branch, "error": f"worktree remove 실패: {err}"})

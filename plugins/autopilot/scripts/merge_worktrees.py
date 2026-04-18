@@ -7,8 +7,7 @@ Usage:
   python3 merge_worktrees.py {feature} --branch {브랜치명} --continue
 Exit 0: 성공 / Exit 1: 실패 / Exit 2: 충돌
 """
-import argparse, json, os, re, subprocess, sys
-from pathlib import Path
+import argparse, json, os, subprocess, sys
 
 
 def run(cmd, cwd=None):
@@ -24,49 +23,18 @@ def find_git_root():
     return out if rc2 == 0 else None
 
 
-def find_worktree_root(git_root):
-    candidates = [
-        Path(git_root) / ".claude" / "settings.local.json",
-        Path(git_root) / ".claude" / "settings.json",
-        Path.home() / ".claude" / "settings.local.json",
-        Path.home() / ".claude" / "settings.json",
-    ]
-    for settings_path in candidates:
-        if not settings_path.exists():
-            continue
-        try:
-            data = json.loads(settings_path.read_text())
-            raw = data.get("autopilot", {}).get("worktreeRoot")
-            if raw:
-                p = Path(raw)
-                if not p.is_absolute():
-                    p = (settings_path.parent / p).resolve()
-                return str(p)
-        except (json.JSONDecodeError, OSError):
-            continue
-    return os.path.join(git_root, "worktree")
-
-
-def sanitize_name(branch):
-    name = re.sub(r"[^a-zA-Z0-9._-]", "-", branch)
-    return name[:64]
-
-
-def wt_path(worktree_root, branch):
-    return os.path.join(worktree_root, sanitize_name(branch))
-
 
 def read_autopilot_meta(worktree_path):
     meta_path = os.path.join(worktree_path, ".autopilot")
     if os.path.exists(meta_path):
         try:
-            return json.loads(Path(meta_path).read_text())
+            return json.loads(open(meta_path).read())
         except (json.JSONDecodeError, OSError):
             pass
     return {}
 
 
-def get_autopilot_worktrees(root, worktree_root, feature):
+def get_autopilot_worktrees(root, feature):
     """autopilot 워크트리 목록 반환 — .autopilot 파일 존재 여부로 판별"""
     out, _, _ = run("git worktree list --porcelain", cwd=root)
     results = []
@@ -145,10 +113,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    worktree_root = find_worktree_root(root)
-
     if args.dry_run:
-        branches = get_autopilot_worktrees(root, worktree_root, args.feature)
+        branches = get_autopilot_worktrees(root, args.feature)
         if not branches:
             error("NO_BRANCHES", f"'{args.feature}' 기준 autopilot 워크트리가 없습니다")
         matrix = []
