@@ -15,6 +15,14 @@ git push 금지.
 
 ## STEP 0: 워크트리 목록 조회
 
+상태 초기화:
+```bash
+main_root=$(git rev-parse --show-toplevel)
+state_dir="$main_root/.docs/task/check-all/.state"
+mkdir -p "$state_dir"
+rm -f "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+```
+
 다음 명령을 각각 실행:
 - `git worktree list --porcelain` → 전체 워크트리 목록 파싱
 - 첫 번째 항목(main_root_path) 제외한 나머지 수집
@@ -127,5 +135,8 @@ AskUserQuestion으로 다음 선택지 제시:
 - {wt_branch}: {검사명} 실패
   → 해당 워크트리 세션에서 `/autopilot:check` 실행하여 수동 확인
 ```
+
+완료 마커
+  Write: `{state_dir}/check-all` (빈 파일)
 
 [TERMINATE]

@@ -59,6 +59,13 @@ STEP 0: 워크트리 및 타겟 브랜치 확인
 
   **이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행**
 
+  상태 초기화:
+  ```bash
+  state_dir="{root_path}/.docs/task/{worktree_branch}/.state"
+  mkdir -p "$state_dir"
+  rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+  ```
+
   **케이스 판별**:
   BASE_BRANCHES = ["develop", "main", "master", "release", "staging", "stg", "stag", "dev"]
   target_branch 가 위 목록에 포함되거나 "release/"로 시작하면 → [케이스 1 흐름]으로 이동
@@ -127,6 +134,9 @@ STEP 3: 완료 출력
   1. `/autopilot:pr` — PR 생성
   2. 추가 작업 계속
   ```
+
+  완료 마커
+    Write: `{state_dir}/merge` (빈 파일)
 
 [TERMINATE]
 
@@ -205,5 +215,8 @@ STEP C2-5: 완료 출력
   2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
   3. 추가 작업 계속
   ```
+
+  완료 마커
+    Write: `{state_dir}/merge` (빈 파일)
 
 [TERMINATE]

@@ -67,6 +67,14 @@ STEP 0: 브랜치 및 base_branch 확인
 
   `safe_branch`: resolved_branch의 `/`를 `-`로 치환한 값 (파일명에 사용)
 
+  상태 초기화:
+  ```bash
+  main_root=$(git worktree list | head -1 | awk '{print $1}')
+  state_dir="$main_root/.docs/task/{resolved_branch}/.state"
+  mkdir -p "$state_dir"
+  rm -f "$state_dir/pr" "$state_dir/review-fix"
+  ```
+
   **이후 모든 Bash 명령은 `cd '{worktree_path 또는 git_root}' && command` 형태로 실행**
 
 STEP 1: 사전 검증
@@ -197,5 +205,8 @@ STEP 10: 완료 출력
   3. `/autopilot:status` — 활성 워크트리 상태 조회
   4. 추가 작업 계속
   ```
+
+  완료 마커
+    Write: `{state_dir}/pr` (빈 파일)
 
 [TERMINATE]

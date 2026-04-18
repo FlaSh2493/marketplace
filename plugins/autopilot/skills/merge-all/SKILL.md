@@ -37,6 +37,13 @@ STEP 0: 컨텍스트 확보
   **가드레일:**
   current_branch == {피처브랜치}이면: "피처 브랜치에서는 실행할 수 없습니다." 출력 후 [STOP]
 
+  상태 초기화:
+  ```bash
+  state_dir="{main_root_path}/.docs/task/{피처브랜치}/.state"
+  mkdir -p "$state_dir"
+  rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+  ```
+
 STEP 1: 머지 계획 조회
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --dry-run`
   실패 (exit 1): reason 출력 후 [STOP]
@@ -187,5 +194,8 @@ STEP 6: 완료 출력
   2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
   3. 추가 작업 계속
   ```
+
+  완료 마커
+    Write: `{state_dir}/merge-all` (빈 파일)
 
 [TERMINATE]

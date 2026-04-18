@@ -29,6 +29,14 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 - `data.worktree_path`, `data.branch`, `data.issue_doc_root`, `data.issues` 보관
 - 실패 시 reason 출력 후 [STOP]
 
+상태 초기화:
+```bash
+main_root=$(git worktree list | head -1 | awk '{print $1}')
+state_dir="$main_root/.docs/task/{data.branch}/.state"
+mkdir -p "$state_dir"
+rm -f "$state_dir/build" "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+```
+
 `cd {data.worktree_path} && pwd && git branch --show-current` 로 경로·브랜치 확인.
 
 ### 2. plan.md 존재 검증
@@ -101,6 +109,9 @@ plan.md 에 `## 이미지 목록` 섹션이 있으면:
 ---
 
 ## 완료 안내
+
+완료 마커
+  Write: `{state_dir}/build` (빈 파일)
 
 AskUserQuestion 으로 다음 선택지를 제시:
 

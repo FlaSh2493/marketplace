@@ -21,6 +21,14 @@ git rev-parse --abbrev-ref HEAD → current_branch
 
 current_branch가 `worktree-` prefix로 시작하지 않으면: "워크트리 브랜치가 아닙니다. 워크트리 안에서 실행하세요." 출력 후 [STOP]
 
+상태 초기화:
+```bash
+main_root=$(git worktree list | head -1 | awk '{print $1}')
+state_dir="$main_root/.docs/task/{current_branch}/.state"
+mkdir -p "$state_dir"
+rm -f "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+```
+
 ---
 
 ## STEP 1: 환경 탐지
@@ -98,5 +106,8 @@ checks가 3개 모두 없으면 해당 앱 스킵. 단일 앱에서 스킵되면
 3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
 4. 추가 작업 계속
 ```
+
+완료 마커
+  Write: `{state_dir}/check` (빈 파일)
 
 [TERMINATE]

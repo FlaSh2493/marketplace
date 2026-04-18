@@ -55,6 +55,11 @@ STEP 5: 수정 → 검증 → 보고
 git rev-parse --show-toplevel → worktree_path   # 실패 → [STOP]
 git rev-parse --abbrev-ref HEAD → current_branch # HEAD → [STOP], develop|main → [STOP]
 gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
+# 상태 초기화 (current_branch 확보 후)
+main_root=$(git worktree list | head -1 | awk '{print $1}')
+state_dir="$main_root/.docs/task/{current_branch}/.state"
+mkdir -p "$state_dir"
+rm -f "$state_dir/review-fix"
 gh api user -q '.login' → my_login
 gh repo view --json nameWithOwner -q '.nameWithOwner' → owner_repo
 gh pr list --head '{current_branch}' --state open --json number -q '.[0].number // empty' → pr_number
@@ -84,12 +89,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   30초 대기(`sleep 30`) → STEP 1 재시도
   총 대기 30분 초과 시 → [STOP]
 - `has_reviews == true + active_count == 0`:
+  완료 마커: Write `{state_dir}/review-fix` (빈 파일)
   "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → [STOP]
 - `has_reviews == true + active_count >= 1`: STEP 3으로
 
 **pushed_at != null (push 후 폴링 중):**
 
 - `new_since_push == false + active_count == 0`:
+  완료 마커: Write `{state_dir}/review-fix` (빈 파일)
   "✅ 활성 코멘트 없음. 자동 종료합니다." → [STOP]
 - `new_since_push == false + active_count >= 1`:
   ```
@@ -97,6 +104,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   ```
   30초 대기 → STEP 1 재시도 (30분 초과 시 [STOP])
 - `new_since_push == true + active_count == 0`:
+  완료 마커: Write `{state_dir}/review-fix` (빈 파일)
   "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → [STOP]
 - `new_since_push == true + active_count >= 1`: STEP 3으로
 - `status == "error"`: 에러 메시지 출력 → [STOP]
