@@ -64,7 +64,8 @@ def get_task_dir(root: str, branch: str) -> str:
 
 
 def get_state_dir(task_dir: str) -> str:
-    return os.path.join(task_dir, ".state")
+    root = find_git_root()
+    return os.path.join(root, ".docs", "task", ".state")
 
 
 def ok(data=None):
