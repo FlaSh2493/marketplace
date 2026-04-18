@@ -187,7 +187,11 @@ STEP 6: 완료 출력
     재시도: /autopilot:merge {워크트리브랜치}  (메인 세션에서 실행)
   ```
 
-  AskUserQuestion으로 다음 선택지 제시:
+  완료 마커 조건 확인:
+  - merged_branches >= 1
+  - skipped_branches == 0
+
+  조건 충족 시 AskUserQuestion으로 다음 선택지 제시:
   ```
   머지가 완료되었습니다. 다음 중 선택하세요:
   1. `/autopilot:pr` — PR 생성
@@ -195,7 +199,7 @@ STEP 6: 완료 출력
   3. 추가 작업 계속
   ```
 
-  완료 마커
+  완료 마커 (조건 충족 시에만)
     Write: `{state_dir}/merge-all` (빈 파일)
 
 [TERMINATE]
