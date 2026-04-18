@@ -120,10 +120,12 @@ def read_autopilot_meta(worktree_path):
     return {}
 
 
-def write_autopilot_meta(worktree_path, issues, base_branch):
+def write_autopilot_meta(worktree_path, issues, base_branch, branch=None):
     """워크트리에 .autopilot 메타 파일 저장"""
     meta_path = os.path.join(worktree_path, ".autopilot")
     data = {"issues": issues, "base_branch": base_branch}
+    if branch:
+        data["branch"] = branch
     Path(meta_path).write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
 
@@ -176,7 +178,7 @@ def main():
             resolved_issues = issues if issues else meta.get("issues", [])
             if issues:
                 # 새 이슈 전달 시 메타 업데이트
-                write_autopilot_meta(existing_path, resolved_issues, current_branch)
+                write_autopilot_meta(existing_path, resolved_issues, current_branch, branch)
             ok({**base, "worktree_path": existing_path, "issues": resolved_issues, "created": False})
         else:
             # registry에는 있지만 디렉토리가 없음 → stale 항목 제거 후 재생성
@@ -208,7 +210,7 @@ def main():
         error("WORKTREE_CREATE_FAILED", err)
 
     # .autopilot 메타 저장
-    write_autopilot_meta(worktree_path, issues, current_branch)
+    write_autopilot_meta(worktree_path, issues, current_branch, branch)
 
     ok({**base, "created": True})
 
