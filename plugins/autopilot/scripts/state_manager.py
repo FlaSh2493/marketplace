@@ -66,27 +66,40 @@ def skills_from(skill):
 def main():
     args = sys.argv[1:]
     if len(args) < 2:
-        print("usage: state_manager.py <reset|mark|check> <skill>", file=sys.stderr)
+        print("usage: state_manager.py <reset|mark|check> <skill> [--phase name]", file=sys.stderr)
         sys.exit(1)
 
     cmd, skill = args[0], args[1]
+    
+    phase = None
+    if "--phase" in args:
+        idx = args.index("--phase")
+        if idx + 1 < len(args):
+            phase = args[idx + 1]
+    
     d = state_dir()
 
     if cmd == "reset":
         to_reset = skills_from(skill)
         for s in to_reset:
+            # 기본 스킬 마커 삭제
             marker = d / s
             if marker.exists():
                 marker.unlink()
+            # 해당 스킬의 모든 phase 마커 삭제 (build.setup 등)
+            for p in d.glob(f"{s}.*"):
+                p.unlink()
         print(f"reset: {', '.join(to_reset)}")
 
     elif cmd == "mark":
-        marker = d / skill
+        name = f"{skill}.{phase}" if phase else skill
+        marker = d / name
         marker.touch()
         print(f"marked: {marker}")
 
     elif cmd == "check":
-        marker = d / skill
+        name = f"{skill}.{phase}" if phase else skill
+        marker = d / name
         if marker.exists():
             print(f"ok: {marker}")
             sys.exit(0)

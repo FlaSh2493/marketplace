@@ -1,14 +1,13 @@
 ---
 name: autopilot-build
-description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현만 수행한다. 이슈 명세 재로드와 코드 탐색(semantic_search, impact_radius, 이미지 재분석)을 생략하여 컨텍스트를 최소화한다. 플랜이 없으면 plan 스킬을 먼저 실행하도록 안내한다.
+description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현만 수행한다. 스크립트 기반 Phase 분할과 세션 간 handoff를 지원한다.
 ---
 
-# Worktree Build
+# Worktree Build (Phased)
 
 **실행 주체: Main Session**
-`{이슈키}.md`의 `## 설명` 섹션 수정 절대 금지 — Jira 원본 보존. 추가 요구사항은 `## 추가 요구사항` 섹션에만 append.
 
-이 스킬은 **plan.md 기반 구현만** 담당한다. 이슈 명세 재로드·코드 탐색·이미지 재분석을 금지하여 토큰을 최소화한다.
+이 스킬은 **plan.md 기반 구현만** 담당한다. 스크립트를 사용하여 컨텍스트를 관리하고, 대규모 작업은 서브에이전트에게 위임한다.
 
 ## 사용법
 ```
@@ -18,126 +17,100 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 
 ---
 
-## 전제조건 (완료 전까지 아래로 절대 넘어가지 않는다)
+## Phase 1: Setup (환경 준비 및 플랜 로드)
 
-### 1. 브랜치·워크트리 resolve
+1. **컨텍스트 확보**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_context.py {브랜치명}
+   ```
+   - 결과 `data` (`worktree_path`, `branch`, `issue_doc_root`, `issues`, `resume`) 확보.
+   - `resume: true` 이면 이전 세션의 handoff가 존재함을 의미한다.
 
-브랜치명이 주어지지 않았으면 `cd $(pwd) && git branch --show-current` 로 현재 브랜치를 확보한다.
+2. **플랜 파싱**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_plan.py --issue-doc-root {data.issue_doc_root} --issues {data.issues 쉼표 없이 공백 구분}
+   ```
+   - 결과 `data.plans[]` 의 `phases`, `target_files`, `image_paths` 확보.
 
-`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py {브랜치명}` 실행
-- 기존 워크트리가 있으면 멱등하게 메타데이터만 반환
-- `data.worktree_path`, `data.branch`, `data.issue_doc_root`, `data.issues` 보관
-- 실패 시 reason 출력 후 [STOP]
+3. **Handoff 초기화**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py init --branch {data.branch} --worktree {data.worktree_path} --issues {data.issues}
+   ```
+   - `tasks/.state/build-handoff.json` 을 생성하거나 기존 파일을 확인한다.
 
-상태 초기화:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py reset build
-```
-
-`cd {data.worktree_path} && pwd && git branch --show-current` 로 경로·브랜치 확인.
-
-### 2. plan.md 존재 검증
-
-plan 파일 경로: `{data.issue_doc_root}/tasks/{data.issues[0]}/plan.md`
-(다중 이슈 시 각 이슈키로 경로 구성하여 각각 검증)
-
-파일이 없으면 아래 메시지를 출력하고 [STOP]:
-```
-[STOP] 플랜 파일이 없습니다: {예상경로}
-먼저 /autopilot:plan {data.branch} 를 실행하여 플랜을 작성하세요.
-```
-
-### 3. plan.md 로드
-
-Read 로 plan.md 를 읽어 frontmatter 와 본문을 컨텍스트로 보관한다.
-- frontmatter: `branch`, `issues`, `base_branch`, `worktree_path`, `spec_mode`
-- frontmatter 의 `worktree_path` 가 1단계에서 얻은 `data.worktree_path` 와 다르면 plan.md 의 값을 우선 신뢰(워크트리가 다른 경로에 복구된 경우 대비).
-- 본문의 섹션 구조는 plan 스킬 템플릿을 따른다.
+4. **진행 상태 확인**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py completed-step-ids
+   ```
+   - 전체 `plan.phases` 의 steps 중 완료된 step을 제외한 **pending_steps**를 계산한다.
+   - `mark build --phase setup` 기록.
 
 ---
 
-## 경로 규칙 (Bash는 매 호출마다 새 셸 — 매번 cd prefix 필수)
+## Phase 2: Implementation (구현)
 
-| 작업 | 경로 |
-|------|------|
-| **이슈 문서** 읽기/수정 | `{data.issue_doc_root}/{이슈키}.md` |
-| **plan.md** 읽기 | `{data.issue_doc_root}/tasks/{이슈키}/plan.md` |
-| **코드** Read/Edit/Write | `{data.worktree_path}/파일경로` |
-| **Bash/git** 명령 | `cd {data.worktree_path} && command` |
+**분할 판정**:
+- `총 pending_steps 수 < 8` → **단일 모드**: 메인 세션이 직접 수행.
+- `총 pending_steps 수 >= 8` → **분할 모드**: `autopilot-builder` 서브에이전트에게 5개씩 청크 위임.
 
-**⚠ 코드 편집은 반드시 `{data.worktree_path}/` 하위만 대상으로 한다. `data.issue_doc_root`(피처 브랜치) 아래 코드 파일을 수정하지 않는다.**
+### [단일 모드]
+남은 Phase와 step을 순서대로 수행한다.
+- 각 Phase 완료 시 또는 맥락이 끊길 때:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-entry --actor main --steps-json '{완료된 steps}' --summary "요약"
+  ```
 
----
+### [분할 모드]
+1. `pending_steps`를 순서대로 **5개씩 청크**로 나눈다.
+2. `autopilot-builder` 서브에이전트를 순차적으로 spawn 한다.
+   - **프롬프트 구성**: `agents/autopilot-builder.md` 템플릿 사용.
+   - **선행 히스토리**: `build_handoff.py show` 결과의 `entries` 요약 전달.
+3. 각 에이전트 완료 후 다음 청크로 진행.
 
-## 구현 중 금지 사항 (토큰 절감 핵심)
-
-이 스킬의 목적은 plan.md 를 신뢰하여 추가 탐색 없이 구현하는 것. 아래 행위를 **하지 않는다**:
-
-- `load_issue.py` 재호출 금지 — plan.md "요구사항 요약" 만 참조
-- `semantic_search_nodes_tool` / `get_impact_radius_tool` 재호출 금지 — plan.md "대상 파일" 만 참조
-- 이슈 이미지 재-Read 금지 — plan.md "화면 분석" 텍스트만 참조 (※ 단, "구현 완료 후 이미지 재확인" 단계는 예외)
-- plan.md "대상 파일" 섹션에 없는 파일을 선제적으로 열거·검색 금지
-  - 구현 중 꼭 추가 파일이 필요하다고 판단되면 사용자에게 보고하고 /autopilot:plan {브랜치명} 을 제안한다
-
----
-
-## 구현
-
-plan.md의 **Phases**를 순서대로 처리한다. 각 Phase마다:
-
-1. Phase 제목·목적·완료 기준을 출력 (사용자 가시성)
-2. Phase의 "대상 파일"만 Read/Edit/Write
-3. Phase "작업" 항목을 순서대로 수행
-4. Phase 완료 후: 해당 phase의 완료 기준을 체크리스트로 확인
-5. 다음 Phase로 진행
-
-**⚠ 하위 호환성**: `plan.md`에 `## Phases` 섹션이 없고 `## 구현 순서`만 있는 경우, 전체를 단일 Phase (Phase 1)로 간주하여 처리한다.
-
-**⚠ Phase 경계를 넘어 파일을 선제적으로 열거·편집하지 않는다.**
-**⚠ WIP 커밋 금지** (merge 단계에서 일괄 처리).
+**주의사항**:
+- 코드 수정은 반드시 `{data.worktree_path}/` 하위만 대상으로 한다.
+- `mark build --phase impl` 기록.
 
 ---
 
-## 구현 완료 후 이미지 재확인
+## Phase 3: Image Check (시각적 검증)
 
-plan.md 에 `## 이미지 목록` 섹션이 있으면:
-1. 해당 경로의 이미지를 Read 로 열어 구현 결과와 대조
-2. 대조 항목:
-   - 레이아웃·구조 일치 여부
-   - 컴포넌트 구성 누락 여부
-   - 텍스트·라벨·상태값 일치 여부
-3. 불일치 항목이 있으면 해당 부분 재작업 → 다시 대조. 모두 일치할 때까지 반복.
-4. 일치하면 `✅ 이미지 대조 완료 — 일치` 출력 후 진행.
-
-`## 이미지 목록` 섹션이 없으면 이 단계를 스킵.
+플랜에 `image_paths`가 있는 경우에만 실행한다.
+1. `data.plans[].image_paths` 의 이미지를 Read로 열어 구현 결과와 대조.
+2. 불일치 시 재작업 → `append-entry`.
+3. 완료 시 `mark build --phase image_check` 기록.
 
 ---
 
-## 완료 검증 (완료 마커 쓰기 전 필수)
+## Phase 4: Verify (최종 확인)
 
-plan.md의 모든 Phase를 나열하고 완료 여부를 체크한다:
-
-- [ ] Phase 1: {제목} — {완료 기준}
-- [ ] Phase 2: {제목} — {완료 기준}
-...
-
-미완료 Phase가 있으면 해당 Phase를 재개한다. 모든 ✅ 확인 후에만 완료 마커를 기록한다.
+1. **누락 확인**: `build_handoff.py completed-step-ids` 와 플랜의 전체 steps 비교.
+2. **최종 마킹**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build
+   ```
+3. **Handoff 정리**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py clear
+   ```
 
 ---
 
 ## 완료 안내
 
-완료 마커
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build
-  ```
-
-AskUserQuestion 으로 다음 선택지를 제시:
-
+AskUserQuestion 으로 다음 선택지를 제시한다:
 ```
-구현이 완료되었습니다. 다음 중 선택하세요:
-1. /autopilot:check — lint, type-check, test 검사 실행 (오류 시 자동 수정)
-2. /autopilot:merge {피처브랜치} — 이 워크트리만 피처 브랜치에 머지
-3. /autopilot:merge-all {피처브랜치} — 모든 활성 워크트리를 한번에 머지
-4. 추가 작업 계속
+구현이 완료되었습니다. (Handoff 아카이브 완료)
+다음 중 선택하세요:
+1. /autopilot:check — lint, type-check, test 검사
+2. /autopilot:merge {피처브랜치} — 머지 수행
+3. 추가 작업 계속
 ```
+
+---
+
+## 경로 및 금지 규칙 (상기)
+
+- **코드 수정**: `{data.worktree_path}/` 만 허용.
+- **이슈 문서**: `{data.issue_doc_root}/` 만 허용.
+- **금지**: `load_issue.py` 재호출, `semantic_search` 재탐색, WIP 커밋.
