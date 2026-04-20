@@ -25,13 +25,17 @@ LIFECYCLE = [
 
 def find_main_root():
     """어느 워크트리에서 실행해도 메인 워크트리 루트를 반환한다."""
+    # git worktree list --porcelain | head -1 | awk '{print $1}' 구현
     r = subprocess.run(
         "git worktree list --porcelain",
         shell=True, capture_output=True, text=True,
     )
-    for line in r.stdout.splitlines():
-        if line.startswith("worktree "):
-            return line[9:].strip()
+    if r.returncode == 0:
+        lines = r.stdout.splitlines()
+        for line in lines:
+            if line.startswith("worktree "):
+                return line[9:].strip()
+    
     # fallback
     r2 = subprocess.run(
         "git rev-parse --show-toplevel",
@@ -51,12 +55,12 @@ def state_dir():
 
 
 def skills_from(skill):
-    """skill 이후(포함) 스킬 목록 반환. 알 수 없는 스킬이면 전체 반환."""
+    """skill 이후(포함) 스킬 목록 반환."""
     try:
         idx = LIFECYCLE.index(skill)
         return LIFECYCLE[idx:]
     except ValueError:
-        return LIFECYCLE
+        return []
 
 
 def main():
@@ -69,11 +73,12 @@ def main():
     d = state_dir()
 
     if cmd == "reset":
-        for s in skills_from(skill):
+        to_reset = skills_from(skill)
+        for s in to_reset:
             marker = d / s
             if marker.exists():
                 marker.unlink()
-        print(f"reset: {', '.join(skills_from(skill))}")
+        print(f"reset: {', '.join(to_reset)}")
 
     elif cmd == "mark":
         marker = d / skill

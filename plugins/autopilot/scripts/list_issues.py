@@ -12,13 +12,17 @@ ISSUE_KEY_RE = re.compile(r"^([A-Z]+-[0-9]+)\.md$")
 
 
 def find_git_root():
+    """메인 워크트리 루트를 반환한다."""
     r = subprocess.run(
         "git worktree list --porcelain",
         shell=True, capture_output=True, text=True,
     )
-    for line in r.stdout.splitlines():
-        if line.startswith("worktree "):
-            return line[9:].strip()
+    if r.returncode == 0:
+        lines = r.stdout.splitlines()
+        for line in lines:
+            if line.startswith("worktree "):
+                return line[9:].strip()
+    
     r2 = subprocess.run(
         "git rev-parse --show-toplevel",
         shell=True, capture_output=True, text=True,
@@ -62,6 +66,7 @@ def main():
         sys.exit(1)
 
     issues = []
+    # 파일명 기준으로 정렬하여 스캔
     for f in sorted(tasks_dir.iterdir()):
         if not f.is_file():
             continue
@@ -76,6 +81,7 @@ def main():
         print(json.dumps({"status": "empty"}, ensure_ascii=False))
         sys.exit(0)
 
+    # display 텍스트 생성: key — title (title 없으면 key만)
     lines = [f"{i['key']} — {i['title']}" if i["title"] else i["key"] for i in issues]
     display = "\n".join(lines)
 

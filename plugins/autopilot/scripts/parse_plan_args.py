@@ -11,7 +11,7 @@ ISSUE_KEY_RE = re.compile(r"^[A-Z]+-[0-9]+$")
 
 
 def slugify(text):
-    """이슈키를 브랜치명 슬러그로 변환 (소문자, 특수문자→하이픈, 최대 64자)"""
+    """이슈키를 브랜치명 슬러그로 변환 (소문자, 특수문자→하이픈)"""
     s = text.lower()
     s = re.sub(r"[^a-z0-9._-]", "-", s)
     s = re.sub(r"-{2,}", "-", s).strip("-")
@@ -33,8 +33,8 @@ def main():
 
     # 플래그 추출
     no_spec = "--no-spec" in args
-    replan = "--replan" in args
-    args = [a for a in args if a not in ("--no-spec", "--replan")]
+    # --replan 제거됨
+    args = [a for a in args if a != "--no-spec"]
 
     # -b 브랜치명 추출
     custom_branch = None
@@ -54,7 +54,6 @@ def main():
             issues.append(arg)
         elif i == 0 and not issues:
             positional_branch = arg
-        # 이슈키 뒤에 오는 비이슈키 인수는 무시 (예: 오타 방어)
 
     # -b + 이슈 여러 개 → 에러
     if custom_branch and len(issues) > 1:
@@ -68,19 +67,17 @@ def main():
     elif len(issues) == 1:
         branch = f"feat/{slugify(issues[0])}"
     else:
-        branch = None  # 다중 이슈 시 각각 자동 생성, 또는 이슈 없음
+        branch = None
 
     # mode 결정
-    if replan:
-        mode = "replan"
-    elif no_spec:
+    if no_spec:
         mode = "no-spec"
     elif len(issues) > 1:
         mode = "multi"
     elif len(issues) == 1:
         mode = "single"
     else:
-        mode = "no-issues"  # list_issues.py 호출 신호
+        mode = "no-issues"
 
     # 다중 이슈: 브랜치별 매핑 생성
     branches = {}
@@ -91,13 +88,15 @@ def main():
     data = {
         "issues": issues,
         "branch": branch,
-        "branches": branches,  # multi 모드 전용: {이슈키: 브랜치명}
         "mode": mode,
         "flags": {
-            "no_spec": no_spec,
-            "replan": replan,
-        },
+          "no_spec": no_spec,
+        }
     }
+    # multi 모드일 때만 branches 추가
+    if branches:
+        data["branches"] = branches
+
     ok(data)
 
 
