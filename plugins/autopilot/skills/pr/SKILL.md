@@ -174,7 +174,9 @@ STEP 10: 완료 출력
   4. 추가 작업 계속
   ```
 
-  완료 마커
-    Write: `{state_dir}/pr` (빈 파일)
+  완료 마커:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark pr --issue {data.issue}
+  ```
 
 [TERMINATE]

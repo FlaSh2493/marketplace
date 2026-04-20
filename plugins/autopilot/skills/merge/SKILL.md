@@ -117,8 +117,10 @@ STEP 3: 완료 출력
   2. 추가 작업 계속
   ```
 
-  완료 마커
-    Write: `{state_dir}/merge` (빈 파일)
+  완료 마커:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
+  ```
 
 [TERMINATE]
 
@@ -198,7 +200,9 @@ STEP C2-5: 완료 출력
   3. 추가 작업 계속
   ```
 
-  완료 마커
-    Write: `{state_dir}/merge` (빈 파일)
+  완료 마커:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
+  ```
 
 [TERMINATE]

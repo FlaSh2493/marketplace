@@ -122,7 +122,9 @@ checks가 3개 모두 없으면 해당 앱 스킵. 단일 앱에서 스킵되면
 4. 추가 작업 계속
 ```
 
-완료 마커 (조건 충족 시에만)
-  Write: `{state_dir}/check` (빈 파일)
+완료 마커 (조건 충족 시에만):
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check --issue {data.issue}
+```
 
 [TERMINATE]
