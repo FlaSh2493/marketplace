@@ -31,7 +31,7 @@ git rev-parse --abbrev-ref HEAD → current_branch
 상태 초기화:
 ```bash
 main_root=$(git worktree list | head -1 | awk '{print $1}')
-state_dir="$main_root/.docs/task/{current_branch}/.state"
+state_dir="$main_root/tasks/.state"
 mkdir -p "$state_dir"
 rm -f "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
 ```

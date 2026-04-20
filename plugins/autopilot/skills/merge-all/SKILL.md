@@ -39,7 +39,7 @@ STEP 0: 컨텍스트 확보
 
   상태 초기화:
   ```bash
-  state_dir="{main_root_path}/.docs/task/{피처브랜치}/.state"
+  state_dir="{main_root_path}/tasks/.state"
   mkdir -p "$state_dir"
   rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
   ```

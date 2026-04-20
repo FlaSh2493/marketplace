@@ -61,7 +61,7 @@ STEP 0: 워크트리 및 타겟 브랜치 확인
 
   상태 초기화:
   ```bash
-  state_dir="{root_path}/.docs/task/{worktree_branch}/.state"
+  state_dir="{root_path}/tasks/.state"
   mkdir -p "$state_dir"
   rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
   ```

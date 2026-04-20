@@ -70,7 +70,7 @@ STEP 0: 브랜치 및 base_branch 확인
   상태 초기화:
   ```bash
   main_root=$(git worktree list | head -1 | awk '{print $1}')
-  state_dir="$main_root/.docs/task/{resolved_branch}/.state"
+  state_dir="$main_root/tasks/.state"
   mkdir -p "$state_dir"
   rm -f "$state_dir/pr" "$state_dir/review-fix"
   ```

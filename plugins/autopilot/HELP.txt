@@ -41,7 +41,7 @@ autopilot:plan 실행 시 코드 구조 분석에 code-review-graph를 사용합
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 autopilot:plan 이 이슈 명세를 읽으려면 task-sync가 설치되어 있어야 합니다.
-이슈 문서는 .docs/task/{브랜치}/ 에 위치해야 합니다.
+이슈 문서는 tasks/{이슈키}/ 에 위치해야 합니다.
 
   task-sync 설치 확인: /task-sync:help
   이슈 문서 생성:      /task-sync:fetch 또는 /task-sync:extract

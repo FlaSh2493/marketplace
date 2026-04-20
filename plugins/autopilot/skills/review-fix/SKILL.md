@@ -57,7 +57,7 @@ git rev-parse --abbrev-ref HEAD → current_branch # HEAD → [STOP], develop|ma
 gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
 # 상태 초기화 (current_branch 확보 후)
 main_root=$(git worktree list | head -1 | awk '{print $1}')
-state_dir="$main_root/.docs/task/{current_branch}/.state"
+state_dir="$main_root/tasks/.state"
 mkdir -p "$state_dir"
 rm -f "$state_dir/review-fix"
 gh api user -q '.login' → my_login

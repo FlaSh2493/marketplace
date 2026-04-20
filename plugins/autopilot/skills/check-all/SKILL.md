@@ -18,7 +18,7 @@ git push 금지.
 상태 초기화:
 ```bash
 main_root=$(git rev-parse --show-toplevel)
-state_dir="$main_root/.docs/task/check-all/.state"
+state_dir="$main_root/tasks/.state"
 mkdir -p "$state_dir"
 rm -f "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
 ```
