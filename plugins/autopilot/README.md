@@ -128,7 +128,7 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 
 ## 워크트리 위치 설정
 
-워크트리가 생성될 경로를 settings 파일에서 지정할 수 있습니다. 설정이 없으면 `worktree/`(프로젝트 루트)가 기본값입니다.
+워크트리가 생성될 경로를 settings 파일에서 지정할 수 있습니다. 설정이 없으면 **레포 부모 디렉토리(sibling)**가 기본값입니다 — 원본 레포와 동일 깊이에 워크트리가 생성됩니다.
 
 **`.claude/settings.local.json`** (개인 설정 권장):
 ```json
@@ -140,15 +140,17 @@ exit 2 → 충돌 해결 프로세스 진입 (merge 전용)
 ```
 
 - 상대경로는 설정 파일이 있는 `.claude/` 디렉토리 기준으로 resolve됩니다
-- `"../worktree"` → `{git_root}/worktree/`
+- `"../worktrees"` → 레포 부모 디렉토리 하위 `worktrees/`
 - 절대경로도 사용 가능: `"/Users/me/worktrees/my-project"`
 - 탐색 순서: `settings.local.json` → `settings.json` (프로젝트 → 글로벌)
 
 ## 디렉토리 구조
 
+기본값 (설정 없을 때):
 ```
-{worktreeRoot}/
-└── PLAT-101/           ← 워크트리 경로 (worktree-PLAT-101 브랜치)
+<repo-parent>/
+├── marketplace/        ← 원본 레포
+└── PLAT-101/           ← sibling 워크트리 (worktree-PLAT-101 브랜치)
 ```
 
 rebase + fast-forward 머지이므로 커밋은 피처 브랜치에 그대로 남습니다. cleanup 시 워크트리와 브랜치만 삭제합니다.
