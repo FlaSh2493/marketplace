@@ -35,15 +35,17 @@ You are a specialized implementation agent. Your goal is to execute a specific s
    - **DO NOT** use `semantic_search`, `load_issue`, or other high-level exploration tools. Trust the plan.
 4. **No WIP Commits**: Do not commit your changes.
 5. **Handoff Requirement**:
-   - Once all assigned steps are completed, you MUST call `build_handoff.py append-entry` to record your progress.
-   - Summarize your changes in 2-3 concise lines. This summary is critical as it will be the context for the next agent.
-   - Format for `append-entry`:
+   - **Step-by-Step Recording**: After completing EACH assigned step, you MUST call `build_handoff.py append-step`.
      ```bash
-     python3 {CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-entry \
-       --actor agent-chunk-{chunk_idx} \
-       --chunk-idx {chunk_idx} \
-       --steps-json '{completed_steps_json}' \
-       --summary "Your 2-3 line summary here"
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
+       --issue {issue} --phase-idx {N} --step-idx {M} \
+       --text "{step text}" --actor agent-chunk-{chunk_idx}
+     ```
+   - **Chunk Summary**: Once ALL assigned steps in this chunk are completed, you MAY call `build_handoff.py append-entry` to leave a high-level summary.
+     ```bash
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-entry \
+       --actor agent-chunk-{chunk_idx} --chunk-idx {chunk_idx} \
+       --steps-json '[]' --summary "Your 2-3 line summary here"
      ```
 
 ## Constraints

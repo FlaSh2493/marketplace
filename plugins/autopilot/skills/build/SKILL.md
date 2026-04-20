@@ -37,26 +37,26 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_context.py {브랜치명}
    ```
-   - 결과 `data` (`worktree_path`, `branch`, `issue_doc_root`, `issues`, `resume`) 확보.
-   - `resume: true` 이면 이전 세션의 handoff가 존재함을 의미한다.
+   - 결과 `data` (`worktree_path`, `branch`, `issue_doc_root`, `issues`, `resume`, `resume_stale`, `stale_reason`) 확보.
 
-2. **플랜 파싱**:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_plan.py --issue-doc-root {data.issue_doc_root} --issues {data.issues 쉼표 없이 공백 구분}
-   ```
-   - 결과 `data.plans[]` 의 `phases`, `target_files`, `image_paths` 확보.
+2. **Resume/Stale 분기**:
+   - **`resume_stale: true` 인 경우**:
+     - 사유(`stale_reason`)와 함께 AskUserQuestion: "이전 진행 기록이 현재 컨텍스트와 다릅니다. (A) 기존 기록 아카이브 후 새로 시작 (B) 중단"
+     - 사용자가 (A) 선택 시: `build_handoff.py clear` 실행 후 `init` 단계로 이동.
+   - **`resume: true` 인 경우**:
+     - `build_handoff.py resume-summary` 실행 결과를 출력.
+     - AskUserQuestion: "(A) 이어서 진행 (B) 처음부터 다시 시작 (기존 기록 아카이브)"
+     - (B) 선택 시: `build_handoff.py clear` 실행 후 `init` 단계로 이동.
+   - **신규 또는 아카이브 후**:
+     - `build_handoff.py init --branch {data.branch} --worktree {data.worktree_path} --issues {data.issues}` 실행.
 
-3. **Handoff 초기화**:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py init --branch {data.branch} --worktree {data.worktree_path} --issues {data.issues}
-   ```
-   - `tasks/.state/build-handoff.json` 을 생성하거나 기존 파일을 확인한다.
-
-4. **진행 상태 확인**:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py completed-step-ids
-   ```
-   - 전체 `plan.phases` 의 steps 중 완료된 step을 제외한 **pending_steps**를 계산한다.
+3. **플랜 파싱 & 대기 작업 산출**:
+   - `load_plan.py`를 실행하여 전체 플랜 확보.
+   - **중요**: `pending-steps` 명령을 호출하여 실제 남은 작업을 JSON으로 확보한다.
+     ```bash
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py pending-steps --plan-json {plan_output_file}
+     ```
+   - 결과 `pending_steps` 리스트 확보.
    - `mark build --phase setup` 기록.
 
 ---
@@ -65,21 +65,22 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 
 **분할 판정**:
 - `총 pending_steps 수 < 8` → **단일 모드**: 메인 세션이 직접 수행.
-- `총 pending_steps 수 >= 8` → **분할 모드**: `autopilot-builder` 서브에이전트에게 5개씩 청크 위임.
+- `총 pending_steps 수 >= 8` → **분할 모드**: `autopilot-builder` 서브에이전트에게 위임.
 
 ### [단일 모드]
-남은 Phase와 step을 순서대로 수행한다.
-- 각 Phase 완료 시 또는 맥락이 끊길 때:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-entry --actor main --steps-json '{완료된 steps}' --summary "요약"
-  ```
+`pending_steps`를 순서대로 수행한다. **각 step 완료 직후** 반드시 기록한다.
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
+  --issue {issue} --phase-idx {N} --step-idx {M} --text "{step_text}" --actor main
+```
 
 ### [분할 모드]
 1. `pending_steps`를 순서대로 **5개씩 청크**로 나눈다.
 2. `autopilot-builder` 서브에이전트를 순차적으로 spawn 한다.
-   - **프롬프트 구성**: `agents/autopilot-builder.md` 템플릿 사용.
-   - **선행 히스토리**: `build_handoff.py show` 결과의 `entries` 요약 전달.
-3. 각 에이전트 완료 후 다음 청크로 진행.
+   - **프롬프트**: `agents/autopilot-builder.md` 사용.
+   - **선행 히스토리**: `build_handoff.py show` 결과 전달.
+3. 각 에이전트는 내부적으로 step 완료 시마다 `append-step`을 호출한다.
+4. 청크 완료 후 메인 세션은 선택적으로 `append-entry --summary "..."`를 기록할 수 있다.
 
 **주의사항**:
 - 코드 수정은 반드시 `{data.worktree_path}/` 하위만 대상으로 한다.
@@ -91,22 +92,21 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 
 플랜에 `image_paths`가 있는 경우에만 실행한다.
 1. `data.plans[].image_paths` 의 이미지를 Read로 열어 구현 결과와 대조.
-2. 불일치 시 재작업 → `append-entry`.
+2. 불일치 시 재작업 → 완료 시 `append-step` (필요 시 가상 step 생성).
 3. 완료 시 `mark build --phase image_check` 기록.
 
 ---
 
 ## Phase 4: Verify (최종 확인)
 
-1. **누락 확인**: `build_handoff.py completed-step-ids` 와 플랜의 전체 steps 비교.
-2. **최종 마킹**:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build
-   ```
-3. **Handoff 정리**:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py clear
-   ```
+1. **누락 확인**:
+   - `build_handoff.py pending-steps`를 다시 호출하여 결과가 비어있는지 확인.
+   - 만약 `pending_steps`가 남아있다면 **Phase 2로 다시 진입**하여 남은 작업을 수행한다. (최대 2회 반복)
+   - 반복 후에도 남은 경우 사용자에게 보고 후 중단.
+
+2. **최종 마킹 & 정리**:
+   - `mark build` (전체 완료 마커)
+   - `build_handoff.py clear` (상태를 `completed`로 변경하고 아카이브)
 
 ---
 

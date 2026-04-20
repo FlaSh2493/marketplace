@@ -2,8 +2,8 @@
 """
 autopilot:build 실행 전 컨텍스트를 도출한다.
 1. 브랜치/워크트리 가용성 확인 (ensure_worktree.py 활용)
-2. 상태 초기화 (state_manager.py reset build)
-3. handoff 파일 존재 여부로 resume 모드 판정
+2. stale handoff 감지 및 resume 모드 판정
+3. 비-resume 모드인 경우에만 상태 초기화 (state_manager.py reset build)
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -44,13 +44,35 @@ def main():
     
     data = json.loads(out)["data"]
     
-    # 3. 상태 초기화 (최초 실행/재시작 상관없이 reset build만 수행 - build.* 마커 제거)
-    state_script = os.path.join(script_dir, "state_manager.py")
-    run_command(f"python3 {state_script} reset build")
+    # 3. handoff 검증
+    handoff_script = os.path.join(script_dir, "build_handoff.py")
+    issues_str = " ".join(data["issues"])
+    validate_cmd = f"python3 {handoff_script} validate --branch {data['branch']} --worktree {data['worktree_path']} --issues {issues_str}"
+    v_out, v_err, v_rc = run_command(validate_cmd)
     
-    # 4. handoff 파일 존재 확인으로 resume 판정
-    handoff_path = Path(data["issue_doc_root"]) / "tasks" / ".state" / "build-handoff.json"
-    data["resume"] = handoff_path.exists()
+    resume = False
+    resume_stale = False
+    stale_reason = ""
+    
+    if v_rc == 0:
+        try:
+            v_res = json.loads(v_out)
+            if v_res["status"] == "ok":
+                resume = True
+            elif v_res["status"] == "stale":
+                resume_stale = True
+                stale_reason = v_res.get("reason", "unknown mismatch")
+        except:
+            pass
+
+    data["resume"] = resume
+    data["resume_stale"] = resume_stale
+    data["stale_reason"] = stale_reason
+    
+    # 4. 상태 초기화 (Resume 모드가 아닐 때만 reset build 수행)
+    if not resume:
+        state_script = os.path.join(script_dir, "state_manager.py")
+        run_command(f"python3 {state_script} reset build")
     
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False))
 
