@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 브랜치명으로 워크트리를 보장한다. 없으면 생성, 있으면 재사용.
-Usage: python3 ensure_worktree.py {브랜치명} [--issues PLAT-101 PLAT-102 ...]
-Exit 0: ok (data.worktree_path, data.branch, data.issue_doc_root, data.base_branch, data.issues, data.created)
+Usage: python3 ensure_worktree.py {브랜치명} [--issue PLAT-101] [--find-only]
+Exit 0: ok (data.worktree_path, data.branch, data.issue_doc_root, data.base_branch, data.issue, data.created)
 Exit 1: error
 """
 import json, os, re, subprocess, sys
@@ -18,16 +18,15 @@ def ok(data):
     wp = data.get("worktree_path", "")
     created = data.get("created", False)
     branch = data.get("branch", "")
-    issues = data.get("issues", [])
+    issue = data.get("issue", "")
     if wp:
         action = "생성" if created else "재사용"
-        issues_str = ", ".join(issues) if issues else "없음"
         data["display"] = (
             f"┌─────────────────────────────────────────────\n"
             f"│ 워크트리 {action} 완료\n"
             f"│ 브랜치: {branch}\n"
             f"│ 경로:   {wp}\n"
-            f"│ 이슈:   {issues_str}\n"
+            f"│ 이슈:   {issue or '없음'}\n"
             f"└─────────────────────────────────────────────"
         )
         data["instructions"] = (
@@ -110,39 +109,45 @@ def list_worktrees(root):
 
 
 def read_autopilot_meta(worktree_path):
-    """워크트리의 .autopilot 메타 파일 읽기"""
+    """워크트리의 .autopilot 메타 파일 읽기. legacy issues[] 필드 자동 변환."""
     meta_path = os.path.join(worktree_path, ".autopilot")
     if os.path.exists(meta_path):
         try:
-            return json.loads(Path(meta_path).read_text())
+            meta = json.loads(Path(meta_path).read_text())
+            # legacy: issues 배열 → issue 단일 문자열
+            if "issues" in meta and "issue" not in meta:
+                issues_list = meta.get("issues", [])
+                meta["issue"] = issues_list[0] if issues_list else ""
+            return meta
         except (json.JSONDecodeError, OSError):
             pass
     return {}
 
 
-def write_autopilot_meta(worktree_path, issues, base_branch, branch=None):
+def write_autopilot_meta(worktree_path, issue, base_branch, branch=None):
     """워크트리에 .autopilot 메타 파일 저장"""
     meta_path = os.path.join(worktree_path, ".autopilot")
-    data = {"issues": issues, "base_branch": base_branch}
+    data = {"issue": issue, "base_branch": base_branch}
     if branch:
         data["branch"] = branch
     Path(meta_path).write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def main():
-    # 인수 파싱: {브랜치명} [--issues KEY1 KEY2 ...] [--find-only]
+    # 인수 파싱: {브랜치명} [--issue PLAT-101] [--find-only]
     args = sys.argv[1:]
     if not args:
-        error("MISSING_ARGS", "사용법: ensure_worktree.py {브랜치명} [--issues PLAT-101 ...] [--find-only]")
+        error("MISSING_ARGS", "사용법: ensure_worktree.py {브랜치명} [--issue PLAT-101] [--find-only]")
 
     find_only = "--find-only" in args
     args = [a for a in args if a != "--find-only"]
 
     branch = args[0]
-    issues = []
-    if "--issues" in args:
-        idx = args.index("--issues")
-        issues = args[idx + 1:]
+    issue = ""
+    if "--issue" in args:
+        idx = args.index("--issue")
+        if idx + 1 < len(args):
+            issue = args[idx + 1]
 
     root = find_git_root()
     if not root:
@@ -154,14 +159,18 @@ def main():
     worktree_root = find_worktree_root(root)
     worktree_path = os.path.join(worktree_root, name)
 
-    base = {"worktree_path": worktree_path, "branch": branch,
-            "issue_doc_root": root, "base_branch": current_branch, "issues": issues}
+    base = {
+        "worktree_path": worktree_path,
+        "branch": branch,
+        "issue_doc_root": root,
+        "base_branch": current_branch,
+        "issue": issue,
+    }
 
     # 이미 존재하는 워크트리인지 확인
     worktrees = list_worktrees(root)
     branch_ref = f"refs/heads/{branch}"
 
-    # 경로 일치 또는 브랜치 일치로 기존 워크트리 탐색
     existing_path = None
     if worktree_path in worktrees:
         existing_path = worktree_path
@@ -173,20 +182,16 @@ def main():
 
     if existing_path:
         if os.path.isdir(existing_path):
-            # 기존 .autopilot에서 이슈키 읽기 (새로 전달된 이슈 없으면 기존 유지)
             meta = read_autopilot_meta(existing_path)
-            resolved_issues = issues if issues else meta.get("issues", [])
-            if issues:
-                # 새 이슈 전달 시 메타 업데이트
-                write_autopilot_meta(existing_path, resolved_issues, current_branch, branch)
-            ok({**base, "worktree_path": existing_path, "issues": resolved_issues, "created": False})
+            resolved_issue = issue if issue else meta.get("issue", "")
+            if issue:
+                write_autopilot_meta(existing_path, resolved_issue, current_branch, branch)
+            ok({**base, "worktree_path": existing_path, "issue": resolved_issue, "created": False})
         else:
-            # registry에는 있지만 디렉토리가 없음 → stale 항목 제거 후 재생성
             run("git worktree prune")
     elif find_only:
         error("WORKTREE_NOT_FOUND", f"워크트리가 없습니다: {branch}")
 
-    # --find-only는 생성하지 않음
     if find_only:
         error("WORKTREE_NOT_FOUND", f"워크트리가 없습니다: {branch}")
 
@@ -194,7 +199,6 @@ def main():
     parent_dir = os.path.dirname(worktree_path)
     os.makedirs(parent_dir, exist_ok=True)
 
-    # 브랜치가 이미 있는지 확인
     _, _, rc = run(f"git rev-parse --verify '{branch}'")
     if rc == 0:
         _, err, rc2 = run(f"git worktree add '{worktree_path}' '{branch}'")
@@ -209,8 +213,7 @@ def main():
             pass
         error("WORKTREE_CREATE_FAILED", err)
 
-    # .autopilot 메타 저장
-    write_autopilot_meta(worktree_path, issues, current_branch, branch)
+    write_autopilot_meta(worktree_path, issue, current_branch, branch)
 
     ok({**base, "created": True})
 

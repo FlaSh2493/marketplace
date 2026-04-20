@@ -12,7 +12,21 @@ def run(cmd):
 
 def error(reason, data=None):
     print(json.dumps({"status": "error", "reason": reason, "data": data or {}}, ensure_ascii=False))
-    sys.exit(0) # 스킬에서 JSON 파싱을 위해 0으로 종료 (또는 에러 상황에 따라 조절)
+    sys.exit(0)
+
+def read_autopilot_meta(worktree_path):
+    """legacy issues[] 필드 자동 변환 포함."""
+    meta_path = Path(worktree_path) / ".autopilot"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text())
+            if "issues" in meta and "issue" not in meta:
+                issues_list = meta.get("issues", [])
+                meta["issue"] = issues_list[0] if issues_list else ""
+            return meta
+        except Exception:
+            pass
+    return {}
 
 def main():
     import argparse
@@ -25,27 +39,26 @@ def main():
     out, _, rc = run("git worktree list --porcelain")
     if rc != 0:
         error("GIT_WORKTREE_LIST_FAILED")
-    
+
     lines = out.splitlines()
     root_path = ""
     for line in lines:
         if line.startswith("worktree "):
             root_path = line[9:].strip()
             break
-    
+
     root_branch, _, _ = run(f"git -C '{root_path}' rev-parse --abbrev-ref HEAD")
 
     # 2. 브랜치 해석
     worktree_path = ""
     resolved_branch = ""
-    
+
     if args.branch:
-        # ensure_worktree.py --find-only 활용
         env_root = os.environ.get("CLAUDE_PLUGIN_ROOT", ".")
         script_path = os.path.join(env_root, "scripts", "ensure_worktree.py")
         if not os.path.exists(script_path):
             script_path = os.path.join(os.path.dirname(__file__), "ensure_worktree.py")
-            
+
         cmd = f"python3 '{script_path}' '{args.branch}' --find-only"
         res_out, _, _ = run(cmd)
         try:
@@ -54,36 +67,27 @@ def main():
                 worktree_path = res["data"]["worktree_path"]
                 resolved_branch = res["data"]["branch"]
             else:
-                # 워크트리가 없는 경우 일반 브랜치로 간주하거나 에러
-                # PR 스킬에서는 일반 브랜치로 간주하기도 함.
-                # 여기서는 'WORKTREE_NOT_FOUND' 반환하되 data에Resolved branch는 넣어줌
                 resolved_branch = args.branch
                 worktree_path = None
-        except:
+        except Exception:
             resolved_branch = args.branch
             worktree_path = None
     else:
-        # 인자 없으면 현재 브랜치
         current_branch, _, _ = run("git rev-parse --abbrev-ref HEAD")
         if current_branch == "HEAD":
             error("DETACHED_HEAD")
-        
+
         resolved_branch = current_branch
-        # 현재 위치가 워크트리인지 확인
         toplevel, _, _ = run("git rev-parse --show-toplevel")
         worktree_path = toplevel
 
     # 3. .autopilot 정보 로드
-    issues = []
+    issue = ""
     base_branch = ""
     if worktree_path:
-        meta_path = Path(worktree_path) / ".autopilot"
-        if meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text())
-                issues = meta.get("issues", [])
-                base_branch = meta.get("base_branch", "")
-            except: pass
+        meta = read_autopilot_meta(worktree_path)
+        issue = meta.get("issue", "")
+        base_branch = meta.get("base_branch", "")
 
     # 4. base_branch 추론 (2순위)
     if not base_branch and args.infer_base_by_commit_count:
@@ -99,7 +103,7 @@ def main():
                 base_branch = "main"
             else:
                 base_branch = "develop"
-        except:
+        except Exception:
             base_branch = "develop"
 
     # 5. 가드레일
@@ -113,15 +117,14 @@ def main():
         "data": {
             "worktree_path": worktree_path,
             "branch": resolved_branch,
-            "issues": issues,
+            "issue": issue,
             "base_branch": base_branch,
             "root_path": root_path,
             "root_branch": root_branch,
-            "safe_branch": safe_branch
-        }
+            "safe_branch": safe_branch,
+        },
     }
 
-    # worktree_path가 None이면 사실 'WORKTREE_NOT_FOUND' 상태임 (사용자 분기용)
     if worktree_path is None:
         result["status"] = "error"
         result["reason"] = "WORKTREE_NOT_FOUND"

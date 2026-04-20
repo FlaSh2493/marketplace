@@ -31,9 +31,7 @@ def error(reason):
 def main():
     args = sys.argv[1:]
 
-    # 플래그 추출
     no_spec = "--no-spec" in args
-    # --replan 제거됨
     args = [a for a in args if a != "--no-spec"]
 
     # -b 브랜치명 추출
@@ -55,9 +53,9 @@ def main():
         elif i == 0 and not issues:
             positional_branch = arg
 
-    # -b + 이슈 여러 개 → 에러
-    if custom_branch and len(issues) > 1:
-        error("에러: -b는 이슈 1개일 때만 사용 가능합니다")
+    # 이슈 2개 이상은 지원하지 않음
+    if len(issues) > 1:
+        error(f"이슈는 1개만 지정할 수 있습니다. 입력된 이슈: {', '.join(issues)}\n각 이슈는 별도 워크트리에서 독립적으로 실행하세요.")
 
     # 브랜치명 결정
     if custom_branch:
@@ -72,30 +70,21 @@ def main():
     # mode 결정
     if no_spec:
         mode = "no-spec"
-    elif len(issues) > 1:
-        mode = "multi"
     elif len(issues) == 1:
         mode = "single"
     else:
         mode = "no-issues"
 
-    # 다중 이슈: 브랜치별 매핑 생성
-    branches = {}
-    if mode == "multi":
-        for issue in issues:
-            branches[issue] = f"feat/{slugify(issue)}"
+    issue = issues[0] if issues else ""
 
     data = {
-        "issues": issues,
+        "issue": issue,
         "branch": branch,
         "mode": mode,
         "flags": {
-          "no_spec": no_spec,
-        }
+            "no_spec": no_spec,
+        },
     }
-    # multi 모드일 때만 branches 추가
-    if branches:
-        data["branches"] = branches
 
     ok(data)
 

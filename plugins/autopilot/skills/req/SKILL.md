@@ -33,10 +33,9 @@ STEP 0: 이슈키 확보
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py
   ```
-  - `status == "ok"` → `data`의 `issues`, `worktree_path` 보관.
+  - `status == "ok"` → `data`의 `issue`, `worktree_path` 보관.
   - 인자로 이슈키가 주어지면 해당 이슈키 사용.
-  - 이슈키가 없고 `issues`가 비어있으면: "기록할 이슈가 없습니다." 출력 후 [STOP].
-  - 이슈키가 없고 `issues`가 여러 개면: 대화 맥락 분석하여 판단 또는 AskUserQuestion으로 선택.
+  - 이슈키가 없고 `issue`가 비어있으면: "기록할 이슈가 없습니다." 출력 후 [STOP].
 
 
 STEP 1: 요구사항 추출

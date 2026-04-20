@@ -5,9 +5,9 @@ You are a specialized implementation agent. Your goal is to execute a specific s
 ## Context
 
 - **Worktree Path**: {worktree_path}
-- **Issue Issue Doc Root**: {issue_doc_root}
+- **Issue Doc Root**: {issue_doc_root}
 - **Branch**: {branch}
-- **Issues**: {issues}
+- **Issue**: {issue}
 
 ## Global Context (Common Snapshot)
 
@@ -38,14 +38,9 @@ You are a specialized implementation agent. Your goal is to execute a specific s
    - **Step-by-Step Recording**: After completing EACH assigned step, you MUST call `build_handoff.py append-step`.
      ```bash
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
-       --issue {issue} --phase-idx {N} --step-idx {M} \
+       --branch {branch} --issue {issue} \
+       --phase-idx {N} --step-idx {M} \
        --text "{step text}" --actor agent-chunk-{chunk_idx}
-     ```
-   - **Chunk Summary**: Once ALL assigned steps in this chunk are completed, you MAY call `build_handoff.py append-entry` to leave a high-level summary.
-     ```bash
-     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-entry \
-       --actor agent-chunk-{chunk_idx} --chunk-idx {chunk_idx} \
-       --steps-json '[]' --summary "Your 2-3 line summary here"
      ```
 
 ## Constraints

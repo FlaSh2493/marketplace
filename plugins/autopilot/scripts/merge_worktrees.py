@@ -28,7 +28,12 @@ def read_autopilot_meta(worktree_path):
     meta_path = os.path.join(worktree_path, ".autopilot")
     if os.path.exists(meta_path):
         try:
-            return json.loads(open(meta_path).read())
+            meta = json.loads(open(meta_path).read())
+            # legacy: issues[] → issue 단일값
+            if "issues" in meta and "issue" not in meta:
+                issues_list = meta.get("issues", [])
+                meta["issue"] = issues_list[0] if issues_list else ""
+            return meta
         except (json.JSONDecodeError, OSError):
             pass
     return {}
@@ -54,7 +59,7 @@ def get_autopilot_worktrees(root, feature):
                 feature_tip, _, ft_rc = run(f"git rev-parse '{feature}'", cwd=root)
                 if rc == 0 and ft_rc == 0 and feature_tip and base == feature_tip:
                     meta = read_autopilot_meta(path)
-                    results.append({"branch": branch, "path": path, "issues": meta.get("issues", [])})
+                    results.append({"branch": branch, "path": path, "issue": meta.get("issue", "")})
             current = {}
     return results
 

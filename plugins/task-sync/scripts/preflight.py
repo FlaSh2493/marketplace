@@ -97,7 +97,13 @@ def main():
     elif skill == "update":
         if not os.path.exists(task_dir):
             error("PRECONDITION_FAILED", f"작업 디렉토리가 없습니다: {task_dir}")
-        published = list_state_files(state_dir, "published")
+        # published 마커는 tasks/{issue}/published 에 위치
+        import glob as _glob
+        published = [
+            os.path.basename(os.path.dirname(p))
+            for p in _glob.glob(os.path.join(task_dir, "*", "published"))
+            if os.path.isfile(p)
+        ]
         if not published:
             error("PRECONDITION_FAILED", "PUBLISHED 상태인 이슈가 없습니다. publish를 먼저 실행하세요.")
         ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir, "published": published})

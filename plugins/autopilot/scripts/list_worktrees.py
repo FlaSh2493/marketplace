@@ -14,7 +14,12 @@ def get_autopilot_meta(wt_path):
     meta_path = Path(wt_path) / ".autopilot"
     if meta_path.exists():
         try:
-            return json.loads(meta_path.read_text())
+            meta = json.loads(meta_path.read_text())
+            # legacy: issues[] → issue 단일값
+            if "issues" in meta and "issue" not in meta:
+                issues_list = meta.get("issues", [])
+                meta["issue"] = issues_list[0] if issues_list else ""
+            return meta
         except (json.JSONDecodeError, OSError):
             pass
     return {}
@@ -50,7 +55,7 @@ def main():
 
     main_root = all_wt[0]["path"]
     main_branch = all_wt[0].get("branch", "unknown")
-    
+
     if args.exclude_main:
         targets = all_wt[1:]
     else:
@@ -62,38 +67,34 @@ def main():
     for wt in targets:
         path = wt["path"]
         meta = get_autopilot_meta(path)
-        
+
         if args.require_autopilot and not meta:
             continue
 
         branch = wt.get("branch", "unknown")
-        issues = meta.get("issues", [])
+        issue = meta.get("issue", "")
         base_branch = meta.get("base_branch")
-        
+
         if base_branch:
             base_branches.add(base_branch)
 
-        # Commit count
         commit_count = 0
         if base_branch:
-            # base_branch 대비 커밋 수 (local)
             c, _, _ = run(f"git log {base_branch}..HEAD --oneline", cwd=path)
             commit_count = len(c.splitlines()) if c else 0
         else:
-            # 전체 커밋 수 fallback
             c, _, _ = run("git rev-list --count HEAD", cwd=path)
             commit_count = int(c) if c else 0
 
-        # Last commit date
         last_commit, _, _ = run("git log -1 --format='%ci'", cwd=path)
 
         res_worktrees.append({
             "path": path,
             "branch": branch,
-            "issues": issues,
+            "issue": issue,
             "base_branch": base_branch,
             "commits": commit_count,
-            "last_commit": last_commit
+            "last_commit": last_commit,
         })
 
     common_base = None
@@ -111,8 +112,8 @@ def main():
             "main_branch": main_branch,
             "worktrees": res_worktrees,
             "common_base_branch": common_base,
-            "base_branch_candidates": candidates
-        }
+            "base_branch_candidates": candidates,
+        },
     }, ensure_ascii=False))
 
 if __name__ == "__main__":

@@ -14,34 +14,28 @@ def parse_yaml(content):
             key, val = line.split(":", 1)
             key = key.strip()
             val = val.strip()
-            # 리스트 처리 [a, b]
             if val.startswith("[") and val.endswith("]"):
                 val = [v.strip().strip("'\"") for v in val[1:-1].split(",") if v.strip()]
-            # 한줄 따옴표 제거
             elif val.startswith("'") and val.endswith("'"):
                 val = val[1:-1]
             elif val.startswith('"') and val.endswith('"'):
                 val = val[1:-1]
-            
             data[key] = val
     return data
 
 def extract_steps_from_phases(content):
     phases = []
-    # ### Phase N: Title 패턴 찾기
     phase_blocks = re.split(r"### Phase \d+:", content)[1:]
     titles = re.findall(r"### Phase \d+: (.*)", content)
-    
+
     for i, block in enumerate(phase_blocks):
         title = titles[i].strip() if i < len(titles) else f"Phase {i+1}"
-        
-        # 대상 파일 추출 ( - 대상 파일: 바로 다음 단계의 - 항목들만 추출)
+
         files = []
         files_match = re.search(r"- 대상 파일:\s*\n((?:\s{2,}- .*\n?)+)", block)
         if files_match:
             files = [f.strip("- ").split(" ")[0].strip() for f in files_match.group(1).strip().splitlines()]
-        
-        # 작업 추출 ( - 작업: 바로 다음 단계의 1. 항목들만 추출)
+
         steps = []
         steps_match = re.search(r"- 작업:\s*\n((?:\s{2,}\d+\. .*\n?)+)", block)
         if steps_match:
@@ -49,12 +43,12 @@ def extract_steps_from_phases(content):
                 m = re.match(r"\s*\d+\.\s*(.*)", line)
                 if m:
                     steps.append({"text": m.group(1).strip(), "files": files})
-        
+
         phases.append({
             "idx": i + 1,
             "title": title,
             "files": files,
-            "steps": steps
+            "steps": steps,
         })
     return phases
 
@@ -67,21 +61,19 @@ def extract_steps_legacy(content):
             m = re.match(r"\s*\d+\.\s*(.*)", line)
             if m:
                 text = m.group(1).strip()
-                # 파일 힌트 추출 (files: a, b)
                 files = []
                 f_match = re.search(r"\(files:\s*(.*?)\)", text)
                 if f_match:
                     files = [f.strip() for f in f_match.group(1).split(",")]
                     text = text[:f_match.start()].strip()
-                
                 steps.append({"text": text, "files": files})
-    
+
     if steps:
         return [{
             "idx": 1,
             "title": "Implementation",
             "steps": steps,
-            "files": list(set([f for s in steps for f in s["files"]]))
+            "files": list(set([f for s in steps for f in s["files"]])),
         }]
     return []
 
@@ -89,57 +81,48 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--issue-doc-root", required=True)
-    parser.add_argument("--issues", nargs="+", required=True)
+    parser.add_argument("--issue", required=True)
     args = parser.parse_args()
-    
-    plans = []
-    for issue in args.issues:
-        path = Path(args.issue_doc_root) / "tasks" / issue / "plan.md"
-        if not path.exists():
-            continue
-        
-        content = path.read_text()
-        
-        # 1. Frontmatter 파싱
-        fm_match = re.match(r"---(.*?)---", content, re.DOTALL)
-        frontmatter = parse_yaml(fm_match.group(1)) if fm_match else {}
-        
-        # 2. 본문 파싱
-        body = content[fm_match.end():] if fm_match else content
-        
-        phases = extract_steps_from_phases(body)
-        if not phases:
-            phases = extract_steps_legacy(body)
-            
-        # 3. 이미지 목록 추출
-        images = []
-        img_match = re.search(r"## 이미지 목록\s*((?:\s*- .*\n?)+)", body)
-        if img_match:
-            images = [line.strip("- ").strip() for line in img_match.group(1).strip().splitlines()]
-            
-        # 4. 대상 파일 요약 추출 (전체 파일 목록)
-        all_files = []
-        files_summary_match = re.search(r"## 대상 파일 요약\s*\|.*?\|.*?\|.*?\|\s*\|[-| ]*\|\s*((?:\|.*?\|.*?\|.*?\|\s*\n?)+)", body)
-        if files_summary_match:
-             for line in files_summary_match.group(1).strip().splitlines():
-                parts = [p.strip() for p in line.split("|") if p.strip()]
-                if parts:
-                    all_files.append(parts[0])
 
-        plans.append({
-            "issue": issue,
-            "path": str(path),
-            "frontmatter": frontmatter,
-            "phases": phases,
-            "target_files": list(set(all_files)),
-            "image_paths": images
-        })
-        
-    if not plans:
-        print(json.dumps({"status": "error", "reason": f"플랜 파일을 찾을 수 없습니다: {args.issues}"}, ensure_ascii=False))
+    path = Path(args.issue_doc_root) / "tasks" / args.issue / "plan.md"
+    if not path.exists():
+        print(json.dumps({"status": "error", "reason": f"플랜 파일을 찾을 수 없습니다: {args.issue}"}, ensure_ascii=False))
         sys.exit(1)
-        
-    print(json.dumps({"status": "ok", "data": {"plans": plans}}, ensure_ascii=False))
+
+    content = path.read_text()
+
+    fm_match = re.match(r"---(.*?)---", content, re.DOTALL)
+    frontmatter = parse_yaml(fm_match.group(1)) if fm_match else {}
+
+    body = content[fm_match.end():] if fm_match else content
+
+    phases = extract_steps_from_phases(body)
+    if not phases:
+        phases = extract_steps_legacy(body)
+
+    images = []
+    img_match = re.search(r"## 이미지 목록\s*((?:\s*- .*\n?)+)", body)
+    if img_match:
+        images = [line.strip("- ").strip() for line in img_match.group(1).strip().splitlines()]
+
+    all_files = []
+    files_summary_match = re.search(r"## 대상 파일 요약\s*\|.*?\|.*?\|.*?\|\s*\|[-| ]*\|\s*((?:\|.*?\|.*?\|.*?\|\s*\n?)+)", body)
+    if files_summary_match:
+        for line in files_summary_match.group(1).strip().splitlines():
+            parts = [p.strip() for p in line.split("|") if p.strip()]
+            if parts:
+                all_files.append(parts[0])
+
+    plan = {
+        "issue": args.issue,
+        "path": str(path),
+        "frontmatter": frontmatter,
+        "phases": phases,
+        "target_files": list(set(all_files)),
+        "image_paths": images,
+    }
+
+    print(json.dumps({"status": "ok", "data": {"plans": [plan]}}, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()

@@ -53,7 +53,7 @@ STEP 0: 전제조건 검증
     exit 0 → 다음. exit 1 → 해당 이슈 [SKIP].
 
   1-5. 완료 마커
-    Write: `tasks/.state/{이슈키}.published`
+    Write: `tasks/{이슈키}/published`
     내용: `{"issue": "{이슈키}", "written_at": "{현재시각}"}`
 
 → STEP 2로 이동.
@@ -98,7 +98,7 @@ STEP 0: 전제조건 검증
     exit 0 → 다음. exit 1 → {"issue": "{이슈키}", "status": "skip", "reason": "assemble_md 실패"} 반환.
 
   1-5. 완료 마커
-    Write: `tasks/.state/{이슈키}.published`
+    Write: `tasks/{이슈키}/published`
     내용: `{"issue": "{이슈키}", "written_at": "{현재시각}"}`
 
   완료 시 반환: `{"issue": "{이슈키}", "status": "ok"}`

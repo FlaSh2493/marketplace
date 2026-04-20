@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """
 이슈 상태 전이. 상태 파일 생성/삭제의 유일한 주체.
-Usage: python3 transition.py {branch} {issue} {from_state} {to_state}
+Usage: python3 transition.py {issue} {from_state} {to_state}
 Exit 0: ok / Exit 1: error
 
 상태: NONE → DRAFT → PUBLISHING → PUBLISHED → SYNCED
+published 마커는 tasks/{issue}/published (이슈 폴더)에 저장.
+나머지 상태 파일은 tasks/.state/ 에 저장.
 """
 import json, os, sys
+from pathlib import Path
 from common import find_git_root, get_task_dir, get_state_dir
 
 TRANSITIONS = {
-    ("NONE",       "DRAFT"):      [("create", "{issue}.draft")],
-    ("DRAFT",      "PUBLISHING"): [("delete", "{issue}.draft"), ("create", "{issue}.publishing")],
-    ("PUBLISHING", "PUBLISHED"):  [("delete", "{issue}.publishing"), ("create", "{issue}.published")],
-    ("PUBLISHED",  "SYNCED"):     [("delete", "{issue}.published"), ("create", "{issue}.synced")],
+    ("NONE",       "DRAFT"):      [("state", "create", "{issue}.draft")],
+    ("DRAFT",      "PUBLISHING"): [("state", "delete", "{issue}.draft"), ("state", "create", "{issue}.publishing")],
+    ("PUBLISHING", "PUBLISHED"):  [("state", "delete", "{issue}.publishing"), ("issue", "create", "published")],
+    ("PUBLISHED",  "SYNCED"):     [("issue", "delete", "published"), ("state", "create", "{issue}.synced")],
     # 실패 복구용 역방향
-    ("PUBLISHING", "DRAFT"):      [("delete", "{issue}.publishing"), ("create", "{issue}.draft")],
+    ("PUBLISHING", "DRAFT"):      [("state", "delete", "{issue}.publishing"), ("state", "create", "{issue}.draft")],
 }
 
 
@@ -51,8 +54,16 @@ def main():
     state_dir = get_state_dir(root)
     os.makedirs(state_dir, exist_ok=True)
 
-    for action, filename in TRANSITIONS[key]:
-        path = os.path.join(state_dir, filename.replace("{issue}", issue))
+    for location, action, filename in TRANSITIONS[key]:
+        filename = filename.replace("{issue}", issue)
+        if location == "issue":
+            # published 마커는 tasks/{issue}/ 하위에 저장
+            issue_dir = os.path.join(task_dir, issue)
+            os.makedirs(issue_dir, exist_ok=True)
+            path = os.path.join(issue_dir, filename)
+        else:
+            path = os.path.join(state_dir, filename)
+
         if action == "create":
             open(path, "w").close()
         elif action == "delete":
