@@ -21,8 +21,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = get_task_dir(root, branch)
-    state_dir = get_state_dir(task_dir)
+    task_dir = get_task_dir(root)
+    state_dir = get_state_dir(root)
     os.makedirs(state_dir, exist_ok=True)
 
     pending_path = os.path.join(state_dir, "pending.json")

@@ -19,16 +19,16 @@ STEP 0: 전제조건 검증
   exit 1 → reason 출력, [STOP]
 
 STEP 1: Pending 파일 탐색·검증
-  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py {branch} --state PENDING`
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py --state PENDING`
   결과 없음 → STEP 2로.
   각 pending 이슈:
     `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_template.py {task_dir}/{이슈키}/{이슈키}.md`
     exit 1 → reason 출력, [STOP] (수정 후 재실행 안내)
   검증 통과:
-    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} NONE DRAFT`
+    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {이슈키} NONE DRAFT`
 
 STEP 2: DRAFT 목록 출력
-  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py {branch} --state DRAFT`
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py --state DRAFT`
   결과 없음 → "DRAFT 이슈 없음" [STOP]
   테이블 출력: | ID | 작업 제목 |
 
@@ -38,18 +38,18 @@ STEP 2: DRAFT 목록 출력
 
 STEP 4: Jira Story 생성
   각 DRAFT 이슈:
-    4-1. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} DRAFT PUBLISHING`
+    4-1. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {이슈키} DRAFT PUBLISHING`
          exit 1 → reason 출력, [STOP]
     4-2. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {이슈키} "$(pwd)/{task_dir}/{이슈키}/{이슈키}.md" > /tmp/{이슈키}_adf.json`
          exit 1 → reason 출력, [STOP]
     4-3. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_create.py --project {project_key} --summary "{제목}" --adf-file /tmp/{이슈키}_adf.json {--epic ...} {--sprint ...}`
          exit 0 → key 보관
-         exit 1 → `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {이슈키} PUBLISHING DRAFT` (복구) → reason 출력, [STOP]
+         exit 1 → `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {이슈키} PUBLISHING DRAFT` (복구) → reason 출력, [STOP]
 
 STEP 5: 리네임·상태 전이
   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update_jira_keys.py {task_dir} '{"FE-01":"PROJ-101",...}'`
   exit 1 → reason 출력, [STOP]
-  각 이슈: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {branch} {jira_key} PUBLISHING PUBLISHED`
+  각 이슈: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py {jira_key} PUBLISHING PUBLISHED`
 
 STEP 6: 완료 보고
   테이블 출력: | 기존 폴더 | Jira Key | 작업 제목 |

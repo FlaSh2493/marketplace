@@ -29,7 +29,6 @@ def get_issue_title(file_path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("branch")
     parser.add_argument("--state", default="ALL")
     args = parser.parse_args()
 
@@ -37,8 +36,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = get_task_dir(root, args.branch)
-    state_dir = get_state_dir(task_dir)
+    task_dir = get_task_dir(root)
+    state_dir = get_state_dir(root)
 
     if not os.path.exists(task_dir):
         error("TASK_DIR_NOT_FOUND", f"작업 디렉토리가 없습니다: {task_dir}")
@@ -68,7 +67,7 @@ def main():
                 "md_path": md_path if os.path.exists(md_path) else None,
             })
 
-    ok({"branch": args.branch, "state_filter": state_upper, "tasks": tasks, "count": len(tasks)})
+    ok({"state_filter": state_upper, "tasks": tasks, "count": len(tasks)})
 
 
 if __name__ == "__main__":

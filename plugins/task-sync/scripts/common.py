@@ -59,13 +59,12 @@ def load_claude_env():
             pass
 
 
-def get_task_dir(root: str, branch: str) -> str:
-    return os.path.join(root, ".docs", "task", branch.replace("/", os.sep))
+def get_task_dir(root: str) -> str:
+    return os.path.join(root, "tasks")
 
 
-def get_state_dir(task_dir: str) -> str:
-    root = find_git_root()
-    return os.path.join(root, ".docs", "task", ".state")
+def get_state_dir(root: str) -> str:
+    return os.path.join(root, "tasks", ".state")
 
 
 def ok(data=None):

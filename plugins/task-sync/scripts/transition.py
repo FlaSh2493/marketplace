@@ -30,13 +30,12 @@ def error(code, reason):
 
 
 def main():
-    if len(sys.argv) < 5:
-        error("MISSING_ARGS", "사용법: transition.py {branch} {issue} {from_state} {to_state}")
+    if len(sys.argv) < 4:
+        error("MISSING_ARGS", "사용법: transition.py {issue} {from_state} {to_state}")
 
-    branch = sys.argv[1]
-    issue = sys.argv[2]
-    from_state = sys.argv[3].upper()
-    to_state = sys.argv[4].upper()
+    issue = sys.argv[1]
+    from_state = sys.argv[2].upper()
+    to_state = sys.argv[3].upper()
 
     key = (from_state, to_state)
     if key not in TRANSITIONS:
@@ -48,8 +47,8 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = get_task_dir(root, branch)
-    state_dir = get_state_dir(task_dir)
+    task_dir = get_task_dir(root)
+    state_dir = get_state_dir(root)
     os.makedirs(state_dir, exist_ok=True)
 
     for action, filename in TRANSITIONS[key]:

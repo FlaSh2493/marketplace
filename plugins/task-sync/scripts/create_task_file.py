@@ -13,7 +13,7 @@ Exit 0: ok (data.file_path) / Exit 1: error
 """
 import argparse, json, os, sys
 from datetime import datetime
-from common import find_git_root, get_task_dir, ok, error
+from common import find_git_root, get_task_dir, get_state_dir, ok, error
 
 
 def build_content(issue_key, title, status, assignee, created_at, source,
@@ -65,7 +65,6 @@ def build_content(issue_key, title, status, assignee, created_at, source,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("branch")
     parser.add_argument("issue_key")
     parser.add_argument("title")
     parser.add_argument("--status", default="신규")
@@ -84,11 +83,12 @@ def main():
     if not root:
         error("GIT_ROOT_NOT_FOUND", "Git 루트를 찾을 수 없습니다")
 
-    task_dir = get_task_dir(root, args.branch)
+    task_dir = get_task_dir(root)
+    state_dir = get_state_dir(root)
     issue_dir = os.path.join(task_dir, args.issue_key)
     os.makedirs(issue_dir, exist_ok=True)
     os.makedirs(os.path.join(issue_dir, "assets"), exist_ok=True)
-    os.makedirs(os.path.join(task_dir, ".state"), exist_ok=True)
+    os.makedirs(state_dir, exist_ok=True)
 
     file_path = os.path.join(issue_dir, f"{args.issue_key}.md")
     created_at = args.created_at or datetime.now().strftime("%Y-%m-%d %H:%M")

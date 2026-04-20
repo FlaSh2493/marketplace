@@ -19,7 +19,7 @@ STEP 0: 대상 탐색
   exit 1 → reason 출력, [STOP]
 
 STEP 1: 목록 출력
-  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py {branch} --state PUBLISHED`
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_tasks.py --state PUBLISHED`
   exit 0 → 응답의 tasks 배열로 테이블 출력 (스크립트가 issue, title 반환):
     | 번호 | Jira Key | 작업 제목 |
   결과 없음 → "PUBLISHED 이슈 없음" [STOP]
@@ -39,7 +39,7 @@ STEP 3: 변경 내용 분석
 
 STEP 5: Jira 업데이트
   각 이슈:
-    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/.docs/task/{branch}/{이슈키}/{이슈키}.md" --sections "설명,화면/디자인,컴포넌트 힌트,영향 범위,완료 조건,추가 요구사항" > /tmp/{이슈키}_adf.json`
+    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/tasks/{이슈키}/{이슈키}.md" --sections "설명,화면/디자인,컴포넌트 힌트,영향 범위,완료 조건,추가 요구사항" > /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속
     `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_update.py {이슈키} --summary "{제목}" --adf-file /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속

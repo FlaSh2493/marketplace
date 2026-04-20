@@ -36,16 +36,16 @@ STEP 1-B: 선택 저장
   exit 0 → data.selected 보관. exit 1 → reason 출력, [STOP]
 
 STEP 1-C: 빈 파일 생성
-  각 이슈: `.docs/task/{branch}/{이슈키}/{이슈키}.md` 존재 여부 확인
+  각 이슈: `tasks/{이슈키}/{이슈키}.md` 존재 여부 확인
   이미 존재하면:
     [GATE] AskUserQuestion("이미 있는 이슈: {목록}. 덮어쓸 번호 선택 (스킵: 엔터)")
     선택된 이슈만 덮어쓰기 대상
   생성 대상마다:
-    `echo "" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py "{branch}" "{이슈키}" "임시제목" --source jira-fetch`
+    `echo "" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py "{이슈키}" "임시제목" --source jira-fetch`
     exit 1 → reason 출력, [STOP]
 
 STEP 2: write 스킬 실행
-  Skill 도구: `/task-sync:write --branch {branch} {이슈키들 공백 구분}`
+  Skill 도구: `/task-sync:write {이슈키들 공백 구분}`
   출력: "문서 작성 완료 [{이슈키 목록}]"
 
 [TERMINATE]

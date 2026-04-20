@@ -49,8 +49,8 @@ def main():
     if not branch:
         error("BRANCH_NOT_FOUND", "현재 브랜치를 확인할 수 없습니다")
 
-    task_dir = get_task_dir(root, branch)
-    state_dir = get_state_dir(task_dir)
+    task_dir = get_task_dir(root)
+    state_dir = get_state_dir(root)
 
     if skill == "init":
         ok({"branch": branch, "task_dir": task_dir})

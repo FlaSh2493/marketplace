@@ -18,7 +18,7 @@ STEP 0: 전제조건 검증
   실패: reason 그대로 출력 후 [STOP]
 
 STEP 1: 디렉토리 생성
-  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_task_dir.py "{branch}"`
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_task_dir.py`
   성공: data.dir 경로 보관
   실패: reason 그대로 출력 후 [STOP]
 
@@ -27,7 +27,7 @@ STEP 2: 결과 보고
   ```
   ✅ 초기화 완료
   브랜치: {branch}
-  경로:   .docs/task/{branch}/
+  경로:   tasks/
   ```
   다음 단계 안내:
   - 기획서에서 추출: `/task-sync:extract`
