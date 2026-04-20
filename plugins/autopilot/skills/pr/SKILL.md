@@ -13,66 +13,20 @@ description: 현재 브랜치를 push하고 PR을 생성한다. base_branch는 .
 
 ## 실행 절차
 
-STEP 0: 브랜치 및 base_branch 확인
+STEP 0: 컨텍스트 확보 및 초기화
 
-  **브랜치 확보:**
-  브랜치명이 주어지면:
-    ```bash
-    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py '{브랜치}' --find-only
-    ```
-    성공: `data.worktree_path` 보관, `resolved_branch = 브랜치명`
-    실패 (WORKTREE_NOT_FOUND): 워크트리 없음 → 일반 브랜치로 간주, `worktree_path = null`, `resolved_branch = 브랜치명`
-
-  브랜치명이 없으면:
-    ```bash
-    git rev-parse --abbrev-ref HEAD
-    ```
-    → current_branch
-    current_branch가 피처 브랜치 (develop/main/master/staging 등이 아닌 경우):
-      `resolved_branch = current_branch`
-    아니면:
-      활성 워크트리 목록 파싱 후 AskUserQuestion 으로 선택
-      선택된 브랜치를 `resolved_branch`로 보관
-
-  **git 저장소 루트 확보:**
+  **컨텍스트 확보:**
   ```bash
-  git rev-parse --show-toplevel
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치}' --infer-base-by-commit-count
   ```
-  → worktree_path (워크트리 없는 경우) 또는 verify용
-
-  `resolved_branch`가 detached HEAD이면: "detached HEAD 상태입니다. 브랜치를 checkout하세요." 출력 후 [STOP]
-
-  **base_branch 결정:**
-  1순위 — `.autopilot` 파일:
-    ```bash
-    cd '{worktree_path 또는 git_root}' && python3 -c "
-    import json; d=json.load(open('.autopilot')); print(d.get('base_branch',''))
-    " 2>/dev/null
-    ```
-    값이 있으면 `base_branch` 확정
-
-  2순위 — git 커밋 수 비교 (1순위 실패 시):
-    ```bash
-    git fetch origin develop main 2>/dev/null; \
-    dev_count=$(git log origin/develop..HEAD --oneline 2>/dev/null | wc -l | tr -d ' '); \
-    main_count=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' '); \
-    echo "${dev_count} ${main_count}"
-    ```
-    - dev_count < main_count → `base_branch = develop`
-    - main_count < dev_count → `base_branch = main`
-    - 같거나 둘 다 실패 → `base_branch = develop`
-
-  **가드레일:**
-  `resolved_branch == base_branch` 이면: "PR 대상과 동일한 브랜치입니다." 출력 후 [STOP]
-
-  `safe_branch`: resolved_branch의 `/`를 `-`로 치환한 값 (파일명에 사용)
+  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`resolved_branch`), `base_branch`, `safe_branch`, `root_path` 보관.
+  - `status == "error"`:
+    - `reason == "WORKTREE_NOT_FOUND"`: `python3 scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 브랜치로 다시 `resolve_worktree.py {branch}` 실행하여 컨텍스트 확보. (워크트리 없이 현재 브랜치에서 실행하는 경우 `worktree_path = git_root`로 간주)
+    - 그 외: reason 출력 후 [STOP].
 
   상태 초기화:
   ```bash
-  main_root=$(git worktree list | head -1 | awk '{print $1}')
-  state_dir="$main_root/tasks/.state"
-  mkdir -p "$state_dir"
-  rm -f "$state_dir/pr" "$state_dir/review-fix"
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear pr review-fix
   ```
 
   **이후 모든 Bash 명령은 `cd '{worktree_path 또는 git_root}' && command` 형태로 실행**

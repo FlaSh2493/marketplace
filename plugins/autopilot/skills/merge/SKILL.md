@@ -15,61 +15,29 @@ git push 금지.
 
 ## 실행 절차
 
-STEP 0: 워크트리 및 타겟 브랜치 확인
+STEP 0: 컨텍스트 확보 및 초기화
 
-  **워크트리 경로 확보:**
-  브랜치명이 주어지면:
-    ```bash
-    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ensure_worktree.py '{워크트리브랜치}' --find-only
-    ```
-    성공: `data.worktree_path` 보관
-    실패 (WORKTREE_NOT_FOUND): "워크트리가 없습니다. /autopilot:plan 을 먼저 실행하세요." 출력 후 [STOP]
-
-  브랜치명이 없으면:
-    ```bash
-    git worktree list --porcelain
-    ```
-    워크트리 목록(첫 번째 main 워크트리 제외)을 파싱하여 AskUserQuestion 으로 선택
-    선택된 경로를 `worktree_path`로 보관
-
-  **이슈키 및 타겟 브랜치 확보:**
+  **컨텍스트 확보:**
   ```bash
-  cd '{worktree_path}' && python3 -c "
-  import json; d=json.load(open('.autopilot')); print(d.get('base_branch','')); print(','.join(d.get('issues',[])))
-  " 2>/dev/null
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{워크트리브랜치}'
   ```
-  첫 번째 줄 → target_branch, 두 번째 줄 → issues (쉼표 구분, 없으면 빈 문자열)
-  target_branch 가 비어있으면: "`.autopilot` 에서 base_branch 를 읽을 수 없습니다. /autopilot:plan 을 먼저 실행하세요." 출력 후 [STOP]
-
-  **가드레일:**
-  ```bash
-  cd '{worktree_path}' && git rev-parse --abbrev-ref HEAD
-  ```
-  → worktree_branch 확보
-  worktree_branch == target_branch 이면: "워크트리 브랜치와 타겟 브랜치가 동일합니다. 브랜치를 확인하세요." 출력 후 [STOP]
-
-  **root_path 확보:**
-  ```bash
-  git worktree list --porcelain
-  ```
-  첫 번째 worktree 경로 → root_path
-  `cd '{root_path}' && git rev-parse --abbrev-ref HEAD` → root_branch
-
-  **이슈키 보관**: issues 문자열을 파싱하여 배열로 보관 (빈 문자열이면 빈 배열)
+  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`worktree_branch`), `base_branch` (`target_branch`), `issues`, `root_path`, `root_branch` 보관.
+  - `status == "error"`:
+    - `reason == "WORKTREE_NOT_FOUND"`: `python3 scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 경로로 다시 `resolve_worktree.py {path}` 실행하여 컨텍스트 확보.
+    - 그 외: reason 출력 후 [STOP].
 
   **이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행**
 
   상태 초기화:
   ```bash
-  state_dir="{root_path}/tasks/.state"
-  mkdir -p "$state_dir"
-  rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear merge merge-all pr review-fix
   ```
 
   **케이스 판별**:
   BASE_BRANCHES = ["develop", "main", "master", "release", "staging", "stg", "stag", "dev"]
   target_branch 가 위 목록에 포함되거나 "release/"로 시작하면 → [케이스 1 흐름]으로 이동
   그 외 → [케이스 2 흐름]으로 이동
+
 
 ---
 

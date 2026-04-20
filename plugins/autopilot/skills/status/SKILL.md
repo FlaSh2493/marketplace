@@ -13,14 +13,10 @@ description: 현재 활성화된 모든 워크트리의 상태(브랜치, 이슈
 ## 실행 절차
 
 STEP 1: 워크트리 목록 조회
-  실행: `git worktree list --porcelain`
-  메인 리포(첫 번째 항목) 제외한 워크트리 목록 파싱
+  실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py`
+  - `status == "ok"` → `data.worktrees` 배열 보관
+  - `data.worktrees`가 비어있으면 → "활성 워크트리 없음" 출력 후 [STOP]
 
-  각 워크트리마다:
-    - 브랜치: `git -C {경로} rev-parse --abbrev-ref HEAD`
-    - 이슈 목록: `cat '{경로}/.autopilot'` → issues 배열 (없으면 "-")
-    - 커밋 수: `git -C {경로} log --oneline | wc -l`
-    - 마지막 커밋: `git -C {경로} log -1 --format="%ci"`
 
 STEP 2: 결과 출력
   ```

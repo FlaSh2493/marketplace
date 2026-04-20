@@ -14,35 +14,21 @@ git push 금지.
 
 ## 실행 절차
 
-STEP 0: 컨텍스트 확보
-  다음 명령을 각각 실행:
-  - `git worktree list --porcelain` 출력에서 첫 번째 worktree 경로 → main_root_path
-  - `cd {main_root_path} && git rev-parse --abbrev-ref HEAD` → main_root_branch
-  - `git rev-parse --abbrev-ref HEAD` → current_branch (가드 체크 + 현재 위치 확인용)
-
-  **피처브랜치 자동 감지** (인수 없을 때):
-  `git worktree list --porcelain` 에서 main_root_path 제외한 워크트리 목록 파싱.
-  각 워크트리 경로별:
-    ```bash
-    python3 -c "
-    import json; d=json.load(open('{wt_path}/.autopilot')); print(d.get('base_branch',''))
-    " 2>/dev/null
-    ```
-  읽힌 base_branch 값들 수집:
-  - 모두 동일한 값이면 → 그 값을 피처브랜치로 확정
-  - 값이 없거나 서로 다르면 → 읽힌 고유 값들을 목록으로 제시:
-    AskUserQuestion("피처브랜치를 선택하세요:\n{브랜치 목록}")
-    선택한 값을 피처브랜치로 확정
-
-  **가드레일:**
-  current_branch == {피처브랜치}이면: "피처 브랜치에서는 실행할 수 없습니다." 출력 후 [STOP]
+STEP 0: 컨텍스트 확보 및 초기화
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py --require-autopilot --infer-common-base
+  ```
+  - `status == "ok"`:
+    - `data`의 `main_root_path`, `main_root_branch` 보관.
+    - `common_base_branch`가 있으면 `{피처브랜치}`로 확정.
+    - 없으면 `base_branch_candidates` 목록으로 제시, AskUserQuestion으로 선택하여 `{피처브랜치}` 확정.
+  - `status == "error"` → reason 출력 후 [STOP].
 
   상태 초기화:
   ```bash
-  state_dir="{main_root_path}/tasks/.state"
-  mkdir -p "$state_dir"
-  rm -f "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear merge merge-all pr review-fix
   ```
+
 
 STEP 1: 머지 계획 조회
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --dry-run`
@@ -110,24 +96,17 @@ STEP 3: 전체 워크트리 커밋 + 요구사항 동기화
     origin/{피처브랜치} 없으면 (로컬 only): rebase 생략, 계속 진행
 
     [요구사항 동기화] (issues가 비어있으면 스킵)
-    단일 Bash 호출로 MERGE_BASE + log 전체 확보:
     ```bash
-    cd '{worktree_path}' && \
-      MERGE_BASE=$(git merge-base "origin/{피처브랜치}" HEAD 2>/dev/null || git merge-base "{피처브랜치}" HEAD 2>/dev/null) && \
-      [ -n "$MERGE_BASE" ] && git log "$MERGE_BASE"..HEAD --format="%s%n%b" || echo "MERGE_BASE_NOT_FOUND"
+    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/extract_requirements.py extract-log '{worktree_path}' '{피처브랜치}'
     ```
-    출력이 "MERGE_BASE_NOT_FOUND": 경고 출력, 다음으로
+    - `status == "ok"`:
+      - `data.requirements` 항목들에 대해 issues의 이슈키별로:
+        ```bash
+        python3 scripts/load_issue.py {이슈키}  → md_path 확보
+        python3 scripts/extract_requirements.py upsert-doc {md_path} --req-items {requirements 목록}
+        ```
+    - `status == "error"`: 경고 출력 후 다음으로
 
-    그 외:
-      log 출력에서 `요구사항:` 로 시작하는 줄만 추출, 중복 제거
-      추출된 항목이 있으면 issues의 각 이슈키별로:
-        `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py {이슈키}` 실행 → data.md_path 확보
-        실패 시 경고 출력 후 스킵 (머지는 계속 진행)
-        data.md_path 의 `## 추가 요구사항` 섹션 끝에 append:
-        ```
-        <!-- merge-all {날짜} -->
-        - {요구사항 항목1}
-        ```
 
 [GATE] STEP 4: 머지 승인
   각 브랜치의 커밋 목록 표시 (STEP 3에서 수집한 log)

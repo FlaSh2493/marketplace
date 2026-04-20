@@ -55,11 +55,8 @@ STEP 5: 수정 → 검증 → 보고
 git rev-parse --show-toplevel → worktree_path   # 실패 → [STOP]
 git rev-parse --abbrev-ref HEAD → current_branch # HEAD → [STOP], develop|main → [STOP]
 gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
-# 상태 초기화 (current_branch 확보 후)
-main_root=$(git worktree list | head -1 | awk '{print $1}')
-state_dir="$main_root/tasks/.state"
-mkdir -p "$state_dir"
-rm -f "$state_dir/review-fix"
+# 상태 초기화:
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear review-fix
 gh api user -q '.login' → my_login
 gh repo view --json nameWithOwner -q '.nameWithOwner' → owner_repo
 gh pr list --head '{current_branch}' --state open --json number -q '.[0].number // empty' → pr_number

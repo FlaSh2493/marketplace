@@ -13,32 +13,21 @@ git push 금지.
 
 ---
 
-## STEP 0: 워크트리 목록 조회
+## STEP 0: 컨텍스트 확보 및 초기화
 
-상태 초기화:
-```bash
-main_root=$(git rev-parse --show-toplevel)
-state_dir="$main_root/tasks/.state"
-mkdir -p "$state_dir"
-rm -f "$state_dir/check" "$state_dir/check-all" "$state_dir/merge" "$state_dir/merge-all" "$state_dir/pr" "$state_dir/review-fix"
-```
+  상태 초기화:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear check check-all merge merge-all pr review-fix
+  ```
+  결과의 `data.state_dir` 보관.
 
-다음 명령을 각각 실행:
-- `git worktree list --porcelain` → 전체 워크트리 목록 파싱
-- 첫 번째 항목(main_root_path) 제외한 나머지 수집
+  워크트리 목록 조회:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py --require-autopilot
+  ```
+  - `status == "ok"` → `data.worktrees` 배열 보관
+  - `data.worktrees`가 비어있으면 → "활성 워크트리가 없습니다." 출력 후 [STOP]
 
-각 워크트리 경로별로 `.autopilot` 파일 존재 여부 확인:
-```bash
-python3 -c "import json; d=json.load(open('{wt_path}/.autopilot')); print(d.get('base_branch',''))" 2>/dev/null
-```
-`.autopilot` 없거나 파싱 실패 → 해당 워크트리 제외
-
-수집된 워크트리가 없으면: "활성 워크트리가 없습니다." 출력 후 [STOP]
-
-각 워크트리의 브랜치와 이슈 목록을 수집:
-```bash
-git -C {wt_path} rev-parse --abbrev-ref HEAD  → wt_branch
-```
 
 ---
 
