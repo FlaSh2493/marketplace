@@ -110,16 +110,16 @@ STEP 3: 완료 출력
   └─────────────────────────────────────────────┘
   ```
 
-  AskUserQuestion으로 다음 선택지 제시:
+  **먼저** 완료 마커 기록:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
+  ```
+
+  이후 AskUserQuestion으로 다음 선택지 제시:
   ```
   싱크가 완료되었습니다. 다음 중 선택하세요:
   1. `/autopilot:pr` — PR 생성
   2. 추가 작업 계속
-  ```
-
-  완료 마커:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
   ```
 
 [TERMINATE]
@@ -192,17 +192,17 @@ STEP C2-5: 완료 출력
   └───────────────────────────────────────────────┘
   ```
 
-  AskUserQuestion으로 다음 선택지 제시:
+  **먼저** 완료 마커 기록:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
+  ```
+
+  이후 AskUserQuestion으로 다음 선택지 제시:
   ```
   머지가 완료되었습니다. 다음 중 선택하세요:
   1. `/autopilot:pr` — PR 생성
   2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
   3. 추가 작업 계속
-  ```
-
-  완료 마커:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
   ```
 
 [TERMINATE]

@@ -125,18 +125,17 @@ checker agent는 오류 발생 시 자동 수정 후 재실행 (최대 3회):
 - 검사한 워크트리 수 >= 1
 - 실패한 워크트리 수 == 0
 
-조건 충족 시 AskUserQuestion으로 다음 선택지 제시:
+조건 충족 시 **먼저** 검사한 각 워크트리의 이슈에 대해 완료 마커 기록:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check-all --issue {wt_issue}
+```
+
+이후 AskUserQuestion으로 다음 선택지 제시:
 ```
 모든 워크트리 검사를 통과했습니다. 다음 중 선택하세요:
 1. `/autopilot:merge-all {피처브랜치}` — 모든 워크트리 한번에 머지
 2. 추가 작업 계속
 ```
-
-완료 마커 (조건 충족 시에만)
-  검사한 각 워크트리의 이슈에 대해:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check-all --issue {wt_issue}
-  ```
 
 **일부 실패 시:**
 

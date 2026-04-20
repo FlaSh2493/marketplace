@@ -182,18 +182,17 @@ STEP 6: 완료 출력
   - merged_branches >= 1
   - skipped_branches == 0
 
-  조건 충족 시 AskUserQuestion으로 다음 선택지 제시:
+  조건 충족 시 **먼저** 머지된 각 워크트리의 이슈에 대해 완료 마커 기록:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge-all --issue {wt_issue}
+  ```
+
+  이후 AskUserQuestion으로 다음 선택지 제시:
   ```
   머지가 완료되었습니다. 다음 중 선택하세요:
   1. `/autopilot:pr` — PR 생성
   2. `/autopilot:cleanup` — 머지 완료된 워크트리 정리
   3. 추가 작업 계속
   ```
-
-  완료 마커 (조건 충족 시에만)
-    머지된 각 워크트리의 이슈에 대해:
-    ```bash
-    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge-all --issue {wt_issue}
-    ```
 
 [TERMINATE]

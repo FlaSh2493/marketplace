@@ -113,18 +113,18 @@ checks가 3개 모두 없으면 해당 앱 스킵. 단일 앱에서 스킵되면
 - 실행된 검사 항목(lint/check-types/test 중) >= 1개 이상
 - 실패한 검사 항목 == 0개
 
-조건 충족 시 AskUserQuestion으로 다음 선택지 제시:
+조건 충족 시 **먼저** 완료 마커 기록:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check --issue {data.issue}
+```
+
+이후 AskUserQuestion으로 다음 선택지 제시:
 ```
 검사를 모두 통과했습니다. 다음 중 선택하세요:
 1. `/autopilot:check-all` — 모든 워크트리 검사 후 merge-all 준비 (메인 세션에서 실행)
 2. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
 3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
 4. 추가 작업 계속
-```
-
-완료 마커 (조건 충족 시에만):
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check --issue {data.issue}
 ```
 
 [TERMINATE]
