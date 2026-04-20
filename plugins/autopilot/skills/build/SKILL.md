@@ -17,6 +17,20 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 
 ---
 
+## STEP 0.5: 프로젝트 커스텀 지침 참조 (Memory)
+
+[_shared/CUSTOM_INSTRUCTIONS.md](../_shared/CUSTOM_INSTRUCTIONS.md)에 따라 다음 순서로 지침을 확인한다.
+
+1. **plan.md 확인**: `plan.md`의 `## 프로젝트 커스텀 지침` 섹션에 이미 지침이 기록되어 있다면 해당 내용을 최우선으로 따른다.
+2. **지침 로드**: `plan.md`에 없거나 개별 실행 시에는 다음 명령을 통해 지침을 확인한다.
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py build
+   ```
+
+- **필수 참조**: 로드된 지침은 **본 스킬 수행 중 반드시 준수해야 하는 필수 제약 사항**이며, 표준 절차를 왜곡하지 않고 반영한다.
+
+---
+
 ## Phase 1: Setup (환경 준비 및 플랜 로드)
 
 1. **컨텍스트 확보**:

@@ -12,6 +12,20 @@ git push 금지.
 `/autopilot:merge-all [{피처브랜치}]`
 - 피처브랜치 생략 시 활성 워크트리의 `.autopilot`에서 공통 `base_branch` 자동 감지
 
+---
+
+## STEP 0.5: 프로젝트 커스텀 지침 참조
+
+[_shared/CUSTOM_INSTRUCTIONS.md](../_shared/CUSTOM_INSTRUCTIONS.md)에 따라 다음 명령을 실행하여 프로젝트 지침을 확인한다.
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py merge-all
+```
+
+- **필수 참조**: 로드된 지침을 **반드시 준수**하며, 표준 절차를 왜곡하지 않고 행동한다.
+
+---
+
 ## 실행 절차
 
 STEP 0: 컨텍스트 확보 및 초기화

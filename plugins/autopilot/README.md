@@ -82,6 +82,21 @@ plan → req → check[-all] → merge[-all] → pr → cleanup
 - 도메인 라벨 자동 추론 (변경 파일 경로 기반)
 - 사용자 확인 후 push → PR 생성
 
+### 5. 프로젝트 커스텀 지침 (External Instructions)
+
+`.autopilot-instructions/` 디렉토리에 스킬별 지침을 추가하여 기본 동작을 세밀하게 제어할 수 있습니다.
+
+- **위치**: 프로젝트 루트 (git root)
+- **규칙**: `.autopilot-instructions/{skill-name}.md`
+- **우선순위**: 커스텀 지침이 기본 `SKILL.md` 보다 우선합니다.
+
+**사용 예시 (`.autopilot-instructions/build.md`):**
+```markdown
+- 모든 커밋 메시지는 영문으로만 작성한다.
+- 패키지 추가 시 반드시 pnpm을 고수한다.
+- 특정 디렉토리(A) 수정 시 관련 컴포넌트(B)도 함께 검토한다.
+```
+
 ---
 
 ## 구조적 특이사항

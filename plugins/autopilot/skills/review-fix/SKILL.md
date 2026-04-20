@@ -12,6 +12,18 @@ description: PR의 CodeRabbit 리뷰 코멘트를 루프 방식으로 자동 반
 
 ---
 
+## STEP 0.5: 프로젝트 커스텀 지침 참조
+
+[_shared/CUSTOM_INSTRUCTIONS.md](../_shared/CUSTOM_INSTRUCTIONS.md)에 따라 다음 명령을 실행하여 프로젝트 지침을 확인한다.
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py review-fix
+```
+
+- **필수 참조**: 로드된 지침을 **반드시 준수**하며, 표준 절차를 왜곡하지 않고 행동한다.
+
+---
+
 ## 전체 흐름
 
 ```
