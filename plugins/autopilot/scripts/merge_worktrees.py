@@ -129,7 +129,7 @@ def main():
             matrix.append({
                 "branch": b["branch"],
                 "path": b["path"],
-                "issues": b["issues"],
+                "issue": b["issue"],
                 "conflict_files": conflicts,
                 "conflict_count": len(conflicts),
                 "wip_count": wip_count,
