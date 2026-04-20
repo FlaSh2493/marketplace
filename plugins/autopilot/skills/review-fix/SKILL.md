@@ -64,14 +64,15 @@ STEP 5: 수정 → 검증 → 보고
 ## STEP 1: 컨텍스트 확보
 
 ```bash
-git rev-parse --show-toplevel → worktree_path   # 실패 → [STOP]
-git rev-parse --abbrev-ref HEAD → current_branch # HEAD → [STOP], develop|main → [STOP]
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py HEAD → data 확보 (worktree_path, current_branch, issue)
+# 실패 → [STOP]
+
 gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
 # 상태 초기화:
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear review-fix
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear review-fix
 gh api user -q '.login' → my_login
 gh repo view --json nameWithOwner -q '.nameWithOwner' → owner_repo
-gh pr list --head '{current_branch}' --state open --json number -q '.[0].number // empty' → pr_number
+gh pr list --head '{data.branch}' --state open --json number -q '.[0].number // empty' → pr_number
 # 비어있으면 → "열린 PR이 없습니다." [STOP]
 ```
 

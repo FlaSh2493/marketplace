@@ -38,16 +38,14 @@ STEP 0: 컨텍스트 확보 및 초기화
     - 없으면 `base_branch_candidates` 목록으로 제시, AskUserQuestion으로 선택하여 `{피처브랜치}` 확정.
   - `status == "error"` → reason 출력 후 [STOP].
 
-  상태 초기화:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear merge merge-all pr review-fix
-  ```
-
-
-STEP 1: 머지 계획 조회
   실행: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/merge_worktrees.py {피처브랜치} --dry-run`
   실패 (exit 1): reason 출력 후 [STOP]
   merge_order가 비어있으면: "머지할 워크트리가 없습니다." 출력 후 [STOP]
+
+  각 워크트리(merge_order)마다 상태 초기화:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {wt_issue} --clear merge merge-all pr review-fix
+  ```
 
   결과 표시 (branch + issues 함께 표시):
   ```
@@ -193,6 +191,9 @@ STEP 6: 완료 출력
   ```
 
   완료 마커 (조건 충족 시에만)
-    Write: `{state_dir}/merge-all` (빈 파일)
+    머지된 각 워크트리의 이슈에 대해:
+    ```bash
+    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge-all --issue {wt_issue}
+    ```
 
 [TERMINATE]

@@ -54,3 +54,4 @@ allowed-tools: Bash, Read, Edit, Glob, Grep
 - 검사 실패 시 중단하지 않고 결과 JSON을 반환한다 (호출 스킬이 처리)
 - 파일 경로는 항상 `{check_dir}/파일경로` 절대경로 사용
 - Bash 명령은 항상 `cd {check_dir} && command` 형태로 실행
+- **Note**: 이 에이전트는 스킬 완료 마커(`mark check` 등)를 기록하지 않습니다. 결과 JSON만 반환하며, 마커 기록은 호출한 메인 세션이 담당합니다.

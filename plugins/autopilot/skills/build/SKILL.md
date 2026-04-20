@@ -77,7 +77,7 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
        --plan-json {plan_output_file} --branch {data.branch} --issue {data.issue}
      ```
    - 결과 `pending_steps` 리스트 확보.
-   - `mark build --phase setup` 기록.
+   - `mark build --phase setup --issue {data.issue}` 기록.
 
 ---
 
@@ -108,7 +108,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
 
 **주의사항**:
 - 코드 수정은 반드시 `{data.worktree_path}/` 하위만 대상으로 한다.
-- `mark build --phase impl` 기록.
+- `mark build --phase impl --issue {data.issue}` 기록.
 
 ---
 
@@ -117,7 +117,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
 플랜에 `image_paths`가 있는 경우에만 실행한다.
 1. `data.plans[].image_paths` 의 이미지를 Read로 열어 구현 결과와 대조.
 2. 불일치 시 재작업 → 완료 시 `append-step` (필요 시 가상 step 생성).
-3. 완료 시 `mark build --phase image_check` 기록.
+3. 완료 시 `mark build --phase image_check --issue {data.issue}` 기록.
 
 ---
 
@@ -133,7 +133,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
    - 반복 후에도 남은 경우 사용자에게 보고 후 중단.
 
 2. **최종 마킹 & 정리**:
-   - `mark build` (전체 완료 마커)
+   - `mark build --issue {data.issue}` (전체 완료 마커)
    - ```bash
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py clear --issue {data.issue}
      ```

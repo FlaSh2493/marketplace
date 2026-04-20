@@ -2,14 +2,14 @@
 """
 autopilot 스킬 상태 마커를 관리한다.
 Usage:
-  python3 state_manager.py reset <skill>   # 해당 스킬 이후 마커 모두 삭제
-  python3 state_manager.py mark  <skill>   # 완료 마커 기록
-  python3 state_manager.py check <skill>   # 존재 시 exit 0, 없으면 exit 1
+  python3 state_manager.py reset <skill> --issue <ISSUE>
+  python3 state_manager.py mark  <skill> --issue <ISSUE>
+  python3 state_manager.py check <skill> --issue <ISSUE>
 Exit 0: ok  Exit 1: error or check-miss
 """
-import os, subprocess, sys
-from pathlib import Path
-
+import sys
+import argparse
+from state_paths import resolve_issue, get_issue_state_dir
 
 LIFECYCLE = [
     "plan",
@@ -22,38 +22,6 @@ LIFECYCLE = [
     "review-fix",
 ]
 
-
-def find_main_root():
-    """어느 워크트리에서 실행해도 메인 워크트리 루트를 반환한다."""
-    # git worktree list --porcelain | head -1 | awk '{print $1}' 구현
-    r = subprocess.run(
-        "git worktree list --porcelain",
-        shell=True, capture_output=True, text=True,
-    )
-    if r.returncode == 0:
-        lines = r.stdout.splitlines()
-        for line in lines:
-            if line.startswith("worktree "):
-                return line[9:].strip()
-    
-    # fallback
-    r2 = subprocess.run(
-        "git rev-parse --show-toplevel",
-        shell=True, capture_output=True, text=True,
-    )
-    return r2.stdout.strip() if r2.returncode == 0 else None
-
-
-def state_dir():
-    root = find_main_root()
-    if not root:
-        print("error: git 루트를 찾을 수 없습니다", file=sys.stderr)
-        sys.exit(1)
-    d = Path(root) / "tasks" / ".state"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
 def skills_from(skill):
     """skill 이후(포함) 스킬 목록 반환."""
     try:
@@ -62,25 +30,22 @@ def skills_from(skill):
     except ValueError:
         return []
 
-
 def main():
-    args = sys.argv[1:]
-    if len(args) < 2:
-        print("usage: state_manager.py <reset|mark|check> <skill> [--phase name]", file=sys.stderr)
-        sys.exit(1)
-
-    cmd, skill = args[0], args[1]
+    parser = argparse.ArgumentParser(description="autopilot skill state manager")
+    parser.add_argument("cmd", choices=["reset", "mark", "check"], help="command to execute")
+    parser.add_argument("skill", help="skill name")
+    parser.add_argument("--issue", help="issue key")
+    parser.add_argument("--phase", help="phase name (optional)")
     
-    phase = None
-    if "--phase" in args:
-        idx = args.index("--phase")
-        if idx + 1 < len(args):
-            phase = args[idx + 1]
+    args = parser.parse_args()
     
-    d = state_dir()
+    # 세션 마커 등 특수한 경우는 state_paths를 타지 않을 수도 있으나,
+    # 여기서는 스킬 마커만 다루므로 항상 resolve_issue를 수행한다.
+    issue = resolve_issue(sys.argv)
+    d = get_issue_state_dir(issue)
 
-    if cmd == "reset":
-        to_reset = skills_from(skill)
+    if args.cmd == "reset":
+        to_reset = skills_from(args.skill)
         for s in to_reset:
             # 기본 스킬 마커 삭제
             marker = d / s
@@ -89,28 +54,23 @@ def main():
             # 해당 스킬의 모든 phase 마커 삭제 (build.setup 등)
             for p in d.glob(f"{s}.*"):
                 p.unlink()
-        print(f"reset: {', '.join(to_reset)}")
+        print(f"[{issue}] reset: {', '.join(to_reset)}")
 
-    elif cmd == "mark":
-        name = f"{skill}.{phase}" if phase else skill
+    elif args.cmd == "mark":
+        name = f"{args.skill}.{args.phase}" if args.phase else args.skill
         marker = d / name
         marker.touch()
-        print(f"marked: {marker}")
+        print(f"[{issue}] marked: {marker}")
 
-    elif cmd == "check":
-        name = f"{skill}.{phase}" if phase else skill
+    elif args.cmd == "check":
+        name = f"{args.skill}.{args.phase}" if args.phase else args.skill
         marker = d / name
         if marker.exists():
-            print(f"ok: {marker}")
+            print(f"[{issue}] ok: {marker}")
             sys.exit(0)
         else:
-            print(f"missing: {marker}", file=sys.stderr)
+            print(f"[{issue}] missing: {marker}", file=sys.stderr)
             sys.exit(1)
-
-    else:
-        print(f"unknown command: {cmd}", file=sys.stderr)
-        sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

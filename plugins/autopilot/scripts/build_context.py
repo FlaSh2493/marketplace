@@ -74,7 +74,7 @@ def main():
     # 4. 상태 초기화 (Resume 모드가 아닐 때만 reset build 수행)
     if not resume:
         state_script = os.path.join(script_dir, "state_manager.py")
-        run_command(f"python3 {state_script} reset build")
+        run_command(f"python3 {state_script} reset build --issue {issue}")
 
     print(json.dumps({"status": "ok", "data": data}, ensure_ascii=False))
 

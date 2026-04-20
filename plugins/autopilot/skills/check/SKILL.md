@@ -30,12 +30,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py check
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {branch}
   ```
-  - `status == "ok"` → `data.worktree_path`를 `wt_root`로, `data.branch`를 `current_branch`로 보관
+  - `status == "ok"` → `data.worktree_path`를 `wt_root`로, `data.branch`를 `current_branch`로, `data.issue`를 `issue_key`로 보관
   - `status == "error"` → reason 출력 후 [STOP] (예: detached head)
 
   상태 초기화:
   ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear check check-all merge merge-all pr review-fix
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear check check-all merge merge-all pr review-fix
   ```
   결과의 `data.state_dir` 보관.
 

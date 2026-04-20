@@ -117,6 +117,25 @@ def migrate(dry_run=False):
         except Exception as e:
             warnings.append(f"{meta_path} 처리 실패: {e}")
 
+    # 5. 레거시 최상위 스킬 마커 cleanup
+    LIFECYCLE = ["plan", "build", "check", "check-all", "merge", "merge-all", "pr", "review-fix"]
+    if state_dir.exists():
+        for skill in LIFECYCLE:
+            # {skill} 파일
+            f = state_dir / skill
+            if f.is_file():
+                print(f"  [cleanup] {f} (stale marker)")
+                if not dry_run:
+                    f.unlink()
+                moved.append(str(f))
+            # {skill}.* 파일들
+            for pf in state_dir.glob(f"{skill}.*"):
+                if pf.is_file():
+                    print(f"  [cleanup] {pf} (stale phase marker)")
+                    if not dry_run:
+                        pf.unlink()
+                    moved.append(str(pf))
+
     print()
     print(f"완료: {len(moved)}개 처리, {len(warnings)}개 경고")
     for w in warnings:

@@ -63,7 +63,7 @@ mode 값: `single` | `no-spec` | `no-issues`(이슈키 없음 → list_issues.py
 
    상태 초기화 (data.branch 확보 후, --no-spec·이슈 없는 경우 포함):
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py reset plan
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py reset plan --issue {data.issue}
    ```
 
 3. `cd {data.worktree_path} && pwd && git branch --show-current` 실행하여 경로·브랜치 확인
@@ -258,7 +258,7 @@ plan.md Write 후:
 
 완료 마커
   ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark plan
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark plan --issue {data.issue}
   ```
 
 사용자에게 아래 문구를 출력하고 스킬 종료:

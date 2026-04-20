@@ -35,7 +35,7 @@ STEP 0: 컨텍스트 확보 및 초기화
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{워크트리브랜치}'
   ```
-  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`worktree_branch`), `base_branch` (`target_branch`), `issues`, `root_path`, `root_branch` 보관.
+  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`worktree_branch`), `base_branch` (`target_branch`), `issue` (`issue_key`), `root_path`, `root_branch` 보관.
   - `status == "error"`:
     - `reason == "WORKTREE_NOT_FOUND"`: `python3 scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 경로로 다시 `resolve_worktree.py {path}` 실행하여 컨텍스트 확보.
     - 그 외: reason 출력 후 [STOP].
@@ -44,7 +44,7 @@ STEP 0: 컨텍스트 확보 및 초기화
 
   상태 초기화:
   ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear merge merge-all pr review-fix
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear merge merge-all pr review-fix
   ```
 
   **케이스 판별**:

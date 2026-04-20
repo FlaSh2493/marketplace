@@ -92,3 +92,4 @@ Bash 명령: `cd {worktree_path} && command`
 - context_summary에 명시된 의도적 결정은 코멘트보다 우선한다
 - 파일 수정이 없었으면 fixed_files는 빈 배열
 - 검증 실패 시에도 중단하지 않고 check_result에 last_error 포함하여 반환
+- **Note**: 이 에이전트는 스킬 완료 마커(`mark review-fix` 등)를 기록하지 않습니다. 결과 JSON만 반환하며, 마커 기록은 호출한 메인 세션이 담당합니다.

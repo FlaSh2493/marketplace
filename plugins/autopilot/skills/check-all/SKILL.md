@@ -27,12 +27,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py check-all
 
 ## STEP 0: 컨텍스트 확보 및 초기화
 
-  상태 초기화:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear check check-all merge merge-all pr review-fix
-  ```
-  결과의 `data.state_dir` 보관.
-
   워크트리 목록 조회:
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py --require-autopilot
@@ -48,13 +42,19 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py check-all
 워크트리 목록을 순서대로 처리:
 
 각 워크트리마다:
+1. 해당 워크트리의 이슈 키 확인 (`wt_path/.autopilot` 읽기)
+2. 상태 초기화:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {wt_issue} --clear check check-all merge merge-all pr review-fix
+```
+3. 앱 탐지:
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/detect_env.py {wt_path} --install
 ```
 
 - `status == "error"` → 해당 워크트리 스킵, 경고 출력
 - `data.apps`가 비어있으면 → 해당 워크트리 스킵 ("검사할 앱 없음")
-- 성공 시 → `{ wt_path, wt_branch, apps }` 수집
+- 성공 시 → `{ wt_path, wt_branch, wt_issue, apps, state_dir }` 수집 (state_dir은 init_state_dir 결과값)
 
 탐지 결과를 표로 출력:
 ```
@@ -133,7 +133,10 @@ checker agent는 오류 발생 시 자동 수정 후 재실행 (최대 3회):
 ```
 
 완료 마커 (조건 충족 시에만)
-  Write: `{state_dir}/check-all` (빈 파일)
+  검사한 각 워크트리의 이슈에 대해:
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark check-all --issue {wt_issue}
+  ```
 
 **일부 실패 시:**
 

@@ -33,14 +33,14 @@ STEP 0: 컨텍스트 확보 및 초기화
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치}' --infer-base-by-commit-count
   ```
-  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`resolved_branch`), `base_branch`, `safe_branch`, `root_path` 보관.
+  - `status == "ok"` → `data`의 `worktree_path`, `branch` (`resolved_branch`), `base_branch`, `safe_branch`, `root_path`, `issue` 보관.
   - `status == "error"`:
     - `reason == "WORKTREE_NOT_FOUND"`: `python3 scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 브랜치로 다시 `resolve_worktree.py {branch}` 실행하여 컨텍스트 확보. (워크트리 없이 현재 브랜치에서 실행하는 경우 `worktree_path = git_root`로 간주)
     - 그 외: reason 출력 후 [STOP].
 
   상태 초기화:
   ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --clear pr review-fix
+  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear pr review-fix
   ```
 
   **이후 모든 Bash 명령은 `cd '{worktree_path 또는 git_root}' && command` 형태로 실행**
