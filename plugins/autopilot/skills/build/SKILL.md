@@ -31,7 +31,7 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
 
 ---
 
-## Phase 1: Setup (환경 준비 및 플랜 로드)
+## STEP 0: 컨텍스트 확보 및 초기화
 
 1. **컨텍스트 확보**:
    ```bash
@@ -54,6 +54,7 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
        ```
        결과를 출력.
      - AskUserQuestion: "(A) 이어서 진행 (B) 처음부터 다시 시작 (기존 기록 아카이브)"
+     - (A) 선택 시: 마커 초기화 없이 이어서 진행.
      - (B) 선택 시:
        ```bash
        python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py clear --issue {data.issue}
@@ -61,11 +62,16 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
        이후 `init` 단계로 이동.
    - **신규 또는 아카이브 후**:
      ```bash
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear build check check-all merge merge-all pr review-fix
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py init \
        --branch {data.branch} --worktree {data.worktree_path} --issue {data.issue}
      ```
 
-3. **플랜 파싱 & 대기 작업 산출**:
+---
+
+## Phase 1: 플랜 로드
+
+1. **플랜 파싱 & 대기 작업 산출**:
    - `load_plan.py`를 실행하여 전체 플랜 확보:
      ```bash
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_plan.py \

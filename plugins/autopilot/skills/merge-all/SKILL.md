@@ -26,9 +26,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py merge-all
 
 ---
 
-## 실행 절차
-
-STEP 0: 컨텍스트 확보 및 초기화
+## STEP 0: 컨텍스트 확보 및 초기화
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py --require-autopilot --infer-common-base
   ```

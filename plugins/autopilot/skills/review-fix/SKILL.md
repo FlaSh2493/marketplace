@@ -24,34 +24,68 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py review-fix
 
 ---
 
+## STEP 0: 컨텍스트 확보 및 초기화
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py HEAD
+```
+- `status == "ok"` → `data`의 `worktree_path`, `current_branch`, `issue` 보관.
+- `status == "error"` → reason 출력 후 [STOP]
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear review-fix
+```
+
+```bash
+gh auth status 2>&1
+```
+실패 시: "gh 인증이 필요합니다." [STOP]
+
+```bash
+gh api user -q '.login'
+```
+→ `my_login` 보관
+
+```bash
+gh repo view --json nameWithOwner -q '.nameWithOwner'
+```
+→ `owner_repo` 보관
+
+```bash
+gh pr list --head '{data.branch}' --state open --json number -q '.[0].number // empty'
+```
+비어있으면 → "열린 PR이 없습니다." [STOP]
+→ `pr_number` 보관
+
+**이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행한다.**
+
+---
+
 ## 전체 흐름
 
 ```
 [LOOP START] iteration_count = 1, max_iterations = 20
              pushed_at = null  ← push 완료 시각. null이면 "최초 실행" 상태
 
-STEP 1: 컨텍스트 확보 (worktree_path, branch, PR)
-  └─ 실패 → [STOP]
-
-STEP 2: 리뷰 수집 (fetch_reviews.py)
+STEP 1: 리뷰 수집 (fetch_reviews.py)
   pushed_at == null (최초 실행):
     └─ CodeRabbit 리뷰 미제출 → 30초 대기 → STEP 1 재시도 (최대 30분)
     └─ 리뷰 있음 + 활성 0건 → [AUTO STOP]
-    └─ 리뷰 있음 + 활성 1건+ → STEP 3
+    └─ 리뷰 있음 + 활성 1건+ → STEP 2
   pushed_at != null (push 후 폴링 중):
     └─ new_since_push == false + 활성 0건 → [AUTO STOP]
     └─ new_since_push == false + 활성 1건+ → 30초 대기 → STEP 1 재시도
     └─ new_since_push == true + 활성 0건 → [AUTO STOP]
-    └─ new_since_push == true + 활성 1건+ → STEP 3
+    └─ new_since_push == true + 활성 1건+ → STEP 2
 
-STEP 3: 원문 표시
+STEP 2: 원문 표시
 
 [GATE-A] 적용 여부 확인
   └─ "1" → 전체 적용 (review-fixer agent)
   └─ "2" → 코멘트별 선택 (메인에서 순차 처리)
   └─ "3" → [STOP]
 
-STEP 5: 수정 → 검증 → 보고
+STEP 3: 수정 → 검증 → 보고
 
 [GATE-B] 커밋 확인
   └─ "1" → 커밋 + push → pushed_at 갱신 → +1 reaction → iteration_count++ → STEP 1 자동 복귀
@@ -61,26 +95,7 @@ STEP 5: 수정 → 검증 → 보고
 
 ---
 
-## STEP 1: 컨텍스트 확보
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py HEAD → data 확보 (worktree_path, current_branch, issue)
-# 실패 → [STOP]
-
-gh auth status 2>&1                              # 실패 → "gh 인증이 필요합니다." [STOP]
-# 상태 초기화:
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear review-fix
-gh api user -q '.login' → my_login
-gh repo view --json nameWithOwner -q '.nameWithOwner' → owner_repo
-gh pr list --head '{data.branch}' --state open --json number -q '.[0].number // empty' → pr_number
-# 비어있으면 → "열린 PR이 없습니다." [STOP]
-```
-
-**이후 모든 Bash 명령은 `cd '{worktree_path}' && command` 형태로 실행한다.**
-
----
-
-## STEP 2: 리뷰 수집
+## STEP 1: 리뷰 수집
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
@@ -104,7 +119,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark review-fix --issue {data.issue}
   ```
   "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → [STOP]
-- `has_reviews == true + active_count >= 1`: STEP 3으로
+- `has_reviews == true + active_count >= 1`: STEP 2으로
 
 **pushed_at != null (push 후 폴링 중):**
 
@@ -125,12 +140,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark review-fix --issue {data.issue}
   ```
   "✅ CodeRabbit 리뷰 완료. 활성 코멘트 없음. 자동 종료합니다." → [STOP]
-- `new_since_push == true + active_count >= 1`: STEP 3으로
+- `new_since_push == true + active_count >= 1`: STEP 2으로
 - `status == "error"`: 에러 메시지 출력 → [STOP]
 
 ---
 
-## STEP 3: 원문 표시
+## STEP 2: 원문 표시
 
 ### 3-1. 심각도 분류
 
@@ -160,7 +175,7 @@ critical → important → suggestion → nitpick 순으로:
 
 ---
 
-## STEP 4 → GATE-A: 적용 여부 확인
+## GATE-A: 적용 여부 확인
 
 ```
 [GATE-A] AskUserQuestion (PENDING — 파일 수정 금지):
@@ -174,7 +189,7 @@ critical → important → suggestion → nitpick 순으로:
 
 ---
 
-## STEP 5: 수정 → 검증 → 보고
+## STEP 3: 수정 → 검증 → 보고
 
 ### "1. 전체 적용" 선택 시 — review-fixer agent
 
