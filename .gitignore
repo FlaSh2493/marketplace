@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# autopilot runtime state (not committed)
+tasks/*/checkpoints/
+tasks/sessions/
+tasks/jira_search.json

@@ -13,9 +13,9 @@ cwd=$(echo "$payload"       | jq -r '.cwd // ""'          2>/dev/null)
 prompt_preview=$(echo "$payload" | jq -r '.prompt // ""' 2>/dev/null | head -c 80 | tr '\n' ' ')
 
 repo_root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || echo "$cwd")"
-base_dir="$repo_root/tasks/.state"
+base_dir="$repo_root/tasks"
 sess_dir="$base_dir/sessions/$session_id"
-mkdir -p "$sess_dir" "$base_dir/by-pid" 2>/dev/null
+mkdir -p "$sess_dir" 2>/dev/null
 
 now_iso="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
 pid="$PPID"
@@ -26,8 +26,6 @@ if [ "$state" = "busy" ]; then
     --arg t "$now_iso" --arg p "$prompt_preview" \
     '{state:$s, session_id:$sid, pid:($pid|tonumber), cwd:$cwd, started:$t, prompt_preview:$p}')
   echo "$record" > "$sess_dir/status.json"
-  echo "$session_id" > "$base_dir/by-pid/$pid.id"
-  ln -sfn "sessions/$session_id/status.json" "$base_dir/current"
 else
   prev_started=$(jq -r '.started // ""' "$sess_dir/status.json" 2>/dev/null)
   record=$(jq -cn \
