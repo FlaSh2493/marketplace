@@ -50,14 +50,13 @@ def main():
         if not rest:
             error("MISSING_ARGS", "write 스킬에는 이슈 키가 필요합니다. 예: preflight.py write PROJ-101")
         search_path = os.path.join(task_dir, "jira.json")
-        if not os.path.exists(search_path):
-            error("PRECONDITION_FAILED", "jira.json이 없습니다. /task-sync:fetch를 먼저 실행하세요.")
-        with open(search_path, encoding="utf-8") as f:
-            search_data = json.load(f)
-        issue_keys = [i.get("key") for i in search_data.get("issues", [])]
-        invalid = [k for k in rest if k not in issue_keys]
-        if invalid:
-            error("NOT_IN_SEARCH", f"조회되지 않은 이슈입니다: {', '.join(invalid)}. fetch에서 조회한 이슈만 처리 가능합니다.")
+        if os.path.exists(search_path):
+            with open(search_path, encoding="utf-8") as f:
+                search_data = json.load(f)
+            issue_keys = [i.get("key") for i in search_data.get("issues", [])]
+            invalid = [k for k in rest if k not in issue_keys]
+            if invalid:
+                error("NOT_IN_SEARCH", f"조회되지 않은 이슈입니다: {', '.join(invalid)}. fetch에서 조회한 이슈만 처리 가능합니다.")
         ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir, "issues": rest})
 
     elif skill == "extract":

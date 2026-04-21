@@ -127,7 +127,9 @@ def main():
     jira_json_path = os.path.join(task_dir, "jira.json")
 
     if args.issue_keys:
-        # write 경로: 캐시된 jira.json에서 읽기
+        # write 경로: jira.json 없으면 스킵
+        if not os.path.exists(jira_json_path):
+            sys.exit(0)
         with open(jira_json_path, encoding="utf-8") as f:
             search_data = json.load(f)
         issues = search_data.get("issues", [])
