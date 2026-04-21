@@ -4,33 +4,13 @@
 Usage: python3 preflight.py {skill} [args...]
 Exit 0: ok / Exit 1: error
 """
-import json, os, sys, glob
+import json, os, sys
 from common import find_git_root, get_branch, get_task_dir, get_state_dir, ok, error
 
 PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_PATH = os.path.join(PLUGIN_ROOT, "templates", "fe-task-template.md")
 EXAMPLE_PATH = os.path.join(PLUGIN_ROOT, "templates", "fe-task-example.md")
 
-
-def get_pending_path(state_dir):
-    return os.path.join(state_dir, "pending.json")
-
-
-def load_pending(state_dir):
-    path = get_pending_path(state_dir)
-    if not os.path.exists(path):
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def list_state_files(state_dir, ext):
-    if not os.path.exists(state_dir):
-        return []
-    return [
-        os.path.splitext(os.path.basename(f))[0]
-        for f in glob.glob(os.path.join(state_dir, f"*.{ext}"))
-    ]
 
 
 def main():
@@ -69,13 +49,15 @@ def main():
     elif skill == "write":
         if not rest:
             error("MISSING_ARGS", "write 스킬에는 이슈 키가 필요합니다. 예: preflight.py write PROJ-101")
-        pending = load_pending(state_dir)
-        if pending is None:
-            error("PRECONDITION_FAILED", "pending.json이 없습니다. /task-sync:fetch를 먼저 실행하세요.")
-        selected = pending.get("selected", [])
-        invalid = [k for k in rest if k not in selected]
+        search_path = os.path.join(state_dir, "jira_search.json")
+        if not os.path.exists(search_path):
+            error("PRECONDITION_FAILED", "jira_search.json이 없습니다. /task-sync:fetch를 먼저 실행하세요.")
+        with open(search_path, encoding="utf-8") as f:
+            search_data = json.load(f)
+        issue_keys = [i.get("key") for i in search_data.get("issues", [])]
+        invalid = [k for k in rest if k not in issue_keys]
         if invalid:
-            error("NOT_SELECTED", f"선택되지 않은 이슈입니다: {', '.join(invalid)}. fetch에서 선택한 이슈만 처리 가능합니다.")
+            error("NOT_IN_SEARCH", f"조회되지 않은 이슈입니다: {', '.join(invalid)}. fetch에서 조회한 이슈만 처리 가능합니다.")
         ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir, "issues": rest})
 
     elif skill == "extract":
@@ -87,12 +69,16 @@ def main():
     elif skill == "publish":
         if not os.path.exists(task_dir):
             error("PRECONDITION_FAILED", f"작업 디렉토리가 없습니다: {task_dir}. /task-sync:init을 먼저 실행하세요.")
-        pending = list_state_files(state_dir, "pending")
-        drafts = list_state_files(state_dir, "draft")
-        if not pending and not drafts:
-            error("PRECONDITION_FAILED", "처리할 이슈가 없습니다. write 또는 extract를 먼저 실행하세요.")
+        unpublished = [
+            d for d in os.listdir(task_dir)
+            if os.path.isdir(os.path.join(task_dir, d))
+            and not os.path.exists(os.path.join(task_dir, d, "published"))
+            and os.path.exists(os.path.join(task_dir, d, f"{d}.md"))
+        ]
+        if not unpublished:
+            error("PRECONDITION_FAILED", "게시할 이슈가 없습니다. write 또는 extract를 먼저 실행하세요.")
         ok({"branch": branch, "task_dir": task_dir, "state_dir": state_dir,
-            "pending": pending, "drafts": drafts})
+            "unpublished": unpublished})
 
     elif skill == "update":
         if not os.path.exists(task_dir):

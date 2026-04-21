@@ -29,8 +29,6 @@ STEP 2: 파일 저장
   각 작업마다 create_task_file.py 호출 (이 스크립트가 템플릿 형식으로 파일 생성):
     `echo "{설명}" | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/create_task_file.py "FE-{N}" "{제목}" --source extract --deps "{deps}" --api "{api}" --states "{states}"`
     exit 1 → reason 출력, [STOP]
-  각 파일 pending 마커:
-    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/transition.py FE-{N} NONE PENDING`
 
 [GATE] STEP 3: 작업 목록 승인
   테이블 출력: | ID | 작업 제목 | 선행 |
