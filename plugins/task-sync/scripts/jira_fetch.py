@@ -155,7 +155,7 @@ def main():
             result["reason"] = result["reason"] + guide
             print(json.dumps({"ok": False, "reason": result["reason"]}, ensure_ascii=False))
             sys.exit(1)
-        out_file = out_dir / "jira_search.json"
+        out_file = out_dir / "jira.json"
     else:
         # 이슈 조회 모드
         if not args.issue_key:

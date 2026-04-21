@@ -49,9 +49,9 @@ def main():
     elif skill == "write":
         if not rest:
             error("MISSING_ARGS", "write 스킬에는 이슈 키가 필요합니다. 예: preflight.py write PROJ-101")
-        search_path = os.path.join(state_dir, "jira_search.json")
+        search_path = os.path.join(task_dir, "jira.json")
         if not os.path.exists(search_path):
-            error("PRECONDITION_FAILED", "jira_search.json이 없습니다. /task-sync:fetch를 먼저 실행하세요.")
+            error("PRECONDITION_FAILED", "jira.json이 없습니다. /task-sync:fetch를 먼저 실행하세요.")
         with open(search_path, encoding="utf-8") as f:
             search_data = json.load(f)
         issue_keys = [i.get("key") for i in search_data.get("issues", [])]

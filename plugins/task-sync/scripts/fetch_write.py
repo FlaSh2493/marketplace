@@ -136,6 +136,11 @@ def main():
         print("조회된 이슈가 없습니다.")
         sys.exit(0)
 
+    os.makedirs(task_dir, exist_ok=True)
+    jira_json_path = os.path.join(task_dir, "jira.json")
+    with open(jira_json_path, "w", encoding="utf-8") as f:
+        json.dump(search["data"], f, indent=2, ensure_ascii=False)
+
     # 테이블 출력
     rows = []
     for idx, issue in enumerate(issues, 1):
