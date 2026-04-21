@@ -124,51 +124,53 @@ def main():
 
     task_dir = args.task_dir or os.path.join(root, "tasks")
     state_dir = args.state_dir or os.path.join(root, "tasks", ".state")
-
-    # Jira 검색
-    search = search_issues()
-    if not search["ok"]:
-        print(f"❌ Jira 조회 실패: {search['reason']}", file=sys.stderr)
-        sys.exit(1)
-
-    issues = search["data"].get("issues", [])
-    if not issues:
-        print("조회된 이슈가 없습니다.")
-        sys.exit(0)
-
-    os.makedirs(task_dir, exist_ok=True)
     jira_json_path = os.path.join(task_dir, "jira.json")
-    with open(jira_json_path, "w", encoding="utf-8") as f:
-        json.dump(search["data"], f, indent=2, ensure_ascii=False)
 
-    # 테이블 출력
-    rows = []
-    for idx, issue in enumerate(issues, 1):
-        key = issue.get("key", "")
-        summary = issue.get("fields", {}).get("summary", "")
-        status = issue.get("fields", {}).get("status", {}).get("name", "")
-        rows.append((idx, key, summary, status))
-
-    print("\n| 번호 | Jira Key | 제목 | 상태 |")
-    print("|-----|----------|------|------|")
-    for idx, key, summary, status in rows:
-        print(f"| {idx} | {key} | {summary} | {status} |")
-    print()
-
-    # 대상 이슈키 결정
-    all_keys = [r[1] for r in rows]
     if args.issue_keys:
+        # write 경로: 캐시된 jira.json에서 읽기
+        with open(jira_json_path, encoding="utf-8") as f:
+            search_data = json.load(f)
+        issues = search_data.get("issues", [])
+        all_keys = [i.get("key") for i in issues]
         target_keys = []
         for k in args.issue_keys:
             if k in all_keys:
                 target_keys.append(k)
             else:
-                print(f"⚠ {k}: 조회 결과에 없음 — 스킵")
+                print(f"⚠ {k}: jira.json에 없음 — 스킵")
         if not target_keys:
             print("처리할 이슈가 없습니다.", file=sys.stderr)
             sys.exit(1)
     else:
-        target_keys = all_keys
+        # fetch 경로: Jira 검색 후 jira.json 저장
+        search = search_issues()
+        if not search["ok"]:
+            print(f"❌ Jira 조회 실패: {search['reason']}", file=sys.stderr)
+            sys.exit(1)
+
+        issues = search["data"].get("issues", [])
+        if not issues:
+            print("조회된 이슈가 없습니다.")
+            sys.exit(0)
+
+        os.makedirs(task_dir, exist_ok=True)
+        with open(jira_json_path, "w", encoding="utf-8") as f:
+            json.dump(search["data"], f, indent=2, ensure_ascii=False)
+
+        rows = []
+        for idx, issue in enumerate(issues, 1):
+            key = issue.get("key", "")
+            summary = issue.get("fields", {}).get("summary", "")
+            status = issue.get("fields", {}).get("status", {}).get("name", "")
+            rows.append((idx, key, summary, status))
+
+        print("\n| 번호 | Jira Key | 제목 | 상태 |")
+        print("|-----|----------|------|------|")
+        for idx, key, summary, status in rows:
+            print(f"| {idx} | {key} | {summary} | {status} |")
+        print()
+
+        target_keys = [r[1] for r in rows]
 
     print(f"처리 대상: {', '.join(target_keys)}\n")
 
