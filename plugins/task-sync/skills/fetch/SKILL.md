@@ -18,9 +18,9 @@ STEP 0: 전제조건 검증
 
   CLAUDE_PLUGIN_ROOT 값 확보: `echo $CLAUDE_PLUGIN_ROOT`
 
-STEP 1: fetch_write.py 실행
-  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_write.py {인수들} --task-dir {task_dir} --state-dir {state_dir}`
-  → 스크립트 출력(테이블, 진행 상황, 결과 요약)을 그대로 사용자에게 표시
+STEP 1: fetch.py 실행 (조회만)
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch.py {인수들} --task-dir {task_dir}`
+  → 스크립트 출력(테이블, 결과 요약)을 그대로 사용자에게 표시
   exit 0 → [TERMINATE]
   exit 1 → 출력 내용 그대로 표시, [STOP]
 
