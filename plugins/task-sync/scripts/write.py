@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-jira.json에서 읽어서 마크다운 파일 생성 (fetch 제외).
+이슈키를 받아 Jira에서 상세 조회 후 마크다운 생성.
 Usage:
   python3 write.py PROJ-101 PROJ-102 --task-dir tasks/ --state-dir tasks/.state/
 Exit 0: 성공
@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 
 from common import find_git_root, get_task_dir, get_state_dir, load_claude_env
+from jira_fetch import fetch_issue
 from jira_to_md import convert_issue
 from assemble_md import assemble
 
@@ -63,20 +64,21 @@ def download_attachments(attachments: list, assets_dir: str) -> list[str]:
     return warnings
 
 
-def process_issue(issue_data: dict, state_dir: str, task_dir: str) -> dict:
-    """이슈 하나를 마크다운으로 변환 및 저장. 스레드 안전."""
-    issue_key = issue_data.get("key", "")
-    if not issue_key:
-        return {"issue": "unknown", "status": "skip", "reason": "key 필드 없음"}
-
+def process_issue(issue_key: str, state_dir: str, task_dir: str) -> dict:
+    """이슈 하나를 Jira에서 조회 후 마크다운으로 변환 및 저장. 스레드 안전."""
     os.makedirs(state_dir, exist_ok=True)
 
-    # 1. raw.json 저장
+    # 1. Jira 상세 조회
+    result = fetch_issue(issue_key)
+    if not result["ok"]:
+        return {"issue": issue_key, "status": "skip", "reason": result["reason"]}
+
+    # 2. raw.json 저장
     raw_path = os.path.join(state_dir, f"{issue_key}_raw.json")
     with open(raw_path, "w", encoding="utf-8") as f:
-        json.dump(issue_data, f, indent=2, ensure_ascii=False)
+        json.dump(result["data"], f, indent=2, ensure_ascii=False)
 
-    # 2. 마크다운 변환
+    # 3. 마크다운 변환
     cvt = convert_issue(raw_path, state_dir, issue_key)
     if not cvt["ok"]:
         return {"issue": issue_key, "status": "skip", "reason": cvt["reason"]}
@@ -85,17 +87,17 @@ def process_issue(issue_data: dict, state_dir: str, task_dir: str) -> dict:
     with open(converted_path, encoding="utf-8") as f:
         converted = json.load(f)
 
-    # 3. 첨부파일 다운로드
+    # 4. 첨부파일 다운로드
     assets_dir = os.path.join(task_dir, issue_key, "assets")
     warnings = download_attachments(converted.get("attachments", []), assets_dir)
 
-    # 4. md 조립
+    # 5. md 조립
     md_path = os.path.join(task_dir, issue_key, f"{issue_key}.md")
     asm = assemble(converted_path, md_path, issue_key, assets_dir)
     if not asm["ok"]:
         return {"issue": issue_key, "status": "skip", "reason": asm["reason"]}
 
-    # 5. published 마커
+    # 6. published 마커
     marker = os.path.join(task_dir, issue_key, "published")
     os.makedirs(os.path.dirname(marker), exist_ok=True)
     with open(marker, "w") as f:
@@ -105,7 +107,7 @@ def process_issue(issue_data: dict, state_dir: str, task_dir: str) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="jira.json에서 읽어 마크다운 생성")
+    parser = argparse.ArgumentParser(description="Jira 상세 조회 후 마크다운 생성")
     parser.add_argument("issue_keys", nargs="+", help="처리할 이슈키")
     parser.add_argument("--task-dir", help="tasks 디렉토리 (기본: git root/tasks)")
     parser.add_argument("--state-dir", help="state 디렉토리 (기본: tasks/.state)")
@@ -134,27 +136,27 @@ def main():
     issues = search_data.get("issues", [])
     all_keys = [i.get("key") for i in issues]
 
-    # 요청된 이슈 필터링
-    target_data = []
+    # 요청된 이슈 검증
+    all_keys = [i.get("key") for i in issues]
+    target_keys = []
     for k in args.issue_keys:
-        matching = [i for i in issues if i.get("key") == k]
-        if matching:
-            target_data.append(matching[0])
+        if k in all_keys:
+            target_keys.append(k)
         else:
             print(f"⚠ {k}: jira.json에 없음 — 스킵")
 
-    if not target_data:
+    if not target_keys:
         print("처리할 이슈가 없습니다.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"처리 대상: {', '.join(d.get('key', '') for d in target_data)}\n")
+    print(f"처리 대상: {', '.join(target_keys)}\n")
 
     # 병렬 처리
     results = []
-    with ThreadPoolExecutor(max_workers=min(args.workers, len(target_data))) as pool:
+    with ThreadPoolExecutor(max_workers=min(args.workers, len(target_keys))) as pool:
         futures = {
-            pool.submit(process_issue, issue_data, state_dir, task_dir): issue_data.get("key")
-            for issue_data in target_data
+            pool.submit(process_issue, key, state_dir, task_dir): key
+            for key in target_keys
         }
         for future in as_completed(futures):
             results.append(future.result())
