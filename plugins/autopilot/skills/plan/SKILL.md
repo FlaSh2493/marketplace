@@ -256,7 +256,7 @@ plan.md 는 피처 브랜치의 `issue_doc_root` 아래에 저장되므로 **피
 
 plan.md Write 후:
 
-완료 마커
+**먼저** 완료 마커 기록:
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark plan --issue {data.issue}
   ```

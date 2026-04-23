@@ -114,7 +114,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   30초 대기(`sleep 30`) → STEP 1 재시도
   총 대기 30분 초과 시 → [STOP]
 - `has_reviews == true + active_count == 0`:
-  완료 마커:
+  **먼저** 완료 마커 기록:
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark review-fix --issue {data.issue}
   ```
@@ -124,7 +124,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
 **pushed_at != null (push 후 폴링 중):**
 
 - `new_since_push == false + active_count == 0`:
-  완료 마커:
+  **먼저** 완료 마커 기록:
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark review-fix --issue {data.issue}
   ```
@@ -135,7 +135,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_reviews.py \
   ```
   30초 대기 → STEP 1 재시도 (30분 초과 시 [STOP])
 - `new_since_push == true + active_count == 0`:
-  완료 마커:
+  **먼저** 완료 마커 기록:
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark review-fix --issue {data.issue}
   ```

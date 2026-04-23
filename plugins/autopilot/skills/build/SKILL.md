@@ -83,7 +83,7 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
        --plan-json {plan_output_file} --branch {data.branch} --issue {data.issue}
      ```
    - 결과 `pending_steps` 리스트 확보.
-   - 완료 마커:
+   - **먼저** 완료 마커 기록:
      ```bash
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase setup --issue {data.issue}
      ```
@@ -104,6 +104,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
   --phase-idx {N} --step-idx {M} --text "{step_text}" --actor main
 ```
 
+모든 step 완료 후 **먼저** 완료 마커 기록:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl --issue {data.issue}
+```
+
 ### [분할 모드]
 1. `pending_steps`를 순서대로 **5개씩 청크**로 나눈다.
 2. `autopilot-builder` 서브에이전트를 순차적으로 spawn 한다.
@@ -114,14 +119,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
      ```
      결과를 프롬프트에 포함.
 3. 각 에이전트는 내부적으로 step 완료 시마다 `append-step`을 호출한다.
+4. 모든 에이전트 완료 후 **먼저** 완료 마커 기록:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl --issue {data.issue}
+   ```
 
 **주의사항**:
 - 코드 수정은 반드시 `{data.worktree_path}/` 하위만 대상으로 한다.
-
-완료 마커:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl --issue {data.issue}
-```
 
 ---
 
@@ -130,7 +134,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl -
 플랜에 `image_paths`가 있는 경우에만 실행한다.
 1. `data.plans[].image_paths` 의 이미지를 Read로 열어 구현 결과와 대조.
 2. 불일치 시 재작업 → 완료 시 `append-step` (필요 시 가상 step 생성).
-3. 완료 마커:
+3. **먼저** 완료 마커 기록:
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase image_check --issue {data.issue}
    ```
@@ -149,7 +153,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl -
    - 반복 후에도 남은 경우 사용자에게 보고 후 중단.
 
 2. **최종 마킹 & 정리**:
-   - 전체 완료 마커:
+   - **먼저** 완료 마커 기록:
      ```bash
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --issue {data.issue}
      ```
