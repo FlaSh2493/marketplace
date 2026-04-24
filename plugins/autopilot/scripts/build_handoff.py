@@ -121,6 +121,7 @@ def main():
     # show
     p_show = subparsers.add_parser("show")
     p_show.add_argument("--issue", required=True)
+    p_show.add_argument("--brief", action="store_true")
 
     # completed-step-ids
     p_completed = subparsers.add_parser("completed-step-ids")
@@ -241,10 +242,20 @@ def main():
     elif args.command == "show":
         path = get_handoff_path(root, args.issue)
         data = load_handoff(path)
-        if data:
-            print(json.dumps(data, ensure_ascii=False, indent=2))
-        else:
+        if not data:
             print(json.dumps({"status": "empty"}, ensure_ascii=False))
+        elif getattr(args, "brief", False):
+            steps_done = [e for e in data.get("entries", []) if e.get("type") == "step"]
+            last = data.get("last_step_id")
+            last_str = ""
+            if last:
+                last_str = f" | 마지막: [{last['issue']}/Phase{last['phase_idx']}/Step{last['step_idx']}] \"{last['text']}\""
+            ids = ", ".join(e["step_id"] for e in steps_done)
+            print(f"완료된 step: {len(steps_done)}개{last_str}")
+            if ids:
+                print(f"완료된 IDs: {ids}")
+        else:
+            print(json.dumps(data, ensure_ascii=False, indent=2))
 
     elif args.command == "completed-step-ids":
         path = get_handoff_path(root, args.issue)

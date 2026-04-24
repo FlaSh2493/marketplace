@@ -9,9 +9,11 @@ You are a specialized implementation agent. Your goal is to execute a specific s
 - **Branch**: {branch}
 - **Issue**: {issue}
 
-## Global Context (Common Snapshot)
+## Global Context (이슈 요약 + 이 session 대상 파일)
 
 {plan_summary}
+
+> 전체 plan이 아닌 이 session 담당 파일 목록만 포함. 추가 파일이 필요하면 직접 Read할 것.
 
 ## Prior History (Previous Chunks)
 

@@ -88,16 +88,25 @@ description: /autopilot:plan 이 생성한 {이슈키}/plan.md 를 읽어 구현
      python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase setup --issue {data.issue}
      ```
 
+2. **Session 계획 수립**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/estimate_context.py \
+     --plan-json {plan_output_file} \
+     --issue {data.issue} \
+     --worktree {data.worktree_path}
+   ```
+   - 결과 `sessions` 배열 확보.
+
 ---
 
 ## Phase 2: Implementation (구현)
 
 **분할 판정**:
-- `총 pending_steps 수 < 8` → **단일 모드**: 메인 세션이 직접 수행.
-- `총 pending_steps 수 >= 8` → **분할 모드**: `autopilot-builder` 서브에이전트에게 위임.
+- `sessions 길이 == 1` → **단일 모드**: 메인 세션이 전체 수행.
+- `sessions 길이 >= 2` → **분할 모드**: session 0은 메인, session 1+는 순차 에이전트 spawn.
 
 ### [단일 모드]
-`pending_steps`를 순서대로 수행한다. **각 step 완료 직후** 반드시 기록한다.
+`sessions[0].steps`를 순서대로 수행한다. **각 step 완료 직후** 반드시 기록한다.
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py append-step \
   --branch {data.branch} --issue {data.issue} \
@@ -110,15 +119,20 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl -
 ```
 
 ### [분할 모드]
-1. `pending_steps`를 순서대로 **5개씩 청크**로 나눈다.
-2. `autopilot-builder` 서브에이전트를 순차적으로 spawn 한다.
+1. **session 0**: 메인 세션이 `sessions[0].steps`를 직접 수행. 각 step 완료 직후 `append-step` 기록.
+2. **session 1+**: 각 session에 대해 `autopilot-builder` 서브에이전트를 순차 spawn.
    - **프롬프트**: `agents/autopilot-builder.md` 사용.
-   - **선행 히스토리**:
-     ```bash
-     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py show --issue {data.issue}
+   - **`{plan_summary}`**: 이슈 키 + 이 session의 `steps[].files` 목록만 (3줄 이내, 전체 플랜 금지).
      ```
-     결과를 프롬프트에 포함.
-3. 각 에이전트는 내부적으로 step 완료 시마다 `append-step`을 호출한다.
+     이슈: {data.issue}
+     이 session 대상 파일: {session.steps[].files 목록}
+     ```
+   - **`{prior_history}`**:
+     ```bash
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/build_handoff.py show --issue {data.issue} --brief
+     ```
+   - **`{assigned_steps}`**: 해당 session의 steps 목록.
+3. 각 에이전트는 step 완료 시마다 `append-step`을 호출한다.
 4. 모든 에이전트 완료 후 **먼저** 완료 마커 기록:
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark build --phase impl --issue {data.issue}
