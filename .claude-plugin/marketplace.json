@@ -28,6 +28,12 @@
       "source": "./plugins/task-sync",
       "description": "Task spec & Jira bidirectional sync",
       "version": "0.1.0"
+    },
+    {
+      "name": "session-insight",
+      "source": "./plugins/session-insight",
+      "description": "세션 로그 노이즈 제거 및 스킬별 토큰 사용 분석 플러그인",
+      "version": "0.1.0"
     }
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/filter_logs.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
