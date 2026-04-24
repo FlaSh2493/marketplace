@@ -185,9 +185,20 @@ Phase 내에서도 작업 순서는 의존성 순서를 따른다.
 
 **파일 경로**: `{data.issue_doc_root}/tasks/{data.issue}/plan.md`
 예) `이슈키 = SPT-3711` → `{issue_doc_root}/tasks/SPT-3711/plan.md`
-디렉토리가 없으면 생성: `mkdir -p {data.issue_doc_root}/tasks/{data.issue}`
 
-**포맷** (아래 템플릿을 Write 로 생성. 해당 없는 섹션은 생략):
+**작성 방법**: Write 도구 대신 플랜 모드를 사용하여 작성한다.
+1. `EnterPlanMode` 호출 — 시스템이 플랜 파일 경로(`{plan_file_path}`)를 제공한다.
+2. 아래 포맷으로 플랜 파일에 내용을 작성한다. (해당 없는 섹션은 생략)
+3. `ExitPlanMode` 호출 — 사용자 승인 후 계속 진행.
+4. 승인되면 아래 스크립트로 `tasks/` 위치에 복사:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/copy_plan.py \
+     --from {plan_file_path} \
+     --issue-doc-root {data.issue_doc_root} \
+     --issue {data.issue}
+   ```
+
+**포맷** (해당 없는 섹션은 생략):
 
 ```markdown
 ---
@@ -254,14 +265,7 @@ plan.md 는 피처 브랜치의 `issue_doc_root` 아래에 저장되므로 **피
 
 ## 완료 안내
 
-plan.md Write 후:
-
-**먼저** 완료 마커 기록:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark plan --issue {data.issue}
-  ```
-
-사용자에게 아래 문구를 출력하고 스킬 종료:
+copy_plan.py 완료 후 사용자에게 아래 문구를 출력하고 스킬 종료:
 
 ```
 ✅ 플랜이 {plan.md 절대경로} 에 저장되었습니다.

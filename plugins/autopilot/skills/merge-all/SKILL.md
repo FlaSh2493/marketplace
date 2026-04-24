@@ -149,7 +149,7 @@ STEP 5: 순서대로 머지 실행
       Read(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CONFLICT_RESOLUTION.md`) 후 절차를 따른다.
       변수: resolve_root={main_root_path}, 피처브랜치={피처브랜치}, branch={branch}
 
-      충돌 해결 실패 시 (마커 잔존 또는 exit 1):
+      충돌 해결 실패 시 (exit 1):
         해당 브랜치 건너뜀 (skipped_branches에 추가), 다음으로
 
       충돌 해결 완료 후:
@@ -174,15 +174,6 @@ STEP 6: 완료 출력
   ⚠ 머지 실패 워크트리:
   {브랜치마다 한 줄씩}
     재시도: /autopilot:merge {워크트리브랜치}  (메인 세션에서 실행)
-  ```
-
-  완료 마커 조건 확인:
-  - merged_branches >= 1
-  - skipped_branches == 0
-
-  조건 충족 시 **먼저** 머지된 각 워크트리의 이슈에 대해 완료 마커 기록:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge-all --issue {wt_issue}
   ```
 
   이후 AskUserQuestion으로 다음 선택지 제시:

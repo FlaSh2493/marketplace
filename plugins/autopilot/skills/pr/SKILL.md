@@ -163,11 +163,6 @@ STEP 10: 완료 출력
   └───────────────────────────────────────────────┘
   ```
 
-  **먼저** 완료 마커 기록:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark pr --issue {data.issue}
-  ```
-
   이후 AskUserQuestion으로 다음 선택지 제시:
   ```
   PR이 생성되었습니다. 다음 중 선택하세요:

@@ -108,11 +108,6 @@ STEP 3: 완료 출력
   └─────────────────────────────────────────────┘
   ```
 
-  **먼저** 완료 마커 기록:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
-  ```
-
   이후 AskUserQuestion으로 다음 선택지 제시:
   ```
   싱크가 완료되었습니다. 다음 중 선택하세요:
@@ -177,7 +172,7 @@ STEP C2-4: 머지 실행
   [충돌 해결 프로세스] — 머지 충돌은 root_path(umbrella 브랜치 체크아웃 상태)에서 발생
     Read(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CONFLICT_RESOLUTION.md`) 후 절차를 따른다.
     변수: resolve_root={root_path}, 피처브랜치={target_branch}, branch={worktree_branch}
-    충돌 해결 실패 시 (마커 잔존 또는 exit 1): [STOP]
+    충돌 해결 실패 시 (exit 1): [STOP]
 
 STEP C2-5: 완료 출력
   issues_str = issues가 있으면 ", ".join(issues), 없으면 "-"
@@ -188,11 +183,6 @@ STEP C2-5: 완료 출력
   │ 워크트리: {worktree_branch}                    │
   │ 이슈: {issues_str}                             │
   └───────────────────────────────────────────────┘
-  ```
-
-  **먼저** 완료 마커 기록:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/state_manager.py mark merge --issue {data.issue}
   ```
 
   이후 AskUserQuestion으로 다음 선택지 제시:
