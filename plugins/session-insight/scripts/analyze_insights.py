@@ -313,13 +313,27 @@ def build_report(sessions: list[dict], thinking_map: dict, from_dt, to_dt) -> st
                 d["anomaly"] += 1
 
     out.append("### 스킬별 토큰 사용량")
-    out.append("| 스킬 | 호출 | avg input | avg output | cache hit | 이상률 |")
-    out.append("|------|------|-----------|------------|-----------|--------|")
+    out.append("| 스킬 | 호출 | avg input | avg output | cache hit | 이상률 | 개선방향 |")
+    out.append("|------|------|-----------|------------|-----------|--------|---------|")
     for sk, d in sorted(skill_stats.items(), key=lambda x: -x[1]["in"]):
         n = d["n"]
+        avg_in = d["in"] // n
+        cache_rate = d["cache"] / n
+        anomaly_rate = d["anomaly"] / n
+
+        hints = []
+        if cache_rate < 0.1 and avg_in > 20000:
+            hints.append("캐시 미스 점검")
+        if anomaly_rate >= 0.3:
+            hints.append("이상 반응 높음")
+        if avg_in > 50000:
+            hints.append("tool_result 축소")
+        if not hints:
+            hints.append("-")
+
         out.append(
-            f"| {sk} | {n} | {d['in']//n:,} | {d['out']//n:,} "
-            f"| {d['cache']/n:.0%} | {d['anomaly']/n:.0%} |"
+            f"| {sk} | {n} | {avg_in:,} | {d['out']//n:,} "
+            f"| {cache_rate:.0%} | {anomaly_rate:.0%} | {', '.join(hints)} |"
         )
     out.append("")
 
@@ -411,6 +425,51 @@ def build_report(sessions: list[dict], thinking_map: dict, from_dt, to_dt) -> st
     if all_stuck:
         top_ref, top_cnt = max(all_stuck.items(), key=lambda x: x[1])
         out.append(f"- **`{top_ref}` 반복 막힘**: thinking에서 {top_cnt}회 등장. 관련 명세를 더 명확히 제공 권장.")
+
+    # --- 신규 스킬 후보 ---
+    candidates = []
+
+    # 직접입력 호출이 많으면 → 전용 스킬 후보
+    direct = skill_stats.get("직접입력", {})
+    if direct.get("n", 0) >= 5:
+        avg_in = direct["in"] // direct["n"]
+        candidates.append(
+            f"- **반복 직접입력 → 스킬 전환 검토**: 직접입력이 {direct['n']}회로 가장 많음 "
+            f"(avg input {avg_in:,}토큰). 자주 쓰는 명령을 전용 스킬로 만들면 SKILL.md 캐시 효과를 받을 수 있음."
+        )
+
+    # 이상 반응률 높은 스킬 → 가이드 스킬 후보
+    for sk, d in skill_stats.items():
+        if sk == "직접입력" or d["n"] < 3:
+            continue
+        rate = d["anomaly"] / d["n"]
+        if rate >= 0.3:
+            candidates.append(
+                f"- **`{sk}` 가이드 스킬 후보**: 이상 반응률 {rate:.0%}. "
+                f"호출 전 맥락을 자동으로 수집·요약하는 래퍼 스킬을 만들면 오류 감소 기대."
+            )
+
+    # 호출 빈도 높고 캐시 미스 심한 스킬 → warm-up 스킬 후보
+    for sk, d in skill_stats.items():
+        if d["n"] >= 5 and d["cache"] / d["n"] < 0.05 and d["in"] // d["n"] > 20000:
+            candidates.append(
+                f"- **`{sk}` warm-up 스킬 후보**: {d['n']}회 호출, 캐시 히트 {d['cache']/d['n']:.0%}, "
+                f"avg {d['in']//d['n']:,}토큰. 세션 시작 시 컨텍스트를 미리 로드하는 init 스킬 고려."
+            )
+
+    # thinking에서 자주 막힌 파일 → 전용 조회 스킬 후보
+    if all_stuck:
+        top_ref, top_cnt = max(all_stuck.items(), key=lambda x: x[1])
+        if top_cnt >= 3:
+            candidates.append(
+                f"- **`{top_ref}` 전용 조회 스킬 후보**: thinking에서 {top_cnt}회 막힘. "
+                f"해당 파일·모듈의 구조를 요약해 주는 스킬을 만들면 반복 탐색 비용 절감."
+            )
+
+    if candidates:
+        out.append("")
+        out.append("### 신규 스킬 후보")
+        out.extend(candidates)
 
     return "\n".join(out)
 
