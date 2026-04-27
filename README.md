@@ -29,11 +29,11 @@
 | `task-sync` | 작업 명세와 Jira 양방향 동기화 | `/task-sync:extract`, `/task-sync:fetch`, `/task-sync:publish`, `/task-sync:update`, `/task-sync:help` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
-| `session-insight` | 세션 로그 노이즈 자동 제거 + 스킬별 토큰 부하 분석 | `/session-insight:analyze` | 0.1.0 |
+| `session-insight` | 세션 로그를 일간·주간·월간 계층으로 롤업 분석 | `/session-insight:daily`, `/session-insight:weekly`, `/session-insight:monthly` | 0.2.0 |
 
 ### session-insight
 
-세션 로그(`~/.claude/projects/`)의 구조적 노이즈를 자동 제거하고, 스킬·플러그인별 토큰 부하를 분석한다.
+세션 로그(`~/.claude/projects/`)를 **일간 → 주간 → 월간** 계층으로 롤업 분석한다. 각 상위 계층은 이전 계층의 압축본(markdown 리포트) 만 읽기 때문에 컨텍스트가 폭발하지 않는다. 산술·정렬 같은 결정적 부분만 일간 스크립트가 담당하고, **요약 자체는 모든 계층에서 에이전트가 동일한 8항목 루브릭으로 작성** 한다.
 
 #### 설치
 
@@ -41,94 +41,153 @@
 /plugin install session-insight@flash-plugins
 ```
 
-#### 기능 1: 노이즈 자동 제거 (SessionStop 훅)
+#### 데이터 흐름
 
-세션 종료 시 자동으로 실행되며, 원본 `.jsonl`에서 노이즈를 제거한 `.filtered.jsonl`을 생성한다.
-
-| 구분 | 대상 | 처리 |
-|------|------|------|
-| **DROP** | `queue-operation`, `file-history-snapshot`, `ai-title`, `last-prompt` | 항목 전체 제거 |
-| **DROP** | attachment: `deferred_tools_delta`, `hook_success`, `mcp_instructions_delta`, `todo_reminder`, `skill_listing` | 항목 전체 제거 |
-| **TRUNCATE** | `user` 메시지의 `tool_result` content | 500자 초과 시 잘라냄 (원본 길이 태그 보존) |
-| **STRIP** | `assistant` 메시지의 `thinking` 블록 | 블록만 제거, `text`·`tool_use`·`usage`는 보존 |
-| **KEEP** | `attachment` type `hook_failure` | 그대로 보존 |
-
-- **입력**: stdin JSON `{"session_id": "...", "cwd": "..."}`
-- **출력**: `~/.claude/projects/<encoded-cwd>/<session_id>.filtered.jsonl`
-  - `<encoded-cwd>`: cwd의 `/`를 `-`로 치환 (예: `/Users/madup/my/marketplace` → `-Users-madup-my-marketplace`)
-- **예상 효과**: 원본 대비 50–60% 파일 크기 감소
-
-#### 기능 2: 스킬별 토큰 부하 분석 (`/session-insight:analyze`)
-
-필터된 로그를 읽어 스킬별 토큰 통계를 집계하고, Claude가 고부하 원인을 구체적으로 설명한다.
-
-**입력 옵션:**
-
-| 옵션 | 설명 | 예시 |
-|------|------|------|
-| (없음) | 최근 30일 | `/session-insight:analyze` |
-| `--days N` | 최근 N일 | `/session-insight:analyze --days 7` |
-| `--from DATE --to DATE` | 날짜 범위 지정 | `/session-insight:analyze --from 2026-04-01 --to 2026-04-25` |
-| `--all` | 전체 기간 | `/session-insight:analyze --all` |
-
-**통계 스크립트 출력 (`analyze_tokens.py`):**
-
-```json
-{
-  "period": { "from": "2026-03-25", "to": "2026-04-25" },
-  "skills": {
-    "/autopilot:build": {
-      "count": 12,
-      "avg_input_tokens": 42000,
-      "avg_output_tokens": 1800,
-      "cache_hit_rate": 0.3
-    }
-  },
-  "sessions": [
-    {
-      "id": "abc123",
-      "start": "2026-04-20T10:00:00+00:00",
-      "total_tokens": 120000,
-      "turns": [
-        {
-          "turn": 3,
-          "skill": "/autopilot:build",
-          "input_tokens": 52000,
-          "output_tokens": 2100,
-          "cache_hit_rate": 0.1,
-          "user_text_length": 120,
-          "tool_results_count": 4,
-          "tool_results_total_chars": 18000
-        }
-      ]
-    }
-  ],
-  "total": { "sessions": 15, "input_tokens": 500000, "output_tokens": 25000 }
-}
+```
+~/.claude/projects/<encoded-cwd>/<sid>.jsonl   (Claude Code 가 기록하는 raw)
+        │
+        ▼  collect_daily.py <YYYY-MM-DD>      ← 유일하게 raw 를 만지는 스크립트
+구조화 markdown (stdout)
+        │
+        ▼  /session-insight:daily             ← 에이전트가 8항목 루브릭으로 작성
+<cwd>/.claude/session-insight/daily/<YYYY-MM-DD>.md
+        │
+        ▼  /session-insight:weekly            ← daily 7개 → 일별 추세
+<cwd>/.claude/session-insight/weekly/<YYYY-Www>.md
+        │
+        ▼  /session-insight:monthly           ← weekly 4–5개 → 주별 추세
+<cwd>/.claude/session-insight/monthly/<YYYY-MM>.md
 ```
 
-> `tool_results_total_chars`는 truncate 전 원본 길이 기준 — 왜 토큰이 많은지 파악하는 데 사용된다.
+핵심 원칙:
+- raw jsonl 을 만지는 건 **일간 한 곳뿐**. 주간은 daily 마크다운, 월간은 weekly 마크다운만 입력
+- 세 계층 모두 **동일한 8항목 루브릭** → 일/주/월 비교·추세화 가능
+- SessionStop 훅 없음. 사용자 호출 시에만 동작
+- 같은 파일이 이미 있으면 **덮어쓰기** (재실행으로 갱신 가능)
 
-**Claude 분석 출력:**
+#### 스킬 요약
 
-- **[타입 1] 개별 인사이트**: 고부하 세션의 각 turn별로 스킬명, 토큰 수, 원인(tool_result 크기·수, cache miss 등)을 구체적으로 서술
-- **[타입 2] 전체 요약**: 스킬별 토큰 테이블, 고부하 공통 패턴, 최적화 제안
+| 스킬 | 인자 | 동작 |
+|------|------|------|
+| `/session-insight:daily` | `[YYYY-MM-DD]` 또는 `--from YYYY-MM-DD --to YYYY-MM-DD` (생략 시 **어제**) | 그날치 raw → 구조화 md 생성 후 8항목 루브릭으로 일간 리포트 작성·저장. 범위 입력 시 일자별 독립 리포트 N개 생성 |
+| `/session-insight:weekly` | `[YYYY-MM-DD]` (생략 시 **지난 주**) | 그 날짜가 속한 ISO 주(월–일) 의 daily 리포트를 읽어 일별 추세 중심 주간 리포트 작성·저장 |
+| `/session-insight:monthly` | `[YYYY-MM-DD]` (생략 시 **지난 달**) | 그 날짜가 속한 월의 weekly 리포트를 읽어 주별 추세 중심 월간 리포트 작성·저장 |
 
-#### 디렉토리 구조
+#### `/session-insight:daily` 상세
+
+**용법**:
+
+```bash
+/session-insight:daily                                       # 어제
+/session-insight:daily 2026-04-27                            # 그 날짜
+/session-insight:daily --from 2026-04-20 --to 2026-04-24     # 범위 (5일치 일자별 리포트 5개)
+```
+
+**처리 단계**:
+
+1. 인자에서 처리할 날짜 목록을 결정 (단일 / 범위 / 어제)
+2. 각 날짜마다 독립적으로:
+   - `collect_daily.py "$(pwd)" <date>` 실행 → 구조화 markdown 받음
+   - 그 markdown 을 입력으로 8항목 루브릭 작성
+   - `<cwd>/.claude/session-insight/daily/<date>.md` 로 저장 (덮어쓰기)
+   - 세션이 없는 날은 스킵
+3. 끝나면 생성·갱신된 파일 목록 짧게 보고
+
+**스크립트(`collect_daily.py`) 가 제공하는 섹션**:
+
+- 헤더 (날짜·세션 수·총 input/output 토큰·thinking 블록 수)
+- 세션 목록 표 (`id | start | turns | input | output | thinking blocks`)
+- 스킬별 집계 표 (`skill | count | avg input | avg output | cache hit | total input`) — 그날 안의 다세션 합산
+- **고부하 turn 섹션** — 세션별 다지표 union 으로 선정 (`input_tokens`, `output_tokens`, `tool_chars`, `thinking_chars` 각 Top 5/세션 합집합). turn 당:
+  - tokens·cache hit·tool 개수·tool_chars
+  - `tool_uses` 시퀀스
+  - `user_text` 앞 300자
+  - thinking 블록 본문 **전체** (발췌 없음, `<details>` 로 접힘)
+- 직접입력 목록 — 스킬 호출 없이 들어간 user_text 첫 100자 (그날 반복 패턴 1차 감지용)
+
+#### `/session-insight:weekly` 상세
+
+**용법**:
+
+```bash
+/session-insight:weekly                # 지난 주 (직전 완료 주)
+/session-insight:weekly 2026-04-27     # 그 날짜가 속한 ISO 주
+```
+
+**처리 단계**:
+
+1. 기준 날짜 결정 (단일 / 7일 전)
+2. 그 날짜가 속한 ISO 주 라벨(`YYYY-Www`) 과 월–일 7일 범위 계산
+3. `daily/<YYYY-MM-DD>.md` 중 그 주에 속하는 것만 읽음 (없으면 0/7, 일부면 N/7)
+4. 일간 리포트들을 입력으로 **같은 8항목 루브릭** 작성. 단순 합산 금지 — **일별 변화·추세·신규 패턴** 강조
+5. `weekly/<YYYY-Www>.md` 로 저장
+6. 일간 리포트가 0개면 `/session-insight:daily` 안내 후 종료
+
+#### `/session-insight:monthly` 상세
+
+**용법**:
+
+```bash
+/session-insight:monthly               # 지난 달 (직전 완료 월)
+/session-insight:monthly 2026-04-27    # 그 날짜가 속한 월
+```
+
+**처리 단계**:
+
+1. 기준 날짜 결정 (단일 / 1개월 전)
+2. 월 라벨(`YYYY-MM`) 과 그 월에 걸치는 ISO 주들 계산 (목요일이 그 월에 속하면 그 월의 주로 간주, 보통 4–5개)
+3. `weekly/<YYYY-Www>.md` 중 그 월에 속하는 것만 읽음
+4. 주간 리포트들을 입력으로 **같은 8항목 루브릭** 작성. **주별 추세** 와 **월 단위로 굳어진 패턴** 강조 (한 주만의 노이즈는 배제)
+5. `monthly/<YYYY-MM>.md` 로 저장
+6. 주간 리포트가 0개면 `/session-insight:weekly` 안내 후 종료
+
+#### 8항목 루브릭 (세 계층 공통)
+
+각 항목 모두 turn/세션 인용을 근거로 첨부. 관찰 없으면 "해당 없음" 명시.
+
+| 번호 | 항목 | 일간 | 주간 | 월간 |
+|:---:|------|------|------|------|
+| 1 | 토큰 부하 | 가장 무거운 스킬 Top3 + 추정 원인, cache hit 낮은 스킬 | 일별 추세 | 주별 추세·월간 누적 |
+| 2 | 시행착오 | thinking 기반 번복·재고 (인용 + turn 근거) | 일별 변화 | 굳어진 패턴 |
+| 3 | 이상 반응 | tool 에러·반복 호출·비정상 짧은 출력 | 일별 변화 | 반복 발생 패턴 |
+| 4 | 입력 품질 | 모호한 user_text → 긴 작업, 좋은 입력 사례 | 일별 흐름 | 월간 흐름 |
+| 5 | 도구 사용 패턴 | 비효율 시퀀스, tool_chars 큰 turn 정체 | 일별 변화 | 굳어진 비효율 |
+| 6 | 최적화 제안 | 근거 인용 필수 | 일별 추세 기반 | 월 단위 의사결정용 |
+| 7 | 신규 스킬 후보 | 근거 인용 필수 | 일별 추세 기반 | 한 달 누적으로 정당화 |
+| 8 | 반복 요구사항 | direct_inputs 군집 (의도별 묶고 빈도·대표 인용) | **일별 추세** | **주별 추세** |
+
+#### 저장 위치
+
+```
+<cwd>/.claude/session-insight/
+├── daily/<YYYY-MM-DD>.md      ← /session-insight:daily 결과
+├── weekly/<YYYY-Www>.md       ← /session-insight:weekly 결과
+└── monthly/<YYYY-MM>.md       ← /session-insight:monthly 결과
+```
+
+`.claude/session-insight/` 는 `.gitignore` 등록되어 있어 커밋되지 않는다.
+
+#### 플러그인 디렉토리 구조
 
 ```
 plugins/session-insight/
 ├── .claude-plugin/
-│   └── plugin.json           ← hooks 참조 포함
-├── hooks/
-│   └── hooks.json            ← SessionStop 훅 정의
+│   └── plugin.json             ← name, description, version, author
 ├── scripts/
-│   ├── filter_logs.py        ← 노이즈 제거 스크립트 (SessionStop 시 자동 실행)
-│   └── analyze_tokens.py     ← 토큰 통계 추출 스크립트 (analyze 스킬이 호출)
+│   ├── _session_common.py      ← encode_cwd, iter_jsonl, get_text, extract_skill,
+│   │                              measure_tool_results, compute_cache_hit_rate, get_session_start
+│   └── collect_daily.py        ← raw jsonl → 구조화 markdown (stdout)
 └── skills/
-    └── analyze/
-        └── SKILL.md
+    ├── daily/SKILL.md
+    ├── weekly/SKILL.md
+    └── monthly/SKILL.md
 ```
+
+#### 운영 메모
+
+- **신뢰도가 높은 정보** = 스킬별 집계 표(순수 산술), 기간 필터(timestamp 비교)
+- **휴리스틱이 들어간 부분** = heavy turn 다지표 union 의 "Top N", 직접입력의 100자 prefix 군집화 — 에이전트가 raw 인용으로 보강해야 함
+- **알려진 약점** = 스킬 감지 정규식(`/word:word`) 이 user_text 의 우연한 패턴을 오탐할 수 있음 (예: `/autopilot:check는`, `/localhost:1420`). 표 해석 시 주의
 
 #### 업데이트
 

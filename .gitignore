@@ -6,3 +6,6 @@ __pycache__/
 tasks/*/checkpoints/
 tasks/sessions/
 tasks/jira_search.json
+
+# session-insight runtime state (per-project, not committed)
+.claude/session-insight/
