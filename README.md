@@ -29,11 +29,11 @@
 | `task-sync` | 작업 명세와 Jira 양방향 동기화 | `/task-sync:extract`, `/task-sync:fetch`, `/task-sync:publish`, `/task-sync:update`, `/task-sync:help` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
-| `session-insight` | 세션 로그를 일간·주간·월간 계층으로 롤업 분석 | `/session-insight:daily`, `/session-insight:weekly`, `/session-insight:monthly` | 0.2.0 |
+| `session-insight` | 휴리스틱 점수로 가치 세션만 필터링 → 일간·주간·월간·rollup 분석 | `/session-insight:daily`, `/session-insight:weekly`, `/session-insight:monthly`, `/session-insight:rollup` | 0.3.0 |
 
 ### session-insight
 
-세션 로그(`~/.claude/projects/`)를 **일간 → 주간 → 월간** 계층으로 롤업 분석한다. 각 상위 계층은 이전 계층의 압축본(markdown 리포트) 만 읽기 때문에 컨텍스트가 폭발하지 않는다. 산술·정렬 같은 결정적 부분만 일간 스크립트가 담당하고, **요약 자체는 모든 계층에서 에이전트가 동일한 8항목 루브릭으로 작성** 한다.
+세션이 끝나는 순간(SessionStop 훅) **휴리스틱 점수**로 가치 있는 세션만 골라 정제본을 `.filtered/` 에 복사하고, 모든 세션의 메타는 `index.jsonl` 에 1줄씩 누적한다. 일간·주간·월간·rollup 스킬은 이 필터셋·인덱스만 보고 동작한다 — **서로의 결과 마크다운에 의존하지 않는다.**
 
 #### 설치
 
@@ -44,150 +44,167 @@
 #### 데이터 흐름
 
 ```
-~/.claude/projects/<encoded-cwd>/<sid>.jsonl   (Claude Code 가 기록하는 raw)
+세션 종료 (SessionStop 훅)
         │
-        ▼  collect_daily.py <YYYY-MM-DD>      ← 유일하게 raw 를 만지는 스크립트
-구조화 markdown (stdout)
-        │
-        ▼  /session-insight:daily             ← 에이전트가 8항목 루브릭으로 작성
-<cwd>/.claude/session-insight/daily/<YYYY-MM-DD>.md
-        │
-        ▼  /session-insight:weekly            ← daily 7개 → 일별 추세
-<cwd>/.claude/session-insight/weekly/<YYYY-Www>.md
-        │
-        ▼  /session-insight:monthly           ← weekly 4–5개 → 주별 추세
-<cwd>/.claude/session-insight/monthly/<YYYY-MM>.md
+        ▼  score_and_filter.py
+        ├─ 9개 시그널 추출 → 점수 계산
+        ├─ score >= 임계값 → 노이즈 제거(thinking, queue/snapshot 등)·tool_result 1500자 truncation 후
+        │                    ~/.claude/projects/<cwd>/.filtered/<sid>.jsonl 작성
+        └─ 모든 세션(드롭 포함) → .filtered/index.jsonl 한 줄 append
+
+                   .filtered/index.jsonl + .filtered/<sid>.jsonl
+                                  │
+       ┌─────────────────┬────────┴────────┬─────────────────┐
+       ▼                 ▼                 ▼                 ▼
+   /daily            /weekly           /monthly           /rollup
+       │                 │                 │                 │
+       ▼                 ▼                 ▼                 ▼
+  daily/<date>.md   weekly/<Www>.md   monthly/<MM>.md   rollup/<from>_<to>.md
 ```
 
 핵심 원칙:
-- raw jsonl 을 만지는 건 **일간 한 곳뿐**. 주간은 daily 마크다운, 월간은 weekly 마크다운만 입력
-- 세 계층 모두 **동일한 8항목 루브릭** → 일/주/월 비교·추세화 가능
-- SessionStop 훅 없음. 사용자 호출 시에만 동작
-- 같은 파일이 이미 있으면 **덮어쓰기** (재실행으로 갱신 가능)
+- **훅 = 진짜 게이팅**. 저점수 세션 본문은 `.filtered/` 에 복사되지 않는다 (LLM 입력 노이즈 제거)
+- **메타는 모두 보존**. 드롭된 세션도 `index.jsonl` 에 점수·시그널 1줄로 남아 양적 분석 가능
+- **각 tier 독립**. 주간은 daily 마크다운을 안 읽는다 — 인덱스에서 그 주에 해당하는 세션을 직접 합산
+- **raw jsonl 보존**. 훅은 raw 를 절대 수정·삭제하지 않는다
+
+#### 휴리스틱 점수표 (9개 시그널)
+
+| 시그널 | +가치 | -가치 |
+|---|---|---|
+| 도구 호출 수 | 30+ (+3), 5+ (+1) | 5 미만 (-2) |
+| 세션 지속 시간 | 5분~2시간 (+2) | 1분 미만 또는 6시간+ (-3) |
+| Edit/Write 호출 | 1+ (+3) | 0 (-2) |
+| Bash 실행 수 | 1~50 (+1) | 100+ (-2) |
+| 사용자 abort | 있음 (+1, 실패 학습) | - |
+| 사용자 프롬프트 수 | 3~10 (+2) | 1 (-1) |
+| 에러 후 재시도 | 있음 (+1) | - |
+| 같은 파일 반복 수정 | 있음 (+1) | - |
+| 첫 프롬프트 길이 | 100자+ (+1) | 20자 이내 (-1) |
+
+**기본 임계값**: `score >= 3` → keep.
+
+#### settings.json 으로 점수표 커스터마이즈
+
+`.claude/settings.json` (팀 공유) 또는 `.claude/settings.local.json` (개인) 의 `env` 블록에 환경변수로 덮어쓴다.
+
+```jsonc
+{
+  "env": {
+    "SESSION_INSIGHT_MIN_SCORE": "5",
+    "SESSION_INSIGHT_WEIGHTS": "{\"edit_write\":5,\"tools_high\":4,\"first_prompt_long_at\":150}"
+  }
+}
+```
+
+| 환경변수 | 효과 |
+|---|---|
+| `SESSION_INSIGHT_MIN_SCORE` | 임계값 정수 덮어쓰기 (기본 3) |
+| `SESSION_INSIGHT_WEIGHTS` | JSON 객체. 디폴트 dict 에 머지 — 바꿀 키만 적으면 됨 |
+
+설정 가능한 키 (디폴트값 일부):
+
+```python
+{
+  "tools_high": 3, "tools_high_at": 30, "tools_mid": 1, "tools_mid_at": 5, "tools_low": -2,
+  "duration_ok": 2, "duration_min_ok": 5, "duration_max_ok": 120,
+  "duration_bad": -3, "duration_too_short": 1, "duration_too_long_min": 360,
+  "edit_write": 3, "no_edit": -2,
+  "bash_ok": 1, "bash_max_ok": 50, "bash_spam": -2, "bash_spam_at": 100,
+  "abort": 1,
+  "prompts_ok": 2, "prompts_min_ok": 3, "prompts_max_ok": 10, "single_prompt": -1,
+  "error_retry": 1, "repeated_edit": 1,
+  "first_prompt_long": 1, "first_prompt_long_at": 100,
+  "first_prompt_short": -1, "first_prompt_short_at": 20,
+}
+```
+
+> 임계값만 바꾸면 raw 재스캔 없이 `index.jsonl` 의 `kept` 만 재계산하면 된다. 가중치를 바꿀 때만 미래 세션이 새 기준을 따른다.
 
 #### 스킬 요약
 
 | 스킬 | 인자 | 동작 |
 |------|------|------|
-| `/session-insight:daily` | `[YYYY-MM-DD]` 또는 `--from YYYY-MM-DD --to YYYY-MM-DD` (생략 시 **어제**) | 그날치 raw → 구조화 md 생성 후 8항목 루브릭으로 일간 리포트 작성·저장. 범위 입력 시 일자별 독립 리포트 N개 생성 |
-| `/session-insight:weekly` | `[YYYY-MM-DD]` (생략 시 **지난 주**) | 그 날짜가 속한 ISO 주(월–일) 의 daily 리포트를 읽어 일별 추세 중심 주간 리포트 작성·저장 |
-| `/session-insight:monthly` | `[YYYY-MM-DD]` (생략 시 **지난 달**) | 그 날짜가 속한 월의 weekly 리포트를 읽어 주별 추세 중심 월간 리포트 작성·저장 |
+| `/session-insight:daily` | `[YYYY-MM-DD]` 또는 `--from --to` (생략 시 **어제**) | 그 날짜의 통과 세션을 8항목 루브릭으로 분석. 범위 시 일자별 독립 리포트 N개 |
+| `/session-insight:weekly` | `[YYYY-MM-DD]` (생략 시 **지난 주**) | 그 날짜가 속한 ISO 주의 통과 세션을 직접 합산해 일별 추세 중심 분석 (daily.md 미참조) |
+| `/session-insight:monthly` | `[YYYY-MM-DD]` (생략 시 **지난 달**) | 그 날짜가 속한 월의 통과 세션을 직접 합산해 주별 추세 중심 분석 (weekly.md 미참조) |
+| `/session-insight:rollup` | `--from YYYY-MM-DD --to YYYY-MM-DD` (필수) | 범위에 대해 일별 요약·주간 패턴·월간 트렌드를 한 번의 LLM 호출로 통합 출력 |
 
-#### `/session-insight:daily` 상세
+모든 스킬은 결과 파일이 이미 있으면 **덮어쓰기**. raw jsonl 은 만지지 않는다.
 
-**용법**:
+#### `collect_filtered.py` 가 제공하는 섹션 (모든 tier 공통 입력)
 
-```bash
-/session-insight:daily                                       # 어제
-/session-insight:daily 2026-04-27                            # 그 날짜
-/session-insight:daily --from 2026-04-20 --to 2026-04-24     # 범위 (5일치 일자별 리포트 5개)
-```
+- 헤더 (필터 통과율·총 토큰·점수 분포·드롭 시그널 합산)
+- **드롭된 세션 메타 표** — 양적 시그널 (`session | date | score | tools | duration | edits | bash | prompts`)
+- 통과 세션 목록 표
+- 스킬별 집계 표 (`skill | count | avg input | avg output | cache hit | total input`)
+- **고부하 turn 섹션** — 세션별 다지표 union (`input_tokens`, `output_tokens`, `tool_chars` 각 Top 5/세션 합집합), turn 당 tool_uses · user_text 앞 300자
+- 직접입력 목록 — 스킬 호출 없이 들어간 user_text 첫 100자
 
-**처리 단계**:
+> 필터된 jsonl 에서는 thinking 블록이 이미 제거되었으므로, 시행착오 분석은 `error_retry` / `abort` / 같은 도구 반복 시그널로 추적한다.
 
-1. 인자에서 처리할 날짜 목록을 결정 (단일 / 범위 / 어제)
-2. 각 날짜마다 독립적으로:
-   - `collect_daily.py "$(pwd)" <date>` 실행 → 구조화 markdown 받음
-   - 그 markdown 을 입력으로 8항목 루브릭 작성
-   - `<cwd>/.claude/session-insight/daily/<date>.md` 로 저장 (덮어쓰기)
-   - 세션이 없는 날은 스킵
-3. 끝나면 생성·갱신된 파일 목록 짧게 보고
-
-**스크립트(`collect_daily.py`) 가 제공하는 섹션**:
-
-- 헤더 (날짜·세션 수·총 input/output 토큰·thinking 블록 수)
-- 세션 목록 표 (`id | start | turns | input | output | thinking blocks`)
-- 스킬별 집계 표 (`skill | count | avg input | avg output | cache hit | total input`) — 그날 안의 다세션 합산
-- **고부하 turn 섹션** — 세션별 다지표 union 으로 선정 (`input_tokens`, `output_tokens`, `tool_chars`, `thinking_chars` 각 Top 5/세션 합집합). turn 당:
-  - tokens·cache hit·tool 개수·tool_chars
-  - `tool_uses` 시퀀스
-  - `user_text` 앞 300자
-  - thinking 블록 본문 **전체** (발췌 없음, `<details>` 로 접힘)
-- 직접입력 목록 — 스킬 호출 없이 들어간 user_text 첫 100자 (그날 반복 패턴 1차 감지용)
-
-#### `/session-insight:weekly` 상세
-
-**용법**:
-
-```bash
-/session-insight:weekly                # 지난 주 (직전 완료 주)
-/session-insight:weekly 2026-04-27     # 그 날짜가 속한 ISO 주
-```
-
-**처리 단계**:
-
-1. 기준 날짜 결정 (단일 / 7일 전)
-2. 그 날짜가 속한 ISO 주 라벨(`YYYY-Www`) 과 월–일 7일 범위 계산
-3. `daily/<YYYY-MM-DD>.md` 중 그 주에 속하는 것만 읽음 (없으면 0/7, 일부면 N/7)
-4. 일간 리포트들을 입력으로 **같은 8항목 루브릭** 작성. 단순 합산 금지 — **일별 변화·추세·신규 패턴** 강조
-5. `weekly/<YYYY-Www>.md` 로 저장
-6. 일간 리포트가 0개면 `/session-insight:daily` 안내 후 종료
-
-#### `/session-insight:monthly` 상세
-
-**용법**:
-
-```bash
-/session-insight:monthly               # 지난 달 (직전 완료 월)
-/session-insight:monthly 2026-04-27    # 그 날짜가 속한 월
-```
-
-**처리 단계**:
-
-1. 기준 날짜 결정 (단일 / 1개월 전)
-2. 월 라벨(`YYYY-MM`) 과 그 월에 걸치는 ISO 주들 계산 (목요일이 그 월에 속하면 그 월의 주로 간주, 보통 4–5개)
-3. `weekly/<YYYY-Www>.md` 중 그 월에 속하는 것만 읽음
-4. 주간 리포트들을 입력으로 **같은 8항목 루브릭** 작성. **주별 추세** 와 **월 단위로 굳어진 패턴** 강조 (한 주만의 노이즈는 배제)
-5. `monthly/<YYYY-MM>.md` 로 저장
-6. 주간 리포트가 0개면 `/session-insight:weekly` 안내 후 종료
-
-#### 8항목 루브릭 (세 계층 공통)
+#### 8항목 루브릭 (네 스킬 공통)
 
 각 항목 모두 turn/세션 인용을 근거로 첨부. 관찰 없으면 "해당 없음" 명시.
 
-| 번호 | 항목 | 일간 | 주간 | 월간 |
+| 번호 | 항목 | 일간 | 주간 | 월간 / rollup |
 |:---:|------|------|------|------|
-| 1 | 토큰 부하 | 가장 무거운 스킬 Top3 + 추정 원인, cache hit 낮은 스킬 | 일별 추세 | 주별 추세·월간 누적 |
-| 2 | 시행착오 | thinking 기반 번복·재고 (인용 + turn 근거) | 일별 변화 | 굳어진 패턴 |
-| 3 | 이상 반응 | tool 에러·반복 호출·비정상 짧은 출력 | 일별 변화 | 반복 발생 패턴 |
-| 4 | 입력 품질 | 모호한 user_text → 긴 작업, 좋은 입력 사례 | 일별 흐름 | 월간 흐름 |
-| 5 | 도구 사용 패턴 | 비효율 시퀀스, tool_chars 큰 turn 정체 | 일별 변화 | 굳어진 비효율 |
+| 1 | 토큰 부하 | 가장 무거운 스킬 Top3 + 추정 원인 | 일별 추세 | 주별 추세·누적 |
+| 2 | 시행착오 | error_retry / abort / 도구 반복 | 일별 변화 | 굳어진 패턴 |
+| 3 | 이상 반응 | tool 에러·반복 호출 | 일별 변화 | 반복 발생 패턴 |
+| 4 | 입력 품질 | 모호한 user_text → 긴 작업 | 일별 흐름 | 월간 흐름 |
+| 5 | 도구 사용 패턴 | 비효율 시퀀스 | 일별 변화 | 굳어진 비효율 |
 | 6 | 최적화 제안 | 근거 인용 필수 | 일별 추세 기반 | 월 단위 의사결정용 |
-| 7 | 신규 스킬 후보 | 근거 인용 필수 | 일별 추세 기반 | 한 달 누적으로 정당화 |
-| 8 | 반복 요구사항 | direct_inputs 군집 (의도별 묶고 빈도·대표 인용) | **일별 추세** | **주별 추세** |
+| 7 | 신규 스킬 후보 | 근거 인용 필수 | 일별 추세 기반 | 누적으로 정당화 |
+| 8 | 반복 요구사항 | direct_inputs 군집 | **일별 추세** | **주별 추세** |
 
 #### 저장 위치
 
+훅이 만드는 데이터 (사용자 홈):
+
 ```
-<cwd>/.claude/session-insight/
-├── daily/<YYYY-MM-DD>.md      ← /session-insight:daily 결과
-├── weekly/<YYYY-Www>.md       ← /session-insight:weekly 결과
-└── monthly/<YYYY-MM>.md       ← /session-insight:monthly 결과
+~/.claude/projects/<encoded-cwd>/.filtered/
+├── index.jsonl                  ← 모든 세션 메타 (kept=true/false)
+└── <session-id>.jsonl           ← kept=true 정제본 (thinking 제거, tool_result 1500자 트렁케이트)
 ```
 
-`.claude/session-insight/` 는 `.gitignore` 등록되어 있어 커밋되지 않는다.
+스킬이 만드는 리포트 (각 프로젝트):
+
+```
+<cwd>/.claude/session-insight/
+├── daily/<YYYY-MM-DD>.md        ← /session-insight:daily
+├── weekly/<YYYY-Www>.md         ← /session-insight:weekly
+├── monthly/<YYYY-MM>.md         ← /session-insight:monthly
+└── rollup/<from>_<to>.md        ← /session-insight:rollup
+```
+
+`.claude/session-insight/` 는 `.gitignore` 에 등록되어 커밋되지 않는다.
 
 #### 플러그인 디렉토리 구조
 
 ```
 plugins/session-insight/
 ├── .claude-plugin/
-│   └── plugin.json             ← name, description, version, author
+│   └── plugin.json
+├── hooks/
+│   └── hooks.json               ← SessionStop 훅 등록
 ├── scripts/
-│   ├── _session_common.py      ← encode_cwd, iter_jsonl, get_text, extract_skill,
-│   │                              measure_tool_results, compute_cache_hit_rate, get_session_start
-│   └── collect_daily.py        ← raw jsonl → 구조화 markdown (stdout)
+│   ├── _session_common.py       ← 공통 유틸
+│   ├── score_and_filter.py      ← SessionStop 시점 점수+필터+인덱스
+│   └── collect_filtered.py      ← tier 별 필터셋 → 마크다운 (stdout)
 └── skills/
     ├── daily/SKILL.md
     ├── weekly/SKILL.md
-    └── monthly/SKILL.md
+    ├── monthly/SKILL.md
+    └── rollup/SKILL.md
 ```
 
 #### 운영 메모
 
-- **신뢰도가 높은 정보** = 스킬별 집계 표(순수 산술), 기간 필터(timestamp 비교)
-- **휴리스틱이 들어간 부분** = heavy turn 다지표 union 의 "Top N", 직접입력의 100자 prefix 군집화 — 에이전트가 raw 인용으로 보강해야 함
+- **훅이 한 번도 안 돌았으면** `.filtered/` 가 없어 모든 스킬은 안내 메시지를 띄우고 종료. 한 세션 이상 종료한 뒤 사용
+- **임계값 튜닝**: 인덱스에 점수가 모두 기록되므로, 임계값만 바꿔 가며 keep 비율을 비교 가능. 분포가 한쪽으로 쏠리면 가중치도 함께 조정
 - **알려진 약점** = 스킬 감지 정규식(`/word:word`) 이 user_text 의 우연한 패턴을 오탐할 수 있음 (예: `/autopilot:check는`, `/localhost:1420`). 표 해석 시 주의
+- **에이전트 미사용**: 모든 처리는 Python 스크립트 + 메인 세션 LLM 으로 완결 — subagent 호출 없음
 
 #### 업데이트
 

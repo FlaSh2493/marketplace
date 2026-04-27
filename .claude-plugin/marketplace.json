@@ -32,8 +32,8 @@
     {
       "name": "session-insight",
       "source": "./plugins/session-insight",
-      "description": "세션 로그 노이즈 제거 및 스킬별 토큰 사용 분석 플러그인",
-      "version": "0.1.0"
+      "description": "휴리스틱 점수로 가치 있는 세션만 필터링한 뒤 일간·주간·월간·rollup 으로 분석",
+      "version": "0.3.0"
     }
   ]
 }

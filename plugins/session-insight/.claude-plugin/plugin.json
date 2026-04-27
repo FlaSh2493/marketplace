@@ -1,7 +1,7 @@
 {
   "name": "session-insight",
-  "description": "세션 로그를 일간·주간·월간 계층으로 롤업 분석하는 플러그인",
-  "version": "0.2.0",
+  "description": "휴리스틱 점수로 가치 있는 세션만 필터링한 뒤 일간·주간·월간·rollup 으로 분석하는 플러그인",
+  "version": "0.3.0",
   "author": {
     "name": "flash2493"
   }
