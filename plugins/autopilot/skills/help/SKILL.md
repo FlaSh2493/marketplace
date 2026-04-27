@@ -1,6 +1,7 @@
 ---
-name: autopilot-help
-description: autopilot 플러그인의 환경설정 방법과 사용법을 안내한다. "autopilot 설정", "autopilot 도움말", "help" 등을 요청할 때 사용한다.
+name: help
+description: (명시적 커맨드 실행 전용) /autopilot:help 명령이 입력된 경우에만 이 skill을 활성화한다.
+disable-model-invocation: true
 ---
 
 # Autopilot Help

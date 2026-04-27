@@ -1,121 +1,102 @@
 ---
-name: autopilot-check
-description: 워크트리에서 lint, type-check, test를 순차 실행하고 오류 발생 시 자동 수정 후 재실행한다. 모두 통과하면 결과를 보고한다.
+name: check
+description: (명시적 커맨드 실행 전용) /autopilot:check 명령이 입력된 경우에만 이 skill을 활성화한다.
+disable-model-invocation: true
 ---
 
-# Worktree Check
+# Token-Efficient Verification Harness
 
 **실행 주체: Main Session**
 
 ## 사용법
 `/autopilot:check [branch]`
 
-- `branch`: 선택 인자. 생략 시 현재 브랜치 사용.
+---
+
+## STEP 1: 컨텍스트 및 설정 로드
+
+1. **워크트리 확인**:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {branch}
+   ```
+   - `data.worktree_path` -> `wt_root`
+   - `data.issue` -> `issue_key`
+
+2. **검증 설정 로드**:
+   `tasks/{issue_key}/verify-config.json` 파일을 확인한다.
+   없을 경우 자동 탐지 실행:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {wt_root} --out tasks/{issue_key}/verify-config.json
+   ```
+
+3. **변경 파일 파악**:
+   최근 Build 작업에서 변경된 파일 목록을 확보한다. (기록이 없으면 `git diff --name-only` 활용)
 
 ---
 
-## STEP 0.5: 프로젝트 커스텀 지침 참조
+## STEP 2: 순차적 검증 실행
 
-[_shared/CUSTOM_INSTRUCTIONS.md](../_shared/CUSTOM_INSTRUCTIONS.md)에 따라 다음 명령을 실행하여 프로젝트 지침을 확인한다.
+설정된 `lint` -> `check-types` -> `test` 순서로 실행한다.
 
+### 2.1: Lint 실행 (가장 빠름)
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py check
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.lint}" --cwd {wt_root}
 ```
 
-- **필수 참조**: 로드된 지침을 **반드시 준수**하며, 표준 절차를 왜곡하지 않고 행동한다.
+- `passed == true`: 다음 단계(check-types)로 진행.
+- `passed == false`: **STEP 3 (Fix 루프)** 진입.
 
----
-
-## STEP 0: 컨텍스트 확보 및 초기화
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {branch}
-  ```
-  - `status == "ok"` → `data.worktree_path`를 `wt_root`로, `data.branch`를 `current_branch`로, `data.issue`를 `issue_key`로 보관
-  - `status == "error"` → reason 출력 후 [STOP] (예: detached head)
-
-  상태 초기화:
-  ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear check check-all merge merge-all pr review-fix
-  ```
-  결과의 `data.state_dir` 보관.
-
-
----
-
-## STEP 1: 환경 탐지
-
+### 2.2: Check-types 실행 (TypeScript)
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/detect_env.py {wt_root} --install
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py check-types "{config.check-types}" --cwd {wt_root}
 ```
 
-- `status == "error"` → reason 출력 후 [STOP]
-- `data.apps`가 비어있으면 → data.message 출력 후 [STOP]
+- `passed == true`: 다음 단계(Test)로 진행.
+- `passed == false`: **STEP 3 (Fix 루프)** 진입.
 
-각 앱별 결과를 표시:
-```
-앱: {relative_path}
-환경: {pkg_manager}
-검사 항목:
-- lint:        {checks.lint 또는 "스킵 (스크립트 없음)"}
-- check-types: {checks.check-types 또는 "스킵 (스크립트 없음)"}
-- test:        {checks.test 또는 "스킵 (스크립트 없음)"}
+### 2.3: Test 실행
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py test "{config.test}" --cwd {wt_root}
 ```
 
-checks가 3개 모두 없으면 해당 앱 스킵. 단일 앱에서 스킵되면 [STOP].
+- `passed == true`: 모든 검증 완료.
+- `passed == false`: **STEP 3 (Fix 루프)** 진입.
 
 ---
 
-## STEP 2: 검증 실행 (앱별)
+## STEP 3: 자동 Fix 루프 (최대 3회)
 
-각 앱에 대해 **checker agent** 호출:
+검증 실패 시 다음 절차를 따른다:
 
-```
-[checker agent 호출]
-입력:
-  check_dir: {app.check_dir}
-  run_cmd:   {app.run_cmd}
-  checks:    {app.checks}
-```
+1. **에러 분석 요청**:
+   `templates/fix-prompt.md`를 사용하여 Claude에게 수정을 요청한다.
+   - 실패한 도구의 JSON 결과 (`errors`, `error_count`)를 프롬프트에 포함.
+   - 대상 파일의 현재 내용을 함께 제공.
 
-결과 반환: `{ passed, failed, fixed_files, skipped }`
+2. **수정 적용**:
+   Claude가 제안한 수정 사항을 파일에 반영한다.
 
-- 한 앱이 실패해도 나머지 앱은 계속 진행
-- 실패한 앱의 이후 검사는 agent 내부에서 이미 중단됨
+3. **재검증**:
+   실패했던 단계부터 다시 실행한다.
+
+4. **종료 조건**:
+   - 모든 검증 통과 -> **STEP 4** 진행.
+   - 3회 시도 후에도 실패 -> 사용자에게 보고 후 중단.
 
 ---
 
-## STEP 3: 결과 보고
+## STEP 4: 결과 보고
 
-모든 앱 통과 시:
-```
-┌──────────────────────────────────┐
-│ 모든 검사 통과                    │
-│ lint:        ✅ pass {수정여부}   │
-│ check-types: ✅ pass {수정여부}   │
-│ test:        ✅ pass {수정여부}   │
-└──────────────────────────────────┘
-```
-- {수정여부}: 수정 없이 통과 → `(clean)`, 수정 후 통과 → `(fixed)`
-- 스킵: `⏭ skip (스크립트 없음)`
-- 복수 앱이면 앱별로 반복 출력
+검증 결과를 요약하여 출력한다.
 
-일부 앱 실패 시:
-```
-❌ {검사명} 실패 ({relative_path})
-시도: {attempt}회
-남은 에러:
-{last_error}
+- 모든 검사 통과: `✅ All checks passed`
+- 실패 시: 실패한 도구와 남은 에러 개수 보고.
 
-수동 확인이 필요합니다.
-```
+---
 
-이후 AskUserQuestion으로 다음 선택지 제시:
-```
-검사를 모두 통과했습니다. 다음 중 선택하세요:
-1. `/autopilot:check-all` — 모든 워크트리 검사 후 merge-all 준비 (메인 세션에서 실행)
-2. `/autopilot:merge {피처브랜치}` — 이 워크트리만 피처 브랜치에 머지
-3. `/autopilot:merge-all {피처브랜치}` — 모든 활성 워크트리를 한번에 머지
-4. 추가 작업 계속
-```
+## 행동 규율 (CRITICAL)
 
-[TERMINATE]
+1. **직접 분석 금지**: 검증 도구 출력을 직접 읽고 판단하지 마라. 오직 `run_check.py`가 뱉는 JSON 결과만 신뢰한다.
+2. **우회 수정 금지**: `as any`, `@ts-ignore`, 린트 비활성화 주석 등을 사용하여 에러를 "가리는" 행위는 엄격히 금지된다.
+3. **범위 준수**: Plan과 Build 산출물 외의 코드를 수정하지 마라.
+4. **횟수 제한**: Fix 시도는 횟수(3회)를 엄격히 지킨다.

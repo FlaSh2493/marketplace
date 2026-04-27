@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "actions": [
+          {
+            "type": "command",
+            "command": "/Users/madup/my/marketplace/.claude/hooks/auto_copy_plan.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "",

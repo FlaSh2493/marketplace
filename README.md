@@ -148,7 +148,7 @@ plan → build → req → check → merge → pr → review-fix → cleanup
 
 | 스킬 | 설명 |
 |------|------|
-| `plan {브랜치명} [이슈키...] [--no-spec] [--replan]` | 워크트리 생성 → 이슈 명세 로드 → 플랜 수립 → `{브랜치명}.plan.md` 생성. 구현은 수행하지 않음 |
+| `plan {브랜치명} [이슈키...] [--replan]` | 워크트리 생성 → 이슈 명세 로드 → 플랜 수립 → `tasks/{이슈키}/plan.md` 생성. 구현은 수행하지 않음 |
 | `build [{브랜치명}]` | plan.md 를 읽어 구현만 수행. 이슈 명세/탐색 재호출을 생략하여 컨텍스트 최소화 |
 | `req [이슈키]` | 대화에서 추가 요구사항을 추출하여 이슈 문서에 기록 |
 | `check` | 워크트리 내 lint, type-check, test 순차 실행. 오류 시 자동 수정 (최대 3회) |
@@ -201,23 +201,29 @@ FlaSh2493/marketplace/
     └── autopilot/
         ├── .claude-plugin/
         │   └── plugin.json
-        ├── agents/             ← 서브에이전트 정의
-        │   ├── checker.md      ← lint/type-check/test 자동 수정
-        │   └── review-fixer.md ← 리뷰 코멘트 일괄 적용
-        ├── scripts/            ← 순수 계산 로직 (Python)
-        │   ├── detect_env.py
-        │   ├── fetch_reviews.py
-        │   ├── extract_metadata.py
-        │   ├── infer_labels.py
+        ├── scripts/            ← 공유 워크트리·상태 유틸 (Python)
+        │   ├── resolve_worktree.py
+        │   ├── ensure_worktree.py
+        │   ├── load_custom_instructions.py
         │   └── ...
         ├── skills/
         │   ├── _shared/        ← 공유 절차 문서 (Read로 참조)
-        │   │   ├── CONFLICT_RESOLUTION.md
-        │   │   └── CHECK_LOOP.md
+        │   │   ├── CHECK_LOOP.md
+        │   │   └── CUSTOM_INSTRUCTIONS.md
         │   ├── plan/
-        │   │   └── SKILL.md
+        │   │   ├── SKILL.md
+        │   │   └── scripts/
+        │   ├── build/
+        │   │   ├── SKILL.md
+        │   │   └── agents/autopilot-builder.md
         │   ├── check/
         │   │   └── SKILL.md
+        │   ├── merge/
+        │   │   ├── SKILL.md
+        │   │   └── reference/CONFLICT_RESOLUTION.md
+        │   ├── review-fix/
+        │   │   ├── SKILL.md
+        │   │   └── agents/{checker,review-fixer}.md
         │   └── ...
         └── HELP.txt            ← 정적 도움말 텍스트
 ```
