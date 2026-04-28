@@ -124,14 +124,23 @@ def main():
     if not isinstance(reviews, list):
         reviews = []
 
+    issue_comments = gh(f"repos/{owner_repo}/issues/{pr_number}/comments", "--jq '.'")
+    if not isinstance(issue_comments, list):
+        issue_comments = []
+
     cr_reviews = [r for r in reviews if r.get("user", {}).get("login") == "coderabbitai[bot]"]
-    has_reviews = len(cr_reviews) > 0
+    cr_issue_comments = [c for c in issue_comments if c.get("user", {}).get("login") == "coderabbitai[bot]"]
+
+    has_reviews = len(cr_reviews) > 0 or len(cr_issue_comments) > 0
     review_bodies = [r.get("body", "") for r in cr_reviews if r.get("body")]
+    review_bodies += [c.get("body", "") for c in cr_issue_comments if c.get("body")]
 
     new_since_push = False
     if pushed_at:
         new_since_push = any(
             c.get("created_at", "") > pushed_at for c in cr_comments
+        ) or any(
+            c.get("created_at", "") > pushed_at for c in cr_issue_comments
         )
 
     ok({
