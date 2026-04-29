@@ -180,9 +180,9 @@ Claude Code 세션의 busy/idle 생애주기를 실시간으로 파일에 기록
 ### 상태 파일 위치
 
 #### 세션 마커 (세션 단위)
-- `tasks/sessions/<session_id>/status.json`: 해당 세션의 현재 상태 (busy/idle).
-- `tasks/sessions/<session_id>/log.jsonl`: 세션 내 모든 상태 변경 이력.
+- `.docs/tasks/sessions/<session_id>/status.json`: 해당 세션의 현재 상태 (busy/idle).
+- `.docs/tasks/sessions/<session_id>/log.jsonl`: 세션 내 모든 상태 변경 이력.
 
 #### 스킬 진행 마커 (이슈 단위 격리)
 여러 이슈를 병렬로 작업할 때 상태가 섞이지 않도록 이슈별 디렉토리에 스킬 완료 마커(`plan`, `build`, `check` 등)를 기록합니다.
-- `tasks/<ISSUE_KEY>/checkpoints/`: 해당 이슈의 스킬 진행 상태가 저장되는 곳.
+- `.docs/tasks/<ISSUE_KEY>/checkpoints/`: 해당 이슈의 스킬 진행 상태가 저장되는 곳.

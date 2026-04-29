@@ -90,7 +90,7 @@ Claude가 두 명세를 합쳐 플랜을 수립한다. 이때 **영향 범위** 
 autopilot은 다음 경로에서 이슈 문서를 탐색한다:
 
 ```
-{git_root}/tasks/{이슈키}/{이슈키}.md   ← 우선순위 1
+{git_root}/.docs/tasks/{이슈키}/{이슈키}.md   ← 우선순위 1
 {git_root}/docs/task/{이슈키}/{이슈키}.md    ← 우선순위 2
 ```
 

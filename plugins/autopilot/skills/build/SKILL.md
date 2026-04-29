@@ -6,12 +6,12 @@ disable-model-invocation: true
 
 # Build Skill
 
-Plan 산출물(`tasks/{issue_key}/plan.md`)을 입력으로 받아 Phase 단위로 구현한다.
+Plan 산출물(`.docs/tasks/{issue_key}/plan.md`)을 입력으로 받아 Phase 단위로 구현한다.
 
 ## 워크플로우
 
 ### 1. Plan 로드
-- `tasks/{issue_key}/plan.md` 읽기
+- `.docs/tasks/{issue_key}/plan.md` 읽기
 - Phase 의존성 그래프(`## Phase 의존성`) 파싱
 - 실행 순서 결정
 

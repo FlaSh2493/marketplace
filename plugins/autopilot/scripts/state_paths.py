@@ -69,6 +69,6 @@ def get_issue_state_dir(issue):
         print("error: git 루트를 찾을 수 없습니다", file=sys.stderr)
         sys.exit(1)
     
-    d = Path(root) / "tasks" / issue / "checkpoints"
+    d = Path(root) / ".docs" / "tasks" / issue / "checkpoints"
     d.mkdir(parents=True, exist_ok=True)
     return d

@@ -27,5 +27,5 @@ disable-model-invocation: true
 
 ## 저장 및 종료
 
-- 완료된 플랜은 `tasks/{data.issue}/plan.md` 경로에 저장되도록 한다.
-- 플랜 모드 중 대화로 플랜 내용이 변경되면 즉시 `plan.md`를 업데이트한다.
+- 완료된 플랜은 Write 도구로 `.docs/tasks/{data.issue}/plan.md` 경로에 저장한다.
+- 플랜 모드 중 대화로 플랜 내용이 변경되면 Write 도구로 `plan.md`를 즉시 덮어씌운다.

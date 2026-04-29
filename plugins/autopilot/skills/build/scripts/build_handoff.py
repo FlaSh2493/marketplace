@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 build-handoff.json 파일을 관리하여 세션/에이전트 간 구현 상태를 공유한다.
-이슈별 독립 파일: tasks/{issue}/build-handoff.json
+이슈별 독립 파일: .docs/tasks/{issue}/build-handoff.json
 """
 import json, os, subprocess, sys, shutil, hashlib
 from datetime import datetime
@@ -18,13 +18,13 @@ def find_git_root():
 
 
 def get_handoff_path(issue_doc_root, issue):
-    d = Path(issue_doc_root) / "tasks" / issue
+    d = Path(issue_doc_root) / ".docs" / "tasks" / issue
     d.mkdir(parents=True, exist_ok=True)
     return d / "build-handoff.json"
 
 
 def get_archive_dir(issue_doc_root, issue):
-    d = Path(issue_doc_root) / "tasks" / issue / "archive"
+    d = Path(issue_doc_root) / ".docs" / "tasks" / issue / "archive"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

@@ -112,6 +112,6 @@ Phase 2 ──► Phase 3
 ## 7. Plan 저장
 
 1. `EnterPlanMode` 호출하여 작성.
-2. `ExitPlanMode` 승인 후:
-   - 저장 경로: `tasks/{issue_key}/plan.md`
+2. `ExitPlanMode` 승인 후 Write 도구로 `.docs/tasks/{issue_key}/plan.md`에 저장한다.
    - 만약 `{issue_key}`가 없으면 사용자 요구사항의 핵심 키워드를 사용한다.
+3. 이후 대화로 플랜이 수정될 때마다 Write 도구로 `plan.md`를 즉시 덮어씌운다.

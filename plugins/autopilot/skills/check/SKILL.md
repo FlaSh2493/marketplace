@@ -23,10 +23,10 @@ disable-model-invocation: true
    - `data.issue` -> `issue_key`
 
 2. **검증 설정 로드**:
-   `tasks/{issue_key}/verify-config.json` 파일을 확인한다.
+   `.docs/tasks/{issue_key}/verify-config.json` 파일을 확인한다.
    없을 경우 자동 탐지 실행:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {wt_root} --out tasks/{issue_key}/verify-config.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {wt_root} --out .docs/tasks/{issue_key}/verify-config.json
    ```
 
 3. **변경 파일 파악**:

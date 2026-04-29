@@ -20,4 +20,4 @@ This document outlines how verification commands are automatically detected for 
 
 ## Caching
 
-Discovery results are cached in `tasks/{issue_key}/verify-config.json` to avoid redundant detection.
+Discovery results are cached in `.docs/tasks/{issue_key}/verify-config.json` to avoid redundant detection.
