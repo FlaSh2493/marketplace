@@ -19,13 +19,21 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
-from datetime import datetime
+from datetime import date as date_cls, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from _session_common import encode_cwd, iter_jsonl  # noqa: E402
+from _session_common import (  # noqa: E402
+    completed_missing_weeklies,
+    encode_cwd,
+    iter_jsonl,
+    missing_daily,
+    missing_monthly,
+    previous_month,
+)
 
 # ---------------------------------------------------------------------------
 # 디폴트 가중치·경계값
@@ -387,7 +395,8 @@ def main() -> int:
     sc = score(signals, cfg)
     kept = sc >= cfg["min_score"]
 
-    base = Path.home() / ".claude" / "projects" / encode_cwd(cwd) / ".filtered"
+    base_root = (Path(cwd) if cwd else Path.home()) / ".claude" / "session-insight"
+    base = base_root / ".filtered"
     index_path = base / "index.jsonl"
 
     record = {
@@ -399,7 +408,7 @@ def main() -> int:
     }
 
     if kept:
-        dst = base / f"{record['session_id']}.jsonl"
+        dst = base / record["date"] / f"{record['session_id']}.jsonl"
         try:
             write_filtered(src, dst)
         except Exception as e:
@@ -410,6 +419,27 @@ def main() -> int:
         append_index(index_path, record)
     except Exception as e:
         print(f"[session-insight] append_index 실패: {e}", file=sys.stderr)
+
+    # 1차 빠른 체크 — 누락된 상위 tier가 있으면 rollup_check.py를 detach 실행
+    try:
+        today = date_cls.today()
+        yesterday = today - timedelta(days=1)
+        needs_rollup = (
+            missing_daily(base_root, yesterday)
+            or bool(completed_missing_weeklies(today, base_root))
+            or missing_monthly(base_root, previous_month(today))
+        )
+        if needs_rollup:
+            rollup_script = Path(__file__).parent / "rollup_check.py"
+            subprocess.Popen(
+                [sys.executable, str(rollup_script), str(cwd)],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+            )
+    except Exception as e:
+        print(f"[session-insight] rollup detach 실패: {e}", file=sys.stderr)
 
     return 0
 

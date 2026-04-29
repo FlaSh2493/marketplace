@@ -1,68 +1,17 @@
 ---
 name: session-insight-daily
 description: |
-  지정 날짜(또는 --from/--to 범위, 생략 시 어제) 의 .filtered/ 세션을 8항목 루브릭으로
+  지정 날짜(생략 시 어제) 의 `.filtered/<date>/*.jsonl` 세션을 8항목 루브릭으로
   분석하여 `<cwd>/.claude/session-insight/daily/<YYYY-MM-DD>.md` 로 저장한다.
   collect_filtered.py 가 인덱스+jsonl → 구조화 markdown 으로 변환해 주면, 에이전트가
-  그 markdown 을 입력으로 8항목 루브릭을 채운다. **다른 tier 의 markdown 에 의존하지 않는다.**
+  그 markdown 을 입력으로 8항목 루브릭을 채운다. 다른 tier markdown 에 의존하지 않는다.
 ---
 
-# session-insight:daily
-
-```
-/session-insight:daily                                       # 어제
-/session-insight:daily 2026-04-27                            # 그 날짜
-/session-insight:daily --from 2026-04-20 --to 2026-04-24     # 범위 (각 일자별 독립 리포트)
-```
-
-## 절차
-
-1. 인자에서 처리할 **날짜 목록** 결정:
-   - `--from A --to B` 가 주어지면 A부터 B까지(양끝 포함) 매일을 목록으로
-   - 단일 날짜가 주어지면 그 날짜 하나
-   - 둘 다 생략이면 **어제** 하나:
-     ```bash
-     date -v-1d +%F            # macOS
-     date -d 'yesterday' +%F   # GNU
-     ```
-
-   범위 펼치기 헬퍼:
-   ```bash
-   python3 -c "
-   import datetime, sys
-   a = datetime.date.fromisoformat(sys.argv[1])
-   b = datetime.date.fromisoformat(sys.argv[2])
-   step = datetime.timedelta(days=1 if a <= b else -1)
-   d = a
-   while True:
-       print(d)
-       if d == b: break
-       d += step
-   " <FROM> <TO>
-   ```
-
-2. **목록의 각 날짜에 대해 독립적으로** 다음 단계를 반복한다:
-
-   1. 일간 raw 데이터 markdown 생성:
-      ```bash
-      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/collect_filtered.py" "$(pwd)" --tier daily --date <YYYY-MM-DD>
-      ```
-
-   2. 출력 markdown 을 **읽고 판단**. 스크립트 제공 섹션:
-      - 헤더 (필터 통과율·총 토큰·점수 분포·드롭 시그널 합산)
-      - 드롭된 세션 메타 표 (양적 시그널 보존)
-      - 세션 목록 표
-      - 스킬별 집계 표
-      - 고부하 turn 섹션 (세션별 다지표 union Top 5, user_text 앞 300자)
-      - 직접입력 목록
-
-   3. **8항목 루브릭** 을 채운다. turn/세션 인용을 근거로 첨부. 관찰 없으면 "해당 없음" 명시.
-
-   4. `<cwd>/.claude/session-insight/daily/<YYYY-MM-DD>.md` 로 저장. 디렉토리 없으면 생성. 같은 파일이 이미 있으면 **덮어쓰기**.
-
-   5. "필터 통과 세션 0" 또는 "인덱스 항목 없음" 이면 그 날짜 스킵.
-
-3. 모든 날짜 처리 끝나면 사용자에게 생성·갱신된 파일 목록을 짧게 보고.
+<!--
+session-insight 3 tier (daily / weekly / monthly) 가 동일하게 인용하는 공통 분석 규약.
+SessionStop 안에서 직렬 호출될 때 prompt cache 적중을 위해 **바이트 단위로 동일** 해야 한다.
+각 SKILL.md 도입부에 이 파일 내용을 그대로 복사한다 (include 메커니즘 없음).
+-->
 
 ## 8항목 루브릭
 
@@ -77,7 +26,56 @@ description: |
 8. 반복 요구사항   — direct_inputs 군집 (의도별 묶고 빈도·대표 인용)
 ```
 
-드롭된 세션은 본문이 없으므로 메타 표만으로 정량 시그널만 활용 ("이 날 단발 질문 N건" 등).
+## 출력 규칙
+
+- 헤더 한 줄 — 필터 통과율·총 토큰·점수 분포
+- 각 항목은 근거 인용(turn/세션 ID, 일자, 또는 직속 하위 tier 키) 첨부
+- 관찰 없으면 "해당 없음" 명시
+- 모든 산출물은 atomic write: 임시 파일에 쓰고 rename
+- 같은 파일이 이미 있으면 덮어쓰기
+
+## 손실 보완
+
+daily.md 마지막에 "대표 세션 ID 3개" 섹션을 추가한다 (상위 tier 가 필요 시 드릴다운).
+
+# session-insight:daily
+
+```
+/session-insight:daily                 # 어제
+/session-insight:daily 2026-04-27      # 그 날짜
+```
+
+## 절차
+
+1. 날짜 결정. 인자 생략 시 어제:
+   ```bash
+   date -v-1d +%F            # macOS
+   date -d 'yesterday' +%F   # GNU
+   ```
+
+2. 일간 raw 데이터 markdown 생성:
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/collect_filtered.py" "$(pwd)" --tier daily --date <YYYY-MM-DD>
+   ```
+
+3. 출력 markdown 을 읽고 8항목 루브릭을 채운다. 스크립트가 제공하는 섹션:
+   - 헤더 (필터 통과율·총 토큰·점수 분포·드롭 시그널 합산)
+   - 드롭된 세션 메타 표 (양적 시그널)
+   - 세션 목록 표
+   - 스킬별 집계 표
+   - 고부하 turn 섹션 (세션별 다지표 union Top 5, user_text 앞 300자)
+   - 직접입력 목록
+
+4. 본문 작성 후, 마지막에 "대표 세션 ID 3개" 섹션을 추가한다 (input/output/edits 등 가장 흥미로운 세션). 상위 tier 가 드릴다운할 수 있게.
+
+5. atomic write — 임시 파일 `daily/<YYYY-MM-DD>.md.tmp` 에 작성 후 `mv` 로 rename:
+   ```bash
+   mkdir -p .claude/session-insight/daily
+   # Write 도구로 .tmp 작성
+   mv .claude/session-insight/daily/<YYYY-MM-DD>.md.tmp .claude/session-insight/daily/<YYYY-MM-DD>.md
+   ```
+
+6. "필터 통과 세션 0" 또는 "인덱스 항목 없음" 이면 종료 (파일 생성 안 함).
 
 ## 출력 양식
 
@@ -90,6 +88,12 @@ description: |
 …
 ## 8. 반복 요구사항
 …
+
+## 대표 세션 ID
+
+- `<short-id>` — 한 줄 사유
+- `<short-id>` — 한 줄 사유
+- `<short-id>` — 한 줄 사유
 ```
 
 ## 에러 처리
@@ -97,6 +101,6 @@ description: |
 | 상황 | 대응 |
 |------|------|
 | 인덱스 없음 (훅 미실행) | 스크립트 안내 메시지 그대로 출력 후 종료 |
-| 해당 날짜 통과 세션 0 | 단일 날짜면 알리고 종료. 범위 처리 중이면 그 날짜만 스킵하고 계속 |
-| `--from > --to` 또는 잘못된 날짜 | 사용법 안내 후 종료 |
+| 해당 날짜 통과 세션 0 | 알리고 종료 (파일 생성 안 함) |
+| 잘못된 날짜 형식 | 사용법 안내 후 종료 |
 | 스크립트 실패 | stderr 표시 + `CLAUDE_PLUGIN_ROOT` 확인 안내 |

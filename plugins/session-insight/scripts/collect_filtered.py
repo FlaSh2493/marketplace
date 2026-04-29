@@ -411,7 +411,7 @@ def main() -> None:
 
     start, end, title = resolve_range(args)
 
-    base = Path.home() / ".claude" / "projects" / encode_cwd(args.cwd) / ".filtered"
+    base = (Path(args.cwd) if args.cwd else Path.home()) / ".claude" / "session-insight" / ".filtered"
     index_path = base / "index.jsonl"
     if not base.exists() or not index_path.exists():
         print(f"# {title}\n\n.filtered 인덱스 없음: {index_path}\n\nSessionStop 훅이 한 번 이상 실행되어야 합니다.")
@@ -431,7 +431,7 @@ def main() -> None:
         sid = r.get("session_id", "")
         if not sid:
             continue
-        path = base / f"{sid}.jsonl"
+        path = base / r.get("date", "") / f"{sid}.jsonl"
         if not path.exists():
             continue
         sessions.append(analyze_session(sid, path))
