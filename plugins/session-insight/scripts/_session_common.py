@@ -4,11 +4,36 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable, Iterator
 
 SKILL_PATTERN = re.compile(r"/[\w-]+:[\w-]+")
+
+
+def git_root(cwd: str | None = None) -> str | None:
+    """cwd 기준 git 루트를 반환. git 저장소가 아니면 None."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=cwd or None,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def resolve_base_root(cwd: str | None) -> Path:
+    """git 루트 → cwd → 홈 순서로 session-insight 저장 경로를 결정한다."""
+    root = git_root(cwd) or cwd
+    base = Path(root) if root else Path.home()
+    return base / ".claude" / "session-insight"
 
 
 def encode_cwd(cwd: str) -> str:

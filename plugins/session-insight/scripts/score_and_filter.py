@@ -33,6 +33,7 @@ from _session_common import (  # noqa: E402
     missing_daily,
     missing_monthly,
     previous_month,
+    resolve_base_root,
 )
 
 # ---------------------------------------------------------------------------
@@ -395,7 +396,7 @@ def main() -> int:
     sc = score(signals, cfg)
     kept = sc >= cfg["min_score"]
 
-    base_root = (Path(cwd) if cwd else Path.home()) / ".claude" / "session-insight"
+    base_root = resolve_base_root(cwd)
     base = base_root / ".filtered"
     index_path = base / "index.jsonl"
 

@@ -34,6 +34,7 @@ from _session_common import (  # noqa: E402
     get_text,
     iter_jsonl,
     measure_tool_results,
+    resolve_base_root,
 )
 
 USER_PREVIEW_CHARS = 300
@@ -411,7 +412,7 @@ def main() -> None:
 
     start, end, title = resolve_range(args)
 
-    base = (Path(args.cwd) if args.cwd else Path.home()) / ".claude" / "session-insight" / ".filtered"
+    base = resolve_base_root(args.cwd) / ".filtered"
     index_path = base / "index.jsonl"
     if not base.exists() or not index_path.exists():
         print(f"# {title}\n\n.filtered 인덱스 없음: {index_path}\n\nSessionStop 훅이 한 번 이상 실행되어야 합니다.")

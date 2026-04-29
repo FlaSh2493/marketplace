@@ -30,6 +30,7 @@ from _session_common import (  # noqa: E402
     missing_daily,
     missing_monthly,
     previous_month,
+    resolve_base_root,
 )
 
 TIMEOUTS = {"daily": 180, "weekly": 120, "monthly": 120}
@@ -70,7 +71,7 @@ def main() -> int:
     if len(sys.argv) < 2:
         return 0
     cwd = sys.argv[1]
-    base = Path(cwd) / ".claude" / "session-insight"
+    base = resolve_base_root(cwd)
     if not base.exists():
         return 0
 
