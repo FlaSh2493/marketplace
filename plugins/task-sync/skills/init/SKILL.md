@@ -27,7 +27,7 @@ STEP 2: 결과 보고
   ```
   ✅ 초기화 완료
   브랜치: {branch}
-  경로:   tasks/
+  경로:   .docs/tasks/
   ```
   다음 단계 안내:
   - 기획서에서 추출: `/task-sync:extract`

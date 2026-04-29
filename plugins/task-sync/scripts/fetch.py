@@ -2,7 +2,7 @@
 """
 Jira 이슈 조회 전용. jira.json 저장만 수행.
 Usage:
-  python3 fetch.py [이슈키...] --task-dir tasks/
+  python3 fetch.py [이슈키...] --task-dir .docs/tasks/
   인수 없으면: 내 할당 미완료 이슈 조회 후 jira.json 저장
   인수 있으면: 지정된 이슈키를 jira.json에서 필터링
 Exit 0: 성공
@@ -23,7 +23,7 @@ load_claude_env()
 def main():
     parser = argparse.ArgumentParser(description="Jira 이슈 조회 전용")
     parser.add_argument("issue_keys", nargs="*", help="필터할 이슈키 (생략 시 전체)")
-    parser.add_argument("--task-dir", help="tasks 디렉토리 (기본: git root/tasks)")
+    parser.add_argument("--task-dir", help="tasks 디렉토리 (기본: git root/.docs/tasks)")
     args = parser.parse_args()
 
     root = None
@@ -33,7 +33,7 @@ def main():
                            capture_output=True, text=True)
         root = r.stdout.strip()
 
-    task_dir = args.task_dir or os.path.join(root, "tasks")
+    task_dir = args.task_dir or os.path.join(root, ".docs", "tasks")
     jira_json_path = os.path.join(task_dir, "jira.json")
 
     # Jira 검색

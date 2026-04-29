@@ -82,7 +82,7 @@ def main():
     elif skill == "update":
         if not os.path.exists(task_dir):
             error("PRECONDITION_FAILED", f"작업 디렉토리가 없습니다: {task_dir}")
-        # published 마커는 tasks/{issue}/published 에 위치
+        # published 마커는 .docs/tasks/{issue}/published 에 위치
         import glob as _glob
         published = [
             os.path.basename(os.path.dirname(p))

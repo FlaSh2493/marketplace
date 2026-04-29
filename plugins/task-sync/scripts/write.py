@@ -2,7 +2,7 @@
 """
 이슈키를 받아 Jira에서 상세 조회 후 마크다운 생성.
 Usage:
-  python3 write.py PROJ-101 PROJ-102 --task-dir tasks/ --state-dir tasks/.state/
+  python3 write.py PROJ-101 PROJ-102 --task-dir .docs/tasks/ --state-dir .docs/tasks/.state/
 Exit 0: 성공
 Exit 1: 실패
 """
@@ -109,8 +109,8 @@ def process_issue(issue_key: str, state_dir: str, task_dir: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Jira 상세 조회 후 마크다운 생성")
     parser.add_argument("issue_keys", nargs="+", help="처리할 이슈키")
-    parser.add_argument("--task-dir", help="tasks 디렉토리 (기본: git root/tasks)")
-    parser.add_argument("--state-dir", help="state 디렉토리 (기본: tasks/.state)")
+    parser.add_argument("--task-dir", help="tasks 디렉토리 (기본: git root/.docs/tasks)")
+    parser.add_argument("--state-dir", help="state 디렉토리 (기본: .docs/tasks/.state)")
     parser.add_argument("--workers", type=int, default=4, help="병렬 워커 수 (기본: 4)")
     args = parser.parse_args()
 
@@ -121,8 +121,8 @@ def main():
                            capture_output=True, text=True)
         root = r.stdout.strip()
 
-    task_dir = args.task_dir or os.path.join(root, "tasks")
-    state_dir = args.state_dir or os.path.join(root, "tasks", ".state")
+    task_dir = args.task_dir or os.path.join(root, ".docs", "tasks")
+    state_dir = args.state_dir or os.path.join(root, ".docs", "tasks", ".state")
     jira_json_path = os.path.join(task_dir, "jira.json")
 
     # jira.json 읽기

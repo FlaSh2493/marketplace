@@ -22,7 +22,7 @@ def main():
         print(json.dumps({"error": "Project root not found"}), file=sys.stderr)
         sys.exit(1)
 
-    task_dir = os.path.join(project_root, 'tasks')
+    task_dir = os.path.join(project_root, '.docs', 'tasks')
     state_dir = os.path.join(task_dir, '.state')
     os.makedirs(task_dir, exist_ok=True)
     os.makedirs(state_dir, exist_ok=True)

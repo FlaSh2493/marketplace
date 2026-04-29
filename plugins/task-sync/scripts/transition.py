@@ -5,7 +5,7 @@ Usage: python3 transition.py {issue} {from_state} {to_state}
 Exit 0: ok / Exit 1: error
 
 상태: NONE ↔ PUBLISHED
-published 마커: tasks/{issue}/published
+published 마커: .docs/tasks/{issue}/published
 """
 import json, os, sys
 from pathlib import Path

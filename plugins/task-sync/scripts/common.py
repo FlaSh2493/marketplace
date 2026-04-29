@@ -60,11 +60,11 @@ def load_claude_env():
 
 
 def get_task_dir(root: str) -> str:
-    return os.path.join(root, "tasks")
+    return os.path.join(root, ".docs", "tasks")
 
 
 def get_state_dir(root: str) -> str:
-    return os.path.join(root, "tasks", ".state")
+    return os.path.join(root, ".docs", "tasks", ".state")
 
 
 def ok(data=None):

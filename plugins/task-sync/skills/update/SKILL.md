@@ -39,7 +39,7 @@ STEP 3: 변경 내용 분석
 
 STEP 5: Jira 업데이트
   각 이슈:
-    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/tasks/{이슈키}/{이슈키}.md" --sections "설명,화면/디자인,컴포넌트 힌트,영향 범위,완료 조건,추가 요구사항" > /tmp/{이슈키}_adf.json`
+    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_adf.py {jira_key} "$(pwd)/.docs/tasks/{이슈키}/{이슈키}.md" --sections "설명,화면/디자인,컴포넌트 힌트,영향 범위,완료 조건,추가 요구사항" > /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속
     `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/jira_update.py {이슈키} --summary "{제목}" --adf-file /tmp/{이슈키}_adf.json`
     exit 1 → reason 출력, 다음 이슈 계속
