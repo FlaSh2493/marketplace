@@ -28,7 +28,11 @@ disable-model-invocation: true
 ## 저장 및 종료
 
 ExitPlanMode 승인 후:
-1. Write 도구로 `.docs/tasks/{data.issue}/plan.md` 저장
+1. 아래 스크립트로 플랜을 복사한다 (Write 도구 사용 금지):
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/save_plan.py \
+     "{exitPlanMode.filePath}" "{data.root_path}/.docs/tasks/{data.issue}/plan.md"
+   ```
 2. `AskUserQuestion`으로 아래 메시지를 출력하고 **반드시 멈춘다**:
    > "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
    > 구현을 시작하려면 `/autopilot:build`를 실행하세요."
