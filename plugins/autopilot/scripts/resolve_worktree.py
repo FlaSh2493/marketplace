@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 브랜치 인자 또는 현재 위치를 기반으로 워크트리 정보를 해석한다.
-Usage: python3 resolve_worktree.py [branch] [--infer-base-by-commit-count]
+Usage: python3 resolve_worktree.py [branch] [--infer-base]
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -32,7 +32,8 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("branch", nargs="?")
-    parser.add_argument("--infer-base-by-commit-count", action="store_true")
+    parser.add_argument("--infer-base", dest="infer_base", action="store_true")
+    parser.add_argument("--infer-base-by-commit-count", dest="infer_base", action="store_true")
     args = parser.parse_args()
 
     # 1. Main root & Root branch 탐색
@@ -90,21 +91,41 @@ def main():
         base_branch = meta.get("base_branch", "")
 
     # 4. base_branch 추론 (2순위)
-    if not base_branch and args.infer_base_by_commit_count:
-        run("git fetch origin develop main")
-        dev_count_out, _, _ = run("git log origin/develop..HEAD --oneline | wc -l")
-        main_count_out, _, _ = run("git log origin/main..HEAD --oneline | wc -l")
-        try:
-            dev_count = int(dev_count_out.strip())
-            main_count = int(main_count_out.strip())
-            if dev_count < main_count:
-                base_branch = "develop"
-            elif main_count < dev_count:
-                base_branch = "main"
-            else:
-                base_branch = "develop"
-        except Exception:
-            base_branch = "develop"
+    if not base_branch and args.infer_base:
+        import re
+
+        # 1순위: reflog에서 소스 브랜치 추출
+        reflog_out, _, _ = run(
+            f"git reflog show HEAD --format='%gs' | grep 'checkout: moving from .* to {resolved_branch}' | head -1"
+        )
+        if reflog_out:
+            m = re.match(r"checkout: moving from (.*) to .*", reflog_out.strip())
+            if m:
+                base_branch = m.group(1).strip()
+
+        # 2순위 fallback: commit-count 비교
+        if not base_branch:
+            default_out, _, rc_d = run(
+                "git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null"
+            )
+            default_branch = (
+                default_out.replace("origin/", "").strip() if rc_d == 0 and default_out else "main"
+            )
+
+            run("git fetch origin develop main")
+            dev_count_out, _, _ = run("git log origin/develop..HEAD --oneline | wc -l")
+            main_count_out, _, _ = run("git log origin/main..HEAD --oneline | wc -l")
+            try:
+                dev_count = int(dev_count_out.strip())
+                main_count = int(main_count_out.strip())
+                if dev_count < main_count:
+                    base_branch = "develop"
+                elif main_count < dev_count:
+                    base_branch = "main"
+                else:
+                    base_branch = default_branch
+            except Exception:
+                base_branch = default_branch
 
     # 5. 가드레일
     if resolved_branch == base_branch:
