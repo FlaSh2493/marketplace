@@ -9,7 +9,7 @@ disable-model-invocation: true
 **실행 주체: Main Session**
 
 ## 사용법
-`/autopilot:check [branch]`
+`/autopilot:check [{브랜치명}]`
 
 ---
 
@@ -17,14 +17,14 @@ disable-model-invocation: true
 
 1. **워크트리 확인**:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {branch}
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {브랜치명}
    ```
-   - `data.worktree_path` -> `wt_root`
+   - `data.worktree_path` -> `worktree_path`
    - `data.issue` -> `issue_key`
 
 2. **검증 설정 로드**:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {wt_root}
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {worktree_path}
    ```
 
 3. **변경 파일 파악**:
@@ -38,7 +38,7 @@ disable-model-invocation: true
 
 ### 2.1: Lint 실행 (가장 빠름)
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.lint}" --cwd {wt_root}
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.lint}" --cwd {worktree_path}
 ```
 
 - `passed == true`: 다음 단계(check-types)로 진행.
@@ -46,7 +46,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.li
 
 ### 2.2: Check-types 실행 (TypeScript)
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py check-types "{config.check-types}" --cwd {wt_root}
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py check-types "{config.check-types}" --cwd {worktree_path}
 ```
 
 - `passed == true`: 다음 단계(Test)로 진행.
@@ -54,7 +54,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py check-types "{co
 
 ### 2.3: Test 실행
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py test "{config.test}" --cwd {wt_root}
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py test "{config.test}" --cwd {worktree_path}
 ```
 
 - `passed == true`: 모든 검증 완료.

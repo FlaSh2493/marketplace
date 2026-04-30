@@ -11,7 +11,7 @@ disable-model-invocation: true
 ## 사용법
 
 ```
-/autopilot:worktree-end {브랜치명}
+/autopilot:end {브랜치명}
 ```
 
 ## 실행 절차

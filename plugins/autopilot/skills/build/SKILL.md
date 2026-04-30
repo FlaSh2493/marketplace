@@ -6,12 +6,28 @@ disable-model-invocation: true
 
 # Build Skill
 
-Plan 산출물(`.docs/tasks/{issue_key}/plan.md`)을 입력으로 받아 Phase 단위로 구현한다.
+Plan 산출물을 입력으로 받아 Phase 단위로 구현한다.
+
+## 사용법
+`/autopilot:build {브랜치명}`
 
 ## 워크플로우
 
+### 0. 워크트리 확보
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치명}'
+```
+
+- `status == "ok"` → `data.worktree_path`, `data.root_path`, `data.issue` 보관
+- `status == "error"`:
+  - `reason == "WORKTREE_NOT_FOUND"`: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 브랜치로 다시 실행하여 컨텍스트 확보.
+  - 그 외: reason 출력 후 [STOP]
+
+**이후 모든 코드 파일 작업은 `worktree_path` 기준으로 수행한다.**
+
 ### 1. Plan 로드
-- `.docs/tasks/{issue_key}/plan.md` 읽기
+- `{root_path}/.docs/tasks/{issue}/plan.md` 읽기
 - Phase 의존성 그래프(`## Phase 의존성`) 파싱
 - 실행 순서 결정
 

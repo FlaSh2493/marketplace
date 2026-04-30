@@ -11,7 +11,7 @@ disable-model-invocation: true
 ## 사용법
 
 ```
-/autopilot:worktree-start {브랜치명} [--issue PLAT-123]
+/autopilot:start {브랜치명} [--issue PLAT-123]
 ```
 
 ## 실행 절차
