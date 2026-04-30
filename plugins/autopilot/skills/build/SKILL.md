@@ -11,9 +11,9 @@ Plan 산출물을 입력으로 받아 Phase 단위로 구현한다.
 ## 사용법
 `/autopilot:build {브랜치명}`
 
-## 워크플로우
+---
 
-### 0. 워크트리 확보
+## STEP 1: 워크트리 확보
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치명}'
@@ -26,35 +26,43 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치명}'
 
 **이후 모든 코드 파일 작업은 `worktree_path` 기준으로 수행한다.**
 
-### 1. Plan 로드
+---
+
+## STEP 2: Plan 로드
+
 - `{root_path}/.docs/tasks/{issue}/plan.md` 읽기
 - Phase 의존성 그래프(`## Phase 의존성`) 파싱
 - 실행 순서 결정
 
-### 2. Phase별 반복
+---
 
-각 Phase에 대해 아래 절차를 수행한다:
+## STEP 3: Phase별 반복
 
-#### 분기 결정
-Phase 메타(`depends_on`, `scope`, `output_shape`)를 확인하여 자동 결정:
-- `depends_on=[]` && `scope ≥ medium` && `output_shape=interface`
-  → **서브에이전트 위임**
+각 Phase에 대해 아래 절차를 수행한다.
+
+**분기 결정** — Phase 메타(`depends_on`, `scope`, `output_shape`) 확인:
+- `depends_on=[]` && `scope ≥ medium` && `output_shape=interface` → **서브에이전트 위임**
 - 그 외 → **메인 처리**
 
-#### 구현
+**구현:**
 - `templates/impl-prompt.md` 형식으로 구현 요청을 구성한다.
 - 의존 Phase가 있는 경우, 해당 Phase의 종결 요약(`phase-summary.md`)을 포함한다.
 - **메인 처리**: 현재 세션에서 직접 구현 코드를 출력한다.
 - **서브에이전트 위임**: `autopilot-builder` 등 전용 에이전트에게 위임하고 결과(인터페이스/결정사항)만 회수한다.
 
-#### 종결
+**종결:**
 - `templates/phase-summary.md` 형식으로 해당 Phase의 결과를 요약한다.
 - 사용자에게 요약을 출력한다.
 - 다음 Phase가 있는 경우 **"새 세션에서 시작"**을 강력히 권장하는 안내 문구를 출력한다.
 
-### 3. 종료
+---
+
+## STEP 4: 종료
+
 - 모든 Phase 완료 후 전체 변경 파일 목록을 출력한다.
 - 적용된 Phase 번호와 요약 내용을 최종 정리하여 보고한다.
+
+---
 
 ## 행동 규율 (P0 - 필수)
 

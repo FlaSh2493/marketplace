@@ -6,14 +6,13 @@ disable-model-invocation: true
 
 # Autopilot Help
 
-**실행 주체: Main Session**
-
 ## 사용법
 `/autopilot:help`
 
-## 실행 절차
+---
+
+## STEP 1: 도움말 출력
 
 `${CLAUDE_PLUGIN_ROOT}/HELP.txt` 파일을 Read하여 내용을 그대로 출력한다.
 
-
-[TERMINATE]
+[STOP]
