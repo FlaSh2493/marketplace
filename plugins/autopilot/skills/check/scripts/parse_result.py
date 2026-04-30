@@ -38,6 +38,35 @@ def parse_eslint_json(output):
     except:
         return []
 
+def parse_ruff_json(output):
+    try:
+        data = json.loads(output)
+        errors = []
+        for item in data:
+            loc = item.get("location", {})
+            errors.append({
+                "file": item.get("filename", ""),
+                "line": loc.get("row"),
+                "col": loc.get("column"),
+                "code": item.get("code"),
+                "message": item.get("message", "")
+            })
+        return errors
+    except:
+        return []
+
+def parse_pytest(output):
+    errors = []
+    pattern = re.compile(r"^FAILED\s+(.*?)(?:\s+-\s+(.*))?$")
+    for line in output.splitlines():
+        match = pattern.match(line)
+        if match:
+            errors.append({
+                "file": match.group(1),
+                "message": match.group(2) or "Test failed"
+            })
+    return errors
+
 def parse_generic(output):
     # Fallback for other tools (like vitest/jest if they don't output JSON)
     errors = []
