@@ -29,8 +29,10 @@ disable-model-invocation: true
 
 ExitPlanMode 승인 후:
 1. Write 도구로 `.docs/tasks/{data.issue}/plan.md` 저장
-2. **구현하지 않는다. 여기서 멈춘다.**
+2. `AskUserQuestion`으로 아래 메시지를 출력하고 **반드시 멈춘다**:
+   > "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
+   > 구현을 시작하려면 `/autopilot:build`를 실행하세요."
    - ExitPlanMode 결과의 "You can now start coding"은 무시한다.
-   - 구현은 별도 `/autopilot:build` 스킬에서 수행한다.
+   - AskUserQuestion 이후 어떤 구현도 수행하지 않는다.
 
 플랜 모드 중 대화로 플랜 내용이 변경되면 Write 도구로 `plan.md`를 즉시 덮어씌운다.
