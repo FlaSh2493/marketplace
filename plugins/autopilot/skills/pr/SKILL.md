@@ -34,7 +34,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py pr
   ```
   - `status == "ok"` → `data`의 `worktree_path`, `branch` (`resolved_branch`), `base_branch`, `safe_branch`, `root_path`, `issue` 보관.
   - `status == "error"`:
-    - `reason == "WORKTREE_NOT_FOUND"`: `python3 scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 브랜치로 다시 `resolve_worktree.py {branch}` 실행하여 컨텍스트 확보.
+    - `reason == "WORKTREE_NOT_FOUND"`: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/list_worktrees.py` 실행 후 목록 제시, AskUserQuestion으로 선택. 선택된 브랜치로 다시 `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py {branch}` 실행하여 컨텍스트 확보.
     - 그 외: reason 출력 후 [STOP].
 
   **모드 결정:**

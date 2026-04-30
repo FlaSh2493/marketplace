@@ -15,10 +15,10 @@ disable-model-invocation: true
 
 ## STEP 0.5: 프로젝트 커스텀 지침 참조
 
-[scripts/load_custom_instructions.py](scripts/load_custom_instructions.py)를 실행하여 프로젝트 지침을 확인한다.
+`${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py`를 실행하여 프로젝트 지침을 확인한다.
 
 ```bash
-python3 ../../scripts/load_custom_instructions.py review-fix
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py review-fix
 ```
 
 - **필수 참조**: 로드된 지침을 **반드시 준수**하며, 표준 절차를 왜곡하지 않고 행동한다.
@@ -28,13 +28,13 @@ python3 ../../scripts/load_custom_instructions.py review-fix
 ## STEP 0: 컨텍스트 확보 및 초기화
 
 ```bash
-python3 ../../scripts/resolve_worktree.py HEAD
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py HEAD
 ```
 - `status == "ok"` → `data`의 `worktree_path`, `current_branch`, `issue` 보관.
 - `status == "error"` → reason 출력 후 [STOP]
 
 ```bash
-python3 ../../scripts/init_state_dir.py --issue {data.issue} --clear review-fix
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/init_state_dir.py --issue {data.issue} --clear review-fix
 ```
 
 ```bash
@@ -60,7 +60,7 @@ gh pr list --head '{data.branch}' --state open --json number -q '.[0].number // 
 
 **상태 로드:**
 ```bash
-python3 scripts/review_fix_state.py load '{worktree_path}' '{data.issue}'
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py load '{worktree_path}' '{data.issue}'
 ```
 → `iteration_count`, `pushed_at`, `env_cache`, `max_iterations` 보관.
 
@@ -97,7 +97,7 @@ STEP 5: 상태 업데이트 및 폴링 루프 복귀
 ## STEP 1: 리뷰 수집
 
 ```bash
-python3 scripts/fetch_reviews.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/fetch_reviews.py \
   {owner_repo} {pr_number} {worktree_path} \
   [--pushed-at {pushed_at}]
 ```
@@ -164,7 +164,7 @@ python3 scripts/fetch_reviews.py \
 1. **환경 탐지 (캐시 확인):**
    `env_cache`가 null인 경우만 실행하고 결과를 저장한다.
    ```bash
-   python3 scripts/detect_env.py '{worktree_path}'
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/detect_env.py '{worktree_path}'
    ```
    → `env_cache`에 보관.
 
@@ -212,9 +212,9 @@ python3 scripts/fetch_reviews.py \
   2. **Push:** `git push` 실행.
      - **Push 실패 시 (Non-fast-forward):**
        사용자에게 `pull --rebase` 진행 여부를 묻는다. 승인 시 진행, 충돌 시 `rebase --abort` 후 [STOP].
-  3. **Reaction:** `scripts/add_reactions.py`를 사용하여 처리된 모든 코멘트에 `+1` 추가.
+  3. **Reaction:** `${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/add_reactions.py`를 사용하여 처리된 모든 코멘트에 `+1` 추가.
   4. **상태 저장 및 루프 진행:**
-     `pushed_at`을 현재 시각으로 갱신, `iteration_count++` 후 `scripts/review_fix_state.py save` 실행.
+     `pushed_at`을 현재 시각으로 갱신, `iteration_count++` 후 `${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py save` 실행.
      **사용자 확인 없이 즉시 STEP 1으로 자동 복귀.**
 
 - **"2. 커밋만" 선택 시:** 커밋 후 [STOP].
