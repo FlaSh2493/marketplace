@@ -135,6 +135,11 @@ def main():
     review_bodies = [r.get("body", "") for r in cr_reviews if r.get("body")]
     review_bodies += [c.get("body", "") for c in cr_issue_comments if c.get("body")]
 
+    is_in_progress = any(
+        "review in progress by coderabbit.ai" in body
+        for body in review_bodies
+    )
+
     new_since_push = False
     if pushed_at:
         new_since_push = any(
@@ -148,6 +153,7 @@ def main():
         "active_count": len(active_comments),
         "total_count": len(root_comments),
         "new_since_push": new_since_push,
+        "is_in_progress": is_in_progress,
         "review_bodies": review_bodies,
         "comments": active_comments,
     })

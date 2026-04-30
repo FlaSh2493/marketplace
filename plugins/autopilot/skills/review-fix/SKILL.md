@@ -102,22 +102,23 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/fetch_reviews.py \
   [--pushed-at {pushed_at}]
 ```
 
-결과 필드: `has_reviews`, `active_count`, `new_since_push`, `comments` (각 코멘트에 `severity` 포함)
+결과 필드: `has_reviews`, `active_count`, `new_since_push`, `is_in_progress`, `comments` (각 코멘트에 `severity` 포함)
 
 **폴링 로직 (pushed_at 기준):**
 
 1. **pushed_at == null (최초 실행):**
    - `has_reviews == false`: ⏳ 대기 (아래 폴링 인터벌 참조) → STEP 1 재시도
-   - `has_reviews == true + active_count == 0`: "✅ 활성 코멘트 없음." → [STOP]
+   - `has_reviews == true + active_count == 0`:
+     - `is_in_progress == true`: ⏳ 대기 (리뷰 진행 중) → STEP 1 재시도
+     - `is_in_progress == false`: "✅ 활성 코멘트 없음." → [STOP]
    - `active_count >= 1`: STEP 2로 이동
 
 2. **pushed_at != null (Push 후 폴링):**
-   - `new_since_push == false`:
-     - `active_count == 0`: "✅ 활성 코멘트 없음." → [STOP]
-     - `active_count >= 1`: ⏳ 대기 (아희 폴링 인터벌 참조) → STEP 1 재시도
+   - `new_since_push == false`: ⏳ 대기 (이번 push에 대한 CodeRabbit 응답 대기) → STEP 1 재시도
    - `new_since_push == true`:
-     - `active_count == 0`: "✅ 활성 코멘트 없음." → [STOP]
-     - `active_count >= 1`: STEP 2로 이동
+     - `is_in_progress == true`: ⏳ 대기 (리뷰 진행 중) → STEP 1 재시도
+     - `is_in_progress == false + active_count == 0`: "✅ 활성 코멘트 없음." → [STOP]
+     - `is_in_progress == false + active_count >= 1`: STEP 2로 이동
 
 **폴링 인터벌 및 가드:**
 - 1~5회차 시도: 30초 대기 (`sleep 30`)
