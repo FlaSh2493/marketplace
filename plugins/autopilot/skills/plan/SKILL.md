@@ -22,9 +22,7 @@ disable-model-invocation: true
 
 ## Step 3. 작성
 
-1. `EnterPlanMode`를 호출하여 Step 1에서 읽은 `template.md` 형식으로 플랜을 작성한다.
-2. 작성이 완료되면 `ExitPlanMode`를 호출한다 → `filePath` 확보.
-3. **Step 4로 이동한다.**
+Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md` 에 Step 1에서 읽은 `template.md` 형식으로 플랜을 작성한다.
 
 ## Step 4. 검토 (루프)
 
@@ -33,18 +31,11 @@ disable-model-invocation: true
 > "플랜을 검토해주세요."
 
 - **저장** → Step 5로 이동한다.
-- **수정** → 멈춘다. 사용자가 수정 내용을 말하면 `EnterPlanMode`로 재진입하여 수정하고, `ExitPlanMode` 호출 후 Step 4를 반복한다.
+- **수정** → 멈춘다. 사용자가 수정 내용을 말하면 Write 도구로 `plan.md`를 덮어쓰고 Step 4를 반복한다.
 
-## Step 5. 저장
+## Step 5. 완료
 
-아래 스크립트로 plan.md에 복사한다:
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/save_plan.py \
-  "{exitPlanMode.filePath}" "{data.root_path}/.docs/tasks/{data.issue}/plan.md"
-```
-
-완료 후 아래 메시지를 출력하고 **종료한다**:
+아래 메시지를 출력하고 **종료한다**:
 
 > "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
 > 구현을 시작하려면 `/autopilot:build`를 실행하세요."
