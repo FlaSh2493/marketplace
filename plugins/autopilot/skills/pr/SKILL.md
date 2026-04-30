@@ -92,7 +92,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py pr
   ```bash
   python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr_content.py '{worktree_path}' {base_branch} '{resolved_branch}'
   ```
-  - 반환된 JSON(`commits`, `stats`, `major_areas`, `suggested_type`, `suggested_scope`, `issue_key`)을 확보한다.
+  - 반환된 JSON(`commits`, `stats`, `major_areas`, `suggested_type`, `suggested_scope`, `issue_key`, `issue_keys`)을 확보한다.
+  - `issue_keys`: 브랜치명에서 먼저 추출하고, 없으면 커밋 메시지 전체에서 수집한 Jira 이슈키 배열 (중복 제거, 순서 유지).
 
 ---
 
@@ -100,6 +101,18 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_custom_instructions.py pr
 
   [templates/pr-title.md](templates/pr-title.md) 및 [templates/pr-body.md](templates/pr-body.md)를 사용하여 제목과 본문을 작성한다.
   - STEP 4의 데이터를 기반으로 [reference/pr-conventions.md](reference/pr-conventions.md) 규약을 준수한다.
+
+  **이슈키 렌더링 규칙:**
+  - `{issue_keys}`: `issue_keys` 배열을 `, `로 join한 문자열 (예: `PROJ-123, PROJ-456`)
+  - `{issue_keys_list}`: 각 이슈키를 한 줄씩 나열 (예: `- PROJ-123\n- PROJ-456`)
+  - `issue_keys`가 비어있으면 PR 제목의 `[{issue_keys}]` 부분과 본문의 `## Related Issues` 섹션을 생략한다.
+
+  **커밋 메시지 컨벤션 (참고):**
+  워크트리 브랜치에서 작업 시 커밋 메시지에 이슈키를 포함하면 PR 생성 시 자동으로 수집된다.
+  ```
+  [PROJ-123] feat(auth): 소셜 로그인 추가
+  [PROJ-456] fix(api): 응답 타입 오류 수정
+  ```
 
   **저장**: `/tmp/pr_{safe_branch}_title.txt`, `/tmp/pr_{safe_branch}_body.txt`에 저장.
 

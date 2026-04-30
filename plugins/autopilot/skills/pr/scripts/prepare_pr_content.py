@@ -61,19 +61,22 @@ def main():
     major_areas.sort(key=lambda x: x["line_count"], reverse=True)
     major_areas = major_areas[:5]
 
-    # 4. 이슈 키 추출 (브랜치명 또는 커밋 메시지)
-    issue_key = ""
-    # 브랜치명에서 추출 (예: feature/DC-123-something -> DC-123)
-    m_branch = re.search(r"([A-Z]+-\d+)", branch)
-    if m_branch:
-        issue_key = m_branch.group(1)
-    else:
-        # 커밋 메시지에서 추출
-        for c in commits:
-            m_commit = re.search(r"([A-Z]+-\d+)", c["subject"])
-            if m_commit:
-                issue_key = m_commit.group(1)
-                break
+    # 4. 이슈 키 추출 (브랜치명 우선, 커밋 메시지 전체 수집, 중복 제거)
+    seen = set()
+    issue_keys = []
+
+    for key in re.findall(r"[A-Z]+-\d+", branch):
+        if key not in seen:
+            seen.add(key)
+            issue_keys.append(key)
+
+    for c in commits:
+        for key in re.findall(r"[A-Z]+-\d+", c["subject"]):
+            if key not in seen:
+                seen.add(key)
+                issue_keys.append(key)
+
+    issue_key = issue_keys[0] if issue_keys else ""
 
     # 5. Type/Scope 제안
     suggested_type = "feat"
@@ -104,7 +107,8 @@ def main():
         "major_areas": major_areas,
         "suggested_type": suggested_type,
         "suggested_scope": suggested_scope,
-        "issue_key": issue_key
+        "issue_key": issue_key,
+        "issue_keys": issue_keys
     }
 
     print(json.dumps(result, ensure_ascii=False, indent=2))

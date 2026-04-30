@@ -3,3 +3,6 @@
 
 ## Changes
 {commit_list}
+
+## Related Issues
+{issue_keys_list}

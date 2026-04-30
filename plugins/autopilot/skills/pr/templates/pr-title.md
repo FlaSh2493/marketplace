@@ -1,1 +1,1 @@
-{type}({scope}): {summary} {issue_key}
+{type}({scope}): {summary} [{issue_keys}]
