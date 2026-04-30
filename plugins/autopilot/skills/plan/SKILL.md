@@ -6,37 +6,46 @@ disable-model-invocation: true
 
 # Deep Plan
 
-## 발동 self-check
+## Step 1. 준비
 
-다음 중 하나라도 해당하면 진행:
-
-- 변경이 3+ 파일에 걸침
-- 공개 인터페이스/계약 변경
-- 데이터 마이그레이션 동반
-- 요구가 모호하거나 다중 해법 가능
-
-해당 없으면 이 skill 쓰지 말고 바로 작업하라.
-
-## 진행 절차
-
-1. **준비**: `resolve_worktree.py` 등을 통해 작업 환경(`data.worktree_path`)을 확인한다.
-2. **워크플로우 실행**: `reference/workflow.md`에 적힌 순서대로 분석과 설계를 진행한다.
-3. **이슈 로드**: `python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/load_issue.py {data.issue} --sections 배경,목표,비목표,요구사항,인수 조건,참고,제약/고려사항` 을 호출하여 맥락을 파악한다.
-4. **Plan 작성**: `templates/template.md` 형식을 준수하여 `EnterPlanMode`로 작성한다.
-5. **Phase 관리**: 컨텍스트 크기에 따라 Phase를 나누어 상세히 기술한다.
-
-## 저장 및 종료
-
-ExitPlanMode 승인 후:
-1. 아래 스크립트로 플랜을 복사한다 (Write 도구 사용 금지):
+1. `resolve_worktree.py`로 작업 환경(`data.worktree_path`)을 확인한다.
+2. 이슈를 로드한다:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/save_plan.py \
-     "{exitPlanMode.filePath}" "{data.root_path}/.docs/tasks/{data.issue}/plan.md"
+   python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/load_issue.py {data.issue} \
+     --sections 배경,목표,비목표,요구사항,인수 조건,참고,제약/고려사항
    ```
-2. `AskUserQuestion`으로 아래 메시지를 출력하고 **반드시 멈춘다**:
-   > "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
-   > 구현을 시작하려면 `/autopilot:build`를 실행하세요."
-   - ExitPlanMode 결과의 "You can now start coding"은 무시한다.
-   - AskUserQuestion 이후 어떤 구현도 수행하지 않는다.
 
-플랜 모드 중 대화로 플랜 내용이 변경되면 Write 도구로 `plan.md`를 즉시 덮어씌운다.
+## Step 2. 분석
+
+`reference/workflow.md`의 순서대로 탐색·설계를 진행한다.
+
+## Step 3. 작성
+
+1. `EnterPlanMode`를 호출하여 `templates/template.md` 형식으로 플랜을 작성한다.
+2. 작성이 완료되면 `ExitPlanMode`를 호출한다 → `filePath` 확보.
+3. **Step 4로 이동한다.**
+
+## Step 4. 검토 (루프)
+
+`AskUserQuestion`으로 아래를 묻는다 (버튼: **저장**, **수정**):
+
+> "플랜을 검토해주세요."
+
+- **저장** → Step 5로 이동한다.
+- **수정** → 멈춘다. 사용자가 수정 내용을 말하면 `EnterPlanMode`로 재진입하여 수정하고, `ExitPlanMode` 호출 후 Step 4를 반복한다.
+
+## Step 5. 저장
+
+아래 스크립트로 plan.md에 복사한다:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/save_plan.py \
+  "{exitPlanMode.filePath}" "{data.root_path}/.docs/tasks/{data.issue}/plan.md"
+```
+
+완료 후 아래 메시지를 출력하고 **종료한다**:
+
+> "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
+> 구현을 시작하려면 `/autopilot:build`를 실행하세요."
+
+이후 어떤 구현도 수행하지 않는다.

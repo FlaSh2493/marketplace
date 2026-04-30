@@ -111,7 +111,9 @@ Phase 2 ──► Phase 3
 
 ## 7. Plan 저장
 
-1. `EnterPlanMode` 호출하여 작성.
-2. `ExitPlanMode` 승인 후 Write 도구로 `.docs/tasks/{issue_key}/plan.md`에 저장한다.
-   - 만약 `{issue_key}`가 없으면 사용자 요구사항의 핵심 키워드를 사용한다.
-3. 이후 대화로 플랜이 수정될 때마다 Write 도구로 `plan.md`를 즉시 덮어씌운다.
+분석·설계 완료 후 SKILL.md의 Step 3~5를 따른다:
+
+1. `EnterPlanMode` → 플랜 작성 → `ExitPlanMode` (`filePath` 확보)
+2. `AskUserQuestion`으로 사용자 검토 (저장/수정 버튼)
+3. 수정 요청 시 `EnterPlanMode` 재진입 → `ExitPlanMode` → 검토 반복
+4. 저장 확인 시 `save_plan.py`로 `.docs/tasks/{issue_key}/plan.md`에 복사
