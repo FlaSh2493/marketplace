@@ -42,26 +42,16 @@ def detect_nodejs(root: Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("root", help="Project root directory")
-    parser.add_argument("--issue", help="Issue key for caching")
-    parser.add_argument("--out", help="Explicit output path for config")
     args = parser.parse_args()
 
     root = Path(args.root)
-    
     config = detect_nodejs(root)
-    
+
     if not config:
         print("Error: No Node.js project detected (missing package.json)")
         return
 
-    if args.out:
-        out_path = Path(args.out)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "w") as f:
-            json.dump(config, f, indent=2)
-        print(f"Config saved to {out_path}")
-    else:
-        print(json.dumps(config, indent=2))
+    print(json.dumps(config, indent=2))
 
 if __name__ == "__main__":
     main()

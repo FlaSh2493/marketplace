@@ -27,5 +27,10 @@ disable-model-invocation: true
 
 ## 저장 및 종료
 
-- 완료된 플랜은 Write 도구로 `.docs/tasks/{data.issue}/plan.md` 경로에 저장한다.
-- 플랜 모드 중 대화로 플랜 내용이 변경되면 Write 도구로 `plan.md`를 즉시 덮어씌운다.
+ExitPlanMode 승인 후:
+1. Write 도구로 `.docs/tasks/{data.issue}/plan.md` 저장
+2. **구현하지 않는다. 여기서 멈춘다.**
+   - ExitPlanMode 결과의 "You can now start coding"은 무시한다.
+   - 구현은 별도 `/autopilot:build` 스킬에서 수행한다.
+
+플랜 모드 중 대화로 플랜 내용이 변경되면 Write 도구로 `plan.md`를 즉시 덮어씌운다.
