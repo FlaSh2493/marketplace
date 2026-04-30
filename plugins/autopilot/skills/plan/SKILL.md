@@ -14,6 +14,7 @@ disable-model-invocation: true
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/load_issue.py {data.issue} \
      --sections 배경,목표,비목표,요구사항,인수 조건,참고,제약/고려사항
    ```
+3. 플랜 템플릿을 읽는다: `${CLAUDE_PLUGIN_ROOT}/skills/plan/templates/template.md`
 
 ## Step 2. 분석
 
@@ -21,7 +22,7 @@ disable-model-invocation: true
 
 ## Step 3. 작성
 
-1. `EnterPlanMode`를 호출하여 `templates/template.md` 형식으로 플랜을 작성한다.
+1. `EnterPlanMode`를 호출하여 Step 1에서 읽은 `template.md` 형식으로 플랜을 작성한다.
 2. 작성이 완료되면 `ExitPlanMode`를 호출한다 → `filePath` 확보.
 3. **Step 4로 이동한다.**
 
