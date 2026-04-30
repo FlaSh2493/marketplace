@@ -91,7 +91,7 @@ autopilot은 다음 경로에서 이슈 문서를 탐색한다:
 
 ```
 {git_root}/.docs/tasks/{이슈키}/{이슈키}.md   ← 우선순위 1
-{git_root}/docs/task/{이슈키}/{이슈키}.md    ← 우선순위 2
+{git_root}/docs/tasks/{이슈키}/{이슈키}.md    ← 우선순위 2
 ```
 
 또는 `jira:` frontmatter로 매핑된 마크다운 파일도 인식한다:

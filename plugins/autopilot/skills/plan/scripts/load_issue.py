@@ -15,7 +15,7 @@ def find_git_root():
     return r2.stdout.strip() or None
 
 def find_issue_md(root, issue):
-    for base in [os.path.join(root, ".docs", "task"), os.path.join(root, "docs", "task")]:
+    for base in [os.path.join(root, ".docs", "tasks"), os.path.join(root, "docs", "tasks")]:
         # 폴더 구조: {base}/**/{issue}/{issue}.md 우선 탐색
         for f in glob.glob(os.path.join(base, "**", issue, f"{issue}.md"), recursive=True):
             try:
