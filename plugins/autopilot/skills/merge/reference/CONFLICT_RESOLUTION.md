@@ -41,8 +41,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/show_conflicts.py
    - 같은 부분을 다르게 수정 → 맥락상 더 적절한 쪽 선택 (이유 명시)
 4. Edit으로 conflict marker를 제거하고 병합 결과 적용
 5. `cd {resolve_root} && git diff -- '{파일명}'` 실행하여 병합 결과 diff 출력
-6. `[GATE] AskUserQuestion("위 병합 결과를 확인하세요.\n\n확인: [ok / 직접편집]")`
-   - 응답 "ok": `cd {resolve_root} && git add -- '{파일명}'` 실행
+6. `[GATE] AskUserQuestion("위 병합 결과를 확인하세요.\n\n확인: [done / 직접편집]")`
+   - 응답 "done": `cd {resolve_root} && git add -- '{파일명}'` 실행
    - 응답 "직접편집": 아래 직접편집 흐름으로 이동
 
 #### 응답 "feature"
@@ -59,14 +59,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_conflict.py '{파일}' base
 
 #### 응답 "직접편집"
 
-```
-[GATE] AskUserQuestion("편집 완료 후 'done' 입력")
-```
+"파일을 직접 편집한 뒤, 완료되면 `done` 이라고 입력해 주세요."
 
-사용자가 'done' 입력 시:
-- `grep -Ec "^(<{7} |>{7} )" '{resolve_root}/{파일명}'` 실행
-- exit 0 (마커 존재): "충돌 마커가 아직 남아있습니다." 출력 → [GATE] 반복
-- exit 1 (마커 없음): `cd {resolve_root} && git add -- '{파일명}'` 실행
+사용자 입력 수신 후:
+- `done` 이 아니면: "편집 완료 시 `done` 을 입력해 주세요." 재안내
+- `done` 이면:
+  - `grep -Ec "^(<{7} |>{7} )" '{resolve_root}/{파일명}'` 실행
+  - exit 0 (마커 존재): "충돌 마커가 아직 남아있습니다." 출력 → 텍스트 안내 반복
+  - exit 1 (마커 없음): `cd {resolve_root} && git add -- '{파일명}'` 실행
 
 ---
 

@@ -129,12 +129,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr_content.py '{worktree
 
 사용자에게 제목, 본문, 라벨을 보여주고 확인을 요청한다.
 
-AskUserQuestion: "위 내용으로 PR을 생성할까요? (yes / 수정사항 / no)"
+AskUserQuestion: "위 내용으로 PR을 생성할까요?"
+옵션: **[yes / 수정 / no]**
 **[응답 전 push/PR 생성 금지]**
 
 - "yes" → STEP 9 진행
 - "no" → "PR 생성 취소." [STOP]
-- 그 외 → 수정 요청 반영 후 STEP 8 재실행
+- "수정" → "어떤 부분을 어떻게 수정할까요?" 라고 텍스트로 묻고, 응답을 반영하여 제목·본문·라벨 재생성 후 STEP 8 재실행
 
 ---
 
