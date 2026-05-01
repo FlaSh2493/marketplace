@@ -42,7 +42,7 @@ STEP 4  결과 보고
 
 **Lint:**
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.lint}" --cwd {worktree_path}
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py lint "{config.lint}" --cwd {worktree_path} --auto-fix
 ```
 
 **Check-types:**
@@ -61,16 +61,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/run_check.py test "{config.te
 
 ## STEP 3: 자동 Fix 루프 (최대 3회)
 
-검증 실패 시 아래 절차를 반복한다:
+lint는 `--auto-fix` 플래그로 eslint/biome/ruff `--fix`를 먼저 자동 실행한다. 남은 에러와 check-types·test 실패는 아래 절차:
 
-1. **에러 분석:** `templates/fix-prompt.md`를 사용하여 수정을 요청한다.
-   - 실패한 도구의 JSON 결과(`errors`, `error_count`)와 대상 파일 내용을 포함.
-2. **수정 적용:** 제안된 수정 사항을 파일에 반영한다.
-3. **재검증:** 실패했던 단계부터 다시 실행한다.
+1. **에러 분석:** `templates/fix-prompt.md`를 사용해 실패 도구의 JSON 결과(`errors`, `error_count`)와 대상 파일 내용 포함하여 수정 요청.
+2. **수정 적용:** 제안된 수정 사항을 파일에 반영.
+3. **재검증:** 실패했던 단계부터 재실행.
 
 종료 조건:
-- 모든 검증 통과 → STEP 4 진행
-- 3회 시도 후에도 실패 → 사용자에게 보고 후 [STOP]
+- 모든 검증 통과 → STEP 4
+- 3회 시도 후에도 실패 → 보고 후 [STOP]
 
 ---
 

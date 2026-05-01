@@ -52,14 +52,18 @@ gh api repos/{owner_repo}/pulls/{pr_number}/comments/{comment_id}/replies \
 파일 경로: `{worktree_path}/파일경로` 절대경로 사용
 Bash 명령: `cd {worktree_path} && command`
 
-### STEP 3: 검증 (checker agent 로직 직접 실행)
+### STEP 3: 검증
 
-`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CHECK_LOOP.md` 파일을 Read하여 절차를 따른다.
+**lint → check-types → test** 순서로 실행 (`env.checks`에 없는 항목은 스킵).
 
-변수:
-- `{check_dir}` = env.check_dir
-- `{run_cmd}` = env.run_cmd
-- `{checks}` = env.checks
+각 검사: `cd {env.check_dir} && {env.run_cmd} {script} 2>&1` (timeout 300초)
+
+실패 시 자동 수정 루프 (최대 3회):
+- **lint**: `npx eslint --fix` 또는 `npx biome check --fix` 먼저 실행. 나머지는 직접 Edit
+- **check-types**: TS 에러 분석 → import/interface 추가 또는 코드 수정
+- **test**: expect/actual 비교 → 구현 코드 수정 (테스트 수정은 최후 수단)
+
+한 검사가 3회 후에도 실패하면 해당 검사 이후 검사는 실행하지 않는다 (선행 실패 상태에서 후행 결과는 신뢰 불가). 실패 정보를 `check_result.failed`에 기록 후 STEP 4 진행.
 
 ### STEP 4: 결과 반환
 

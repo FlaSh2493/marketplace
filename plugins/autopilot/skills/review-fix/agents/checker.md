@@ -17,12 +17,30 @@ allowed-tools: Bash, Read, Edit, Glob, Grep
 
 ## 실행 절차
 
-`${CLAUDE_PLUGIN_ROOT}/skills/_shared/CHECK_LOOP.md` 파일을 Read하여 절차를 따른다.
+**lint → check-types → test** 순서로 실행한다. `checks`에 해당 키가 없으면 스킵.
 
-변수:
-- `{check_dir}` = 전달받은 check_dir
-- `{run_cmd}` = 전달받은 run_cmd
-- `{checks}` = 전달받은 checks
+각 검사:
+
+### 1. 첫 실행
+
+```bash
+cd {check_dir} && {run_cmd} {script} 2>&1
+```
+
+- timeout 300초. 초과 시 해당 검사 실패 ❌
+- exit 0 → 통과 ✅ → 다음 검사로
+
+### 2. 실패 시 자동 수정 루프 (최대 3회)
+
+1. 에러 출력에서 `파일경로:라인번호` + 에러메시지 파싱. 파싱 불가 시 실패 ❌
+2. `{check_dir}/파일경로` Read
+3. 수정 전략:
+   - **lint**: package.json에서 eslint/biome 판별 → `npx eslint --fix {파일들}` 또는 `npx biome check --fix {파일들}` 먼저 실행. 자동수정 불가 에러는 직접 Edit
+   - **check-types**: 타입 에러(TS2xxx) 분석 → import/interface 추가 또는 코드 로직 수정
+   - **test**: 실패 테스트의 expect/actual 비교 → 구현 코드 수정 (테스트 코드 수정은 최후 수단)
+4. 재실행 후 exit 0 → 통과 ✅ → 다음 검사로
+
+3회 후에도 실패 → 해당 검사 실패 ❌. 같은 앱의 이후 검사는 실행하지 않는다.
 
 ## 출력 형식
 
