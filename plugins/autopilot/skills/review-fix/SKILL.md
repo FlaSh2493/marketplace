@@ -4,9 +4,13 @@ description: (명시적 커맨드 실행 전용) /autopilot:review-fix 명령이
 disable-model-invocation: true
 ---
 
-# CodeRabbit 리뷰 자동 반영
+# 리뷰 반영
 
-`/autopilot:review-fix` — 활성 리뷰 수집 → 수정 → push → 재폴링 루프.
+> **금지:** force push (사용자 확인 없이) / `max_iterations` 초과 후 계속 실행 / 검증 실패 후 자동 추가 수정 시도
+
+활성 리뷰 수집 → 수정 → push → 재폴링 루프.
+
+## 흐름 개요
 
 ```
 STEP 1  커스텀 지침 로드
@@ -14,9 +18,9 @@ STEP 2  초기화
         ↓
   ┌─── LOOP ──────────────────────────────────────┐
   │  STEP 3  리뷰 수집 + 폴링 결정                 │
-  │  STEP 4  요약 표시 + [GATE-A] 처리 방식 선택   │
+  │  STEP 4  [GATE] 처리 방식 선택                 │
   │  STEP 5  수정 → 검증 → 보고                    │
-  │  STEP 6  [GATE-B] 커밋/Push → 루프 복귀        │
+  │  STEP 6  [GATE] 커밋 · Push → 루프 복귀        │
   └───────────────────────────────────────────────┘
 ```
 
@@ -70,7 +74,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/fetch_reviews.py \
 
 ---
 
-## STEP 4: 요약 표시 · [GATE-A]
+## STEP 4: [GATE] 처리 방식 선택
 
 심각도별 개수 표시 (`critical/important/suggestion/nitpick`).
 
@@ -104,7 +108,7 @@ AskUserQuestion: "리뷰를 어떻게 처리하시겠습니까? 1) 전체 적용
 
 ---
 
-## STEP 6: 커밋 · Push · [GATE-B]
+## STEP 6: [GATE] 커밋 · Push
 
 수정 파일 없으면 [STOP].
 
@@ -125,10 +129,3 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py save
 
 ---
 
-## 행동 규율
-
-- `fetch_reviews.py`의 severity 임의 변경 금지
-- 상세 보기 선택 전 코멘트 원문 전체 표시 금지
-- 검증 실패 시 추가 수정 시도 없이 즉시 [STOP]
-- force push 금지 (사용자 확인 없이)
-- `iteration_count >= max_iterations` 시 무조건 [STOP]

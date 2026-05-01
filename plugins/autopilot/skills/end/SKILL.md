@@ -4,7 +4,7 @@ description: (명시적 커맨드 실행 전용) /autopilot:end 명령이 입력
 disable-model-invocation: true
 ---
 
-# Worktree End
+# 워크트리 종료
 
 워크트리를 제거하고 로컬 브랜치를 삭제한다.
 
