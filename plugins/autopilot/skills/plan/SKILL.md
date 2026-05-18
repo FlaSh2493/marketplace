@@ -21,6 +21,8 @@ STEP 4  [GATE] 검토
 STEP 5  완료
 ```
 
+최종 산출물은 항상 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`다.
+
 ---
 
 ## STEP 1: 환경 확인 + 이슈 로드
@@ -32,6 +34,7 @@ STEP 5  완료
      --sections 배경,목표,비목표,요구사항,인수 조건,참고,제약/고려사항
    ```
 3. 플랜 템플릿을 읽는다: `${CLAUDE_PLUGIN_ROOT}/skills/plan/templates/template.md`
+4. 직전 system reminder에 `Plan mode is active`가 있으면 플랜 모드로 간주하고, `Plan File Info`의 임시 경로를 `TMP_PLAN_PATH`로 기억한다.
 
 ---
 
@@ -43,18 +46,19 @@ STEP 5  완료
 
 ## STEP 3: 작성
 
-Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`에 STEP 1에서 읽은 `template.md` 형식으로 플랜을 작성한다.
+Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`에 `template.md` 형식으로 플랜을 작성한다.
+
+> 플랜 모드일 때는 시스템이 위 경로 쓰기를 차단하므로 `TMP_PLAN_PATH`에 작성한다.
 
 ---
 
 ## STEP 4: [GATE] 검토
 
-AskUserQuestion으로 아래를 묻는다 (버튼: **저장**, **수정**):
+플랜 모드가 아니면 AskUserQuestion으로 "플랜을 검토해주세요." (버튼: **저장**, **수정**)
+- **저장** → STEP 5.
+- **수정** → 사용자 지시대로 `plan.md`를 덮어쓰고 STEP 4 반복.
 
-> "플랜을 검토해주세요."
-
-- **저장** → STEP 5로 이동한다.
-- **수정** → 멈춘다. 사용자가 수정 내용을 말하면 Write 도구로 `plan.md`를 덮어쓰고 STEP 4를 반복한다.
+플랜 모드면 `ExitPlanMode`를 호출해 검토를 받는다. 승인 직후 `TMP_PLAN_PATH` 내용을 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`로 복사한 뒤 STEP 5로 이동한다.
 
 ---
 
