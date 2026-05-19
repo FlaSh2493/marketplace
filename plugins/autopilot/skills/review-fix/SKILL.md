@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 > **금지:** force push (사용자 확인 없이) / `max_iterations` 초과 후 계속 실행 / 검증 실패 후 자동 추가 수정 시도
 
-> **종료 규칙:** 어떤 이유로든 [STOP]할 때는 Write 도구로 `~/Documents/autopilot/{issue}/review-fix.md`에 중단 시점(STEP)과 이유를 기록한다. issue 미확보(STEP 2 resolve_worktree 실패) 시 `{current_branch 또는 HEAD}` fallback.
+> **종료 규칙:** 어떤 이유로든 [STOP]할 때는 `~/Documents/autopilot/{issue}/review.md`에 중단 시점(STEP)과 이유를 append한다 (기존 이터레이션 이력과 같은 파일). issue 미확보(STEP 2 resolve_worktree 실패) 시 `{current_branch 또는 HEAD}` fallback.
 
 활성 리뷰 수집 → 수정 → push → 재폴링 루프.
 
