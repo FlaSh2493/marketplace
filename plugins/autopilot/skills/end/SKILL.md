@@ -20,8 +20,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/remove_worktree.py $ARGUMENTS
 ```
 
 결과 처리:
-- `status: ok` → `data.display` 내용을 그대로 출력 후 [STOP]
-- `status: error` → `data.reason` 내용을 에러로 출력 후 [STOP]
+- `status: ok` → `data.display` 내용을 그대로 출력. Write 도구로 `~/Documents/autopilot/{브랜치명}/end.md`에 `ok` 기록 후 [STOP]
+- `status: error` → `data.reason` 내용을 에러로 출력. Write 도구로 `~/Documents/autopilot/{브랜치명}/end.md`에 `error: {reason}` 기록 후 [STOP]
 - `status: dirty` → STEP 2 진행
 
 ---
@@ -37,7 +37,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/remove_worktree.py $ARGUMENTS
 
 AskUserQuestion으로 강제 진행 여부를 묻는다:
 - "강제 제거" → STEP 3 진행
-- "취소" → [STOP]
+- "취소" → Write 도구로 `~/Documents/autopilot/{브랜치명}/end.md`에 `cancelled` 기록 후 [STOP]
 
 ---
 
@@ -48,5 +48,5 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/remove_worktree.py $ARGUMENTS --force
 ```
 
 결과 처리:
-- `status: ok` → `data.display` 내용을 그대로 출력 후 [STOP]
-- `status: error` → `data.reason` 내용을 에러로 출력 후 [STOP]
+- `status: ok` → `data.display` 내용을 그대로 출력. Write 도구로 `~/Documents/autopilot/{브랜치명}/end.md`에 `ok (force)` 기록 후 [STOP]
+- `status: error` → `data.reason` 내용을 에러로 출력. Write 도구로 `~/Documents/autopilot/{브랜치명}/end.md`에 `error: {reason}` 기록 후 [STOP]

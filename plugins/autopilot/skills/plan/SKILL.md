@@ -27,14 +27,15 @@ STEP 5  완료
 
 ## STEP 1: 환경 확인 + 이슈 로드
 
-1. `resolve_worktree.py`로 작업 환경(`data.worktree_path`)을 확인한다.
+1. `resolve_worktree.py`로 작업 환경(`data.worktree_path`)을 확인한다. 실패 시 Write 도구로 `~/Documents/autopilot/{이슈키}/plan.md`에 실패 이유 기록 후 [STOP].
 2. 이슈를 로드한다:
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/skills/plan/scripts/load_issue.py {data.issue} \
      --sections 배경,목표,비목표,요구사항,인수 조건,참고,제약/고려사항
    ```
-3. 플랜 템플릿을 읽는다: `${CLAUDE_PLUGIN_ROOT}/skills/plan/templates/template.md`
-4. 직전 system reminder에 `Plan mode is active`가 있으면 플랜 모드로 간주하고, `Plan File Info`의 임시 경로를 `TMP_PLAN_PATH`로 기억한다.
+3. 이슈 로드 실패 시 Write 도구로 `~/Documents/autopilot/{이슈키}/plan.md`에 실패 이유 기록 후 [STOP].
+4. 플랜 템플릿을 읽는다: `${CLAUDE_PLUGIN_ROOT}/skills/plan/templates/template.md`
+5. 직전 system reminder에 `Plan mode is active`가 있으면 플랜 모드로 간주하고, `Plan File Info`의 임시 경로를 `TMP_PLAN_PATH`로 기억한다.
 
 ---
 

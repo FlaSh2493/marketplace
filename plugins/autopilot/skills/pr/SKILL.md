@@ -6,6 +6,8 @@ disable-model-invocation: true
 
 # PR 생성
 
+> **종료 규칙:** issue 확보 후 어떤 이유로든 [STOP]할 때는 Write 도구로 `~/Documents/autopilot/{issue}/pr.md`에 중단 시점(STEP)과 이유를 기록한다. issue 미확보(STEP 2 resolve 실패) 시 `{브랜치}` fallback. STEP 8 성공은 pr_state.py가 자동 처리하므로 제외.
+
 `/autopilot:pr [{브랜치}]`
 
 ```
@@ -133,7 +135,9 @@ cd '{worktree_path}' && TITLE=$(cat '/tmp/pr_{safe_branch}_title.txt') && \
     --url '{pr_url}' --base {base_branch} --labels '{labels_comma_separated}'
   ```
   → 완료 시 `~/Documents/autopilot/{data.issue}/pr.md` 자동 생성
-- 실패: 수동 생성 명령어 안내 후 [STOP]
+- 실패:
+  - stderr에 "already exists" 포함 시 → `gh pr list --head '{resolved_branch}' --state open --json url -q '.[0].url'` 로 기존 PR URL 조회 → `pr_url` 보관 후 성공 경로로 이동
+  - 그 외: 수동 생성 명령어 안내 후 [STOP]
 
 **완료:** PR URL 출력 (`{pr_url}`, base: {base_branch} ← {resolved_branch}, labels: {labels}).
 
