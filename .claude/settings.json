@@ -12,7 +12,5 @@
       }
     ]
   },
-  "enabledPlugins": {
-    "task-sync@flash-plugins": true
-  }
+  "enabledPlugins": {}
 }
