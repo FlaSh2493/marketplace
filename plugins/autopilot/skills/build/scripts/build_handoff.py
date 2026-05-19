@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
 build-handoff.json 파일을 관리하여 세션/에이전트 간 구현 상태를 공유한다.
-이슈별 독립 파일: .docs/tasks/{issue}/build-handoff.json
+이슈별 독립 파일: ~/autopilot/{repo_name}/{issue}/build-handoff.json
 """
 import json, os, subprocess, sys, shutil, hashlib
 from datetime import datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "scripts"))
+from state_paths import get_issue_dir
 
 
 def find_git_root():
@@ -18,13 +21,12 @@ def find_git_root():
 
 
 def get_handoff_path(issue_doc_root, issue):
-    d = Path(issue_doc_root) / ".docs" / "tasks" / issue
-    d.mkdir(parents=True, exist_ok=True)
+    d = get_issue_dir(issue)
     return d / "build-handoff.json"
 
 
 def get_archive_dir(issue_doc_root, issue):
-    d = Path(issue_doc_root) / ".docs" / "tasks" / issue / "archive"
+    d = get_issue_dir(issue) / "archive"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

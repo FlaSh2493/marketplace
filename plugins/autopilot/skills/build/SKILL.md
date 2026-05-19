@@ -41,7 +41,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/resolve_worktree.py '{브랜치명}'
 
 ## STEP 2: Plan 로드
 
-- `{root_path}/.docs/tasks/{issue}/plan.md` 읽기
+- `~/Documents/autopilot/{issue}/plan.md` 읽기
 - Phase 의존성 그래프(`## Phase 의존성`) 파싱
 - 실행 순서 결정
 

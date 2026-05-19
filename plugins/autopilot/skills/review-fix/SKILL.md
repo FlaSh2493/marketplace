@@ -47,7 +47,7 @@ gh auth status 2>&1 || { echo "gh 인증 필요"; exit 1; }
 gh api user -q '.login'          # → my_login
 gh repo view --json nameWithOwner -q '.nameWithOwner'  # → owner_repo
 gh pr list --head '{current_branch}' --state open --json number -q '.[0].number // empty'  # → pr_number (없으면 STOP)
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py load '{worktree_path}' '{issue}'
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py load '{issue}'
 ```
 → `iteration_count`, `pushed_at`, `env_cache`, `max_iterations` 보관
 
@@ -124,7 +124,7 @@ push Non-fast-forward 실패 시: `pull --rebase` 여부 확인. 충돌 시 `reb
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/add_reactions.py {owner_repo} '{comment_ids_json}' '+1'
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py save ...
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/review-fix/scripts/review_fix_state.py save '{issue}' --iteration {iteration_count} --pushed-at {iso_now}
 ```
 
 ---

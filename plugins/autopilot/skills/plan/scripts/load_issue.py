@@ -4,6 +4,10 @@
 Usage: python3 load_issue.py {issue} [--section {섹션명}] [--sections 섹션1,섹션2]
 """
 import argparse, json, os, sys, glob, re
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "scripts"))
+from state_paths import get_issue_dir, get_repo_name
 
 def find_git_root():
     import subprocess
@@ -15,6 +19,16 @@ def find_git_root():
     return r2.stdout.strip() or None
 
 def find_issue_md(root, issue):
+    # 1순위: ~/autopilot/{repo_name}/{issue}/{issue}.md
+    issue_dir = get_issue_dir(issue)
+    primary = issue_dir / f"{issue}.md"
+    if primary.exists():
+        try:
+            return str(primary), primary.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            pass
+
+    # 2순위: 프로젝트 내부 .docs/tasks/ (하위 호환)
     for base in [os.path.join(root, ".docs", "tasks"), os.path.join(root, "docs", "tasks")]:
         # 폴더 구조: {base}/**/{issue}/{issue}.md 우선 탐색
         for f in glob.glob(os.path.join(base, "**", issue, f"{issue}.md"), recursive=True):

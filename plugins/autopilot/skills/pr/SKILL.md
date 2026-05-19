@@ -129,8 +129,10 @@ cd '{worktree_path}' && TITLE=$(cat '/tmp/pr_{safe_branch}_title.txt') && \
 
 - 성공: `pr_url` 보관
   ```bash
-  python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/pr_state.py write --issue {data.issue} --phase completed
+  python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/pr_state.py write --issue {data.issue} --phase completed \
+    --url '{pr_url}' --base {base_branch} --labels '{labels_comma_separated}'
   ```
+  → 완료 시 `~/Documents/autopilot/{data.issue}/pr.md` 자동 생성
 - 실패: 수동 생성 명령어 안내 후 [STOP]
 
 **완료:** PR URL 출력 (`{pr_url}`, base: {base_branch} ← {resolved_branch}, labels: {labels}).

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-머지 진행 상태를 기록하고 조회한다.
+머지 진행 상태를 meta.json["merge"]에 기록하고 조회한다.
 Usage:
   python3 merge_state.py write --phase {phase} --case {1|2} --target {target} --branch {branch} [--issue {issue}]
   python3 merge_state.py read [--issue {issue}]
@@ -8,25 +8,13 @@ Usage:
 """
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
 
-# state_paths 가 같은 디렉토리에 있다고 가정
-sys.path.append(os.path.dirname(__file__))
-try:
-    import state_paths
-except ImportError:
-    state_paths = None
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "scripts"))
+from state_paths import resolve_issue, read_meta, update_meta_key, clear_meta_keys
 
-def get_state_file(issue=None):
-    if state_paths and issue:
-        state_dir = state_paths.get_issue_state_dir(issue)
-        return state_dir / "merge_progress.json"
-    
-    # Fallback to a temp file if issue is not provided or state_paths is missing
-    return Path("/tmp/autopilot_merge_state.json")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -47,46 +35,36 @@ def main():
 
     args = parser.parse_args()
 
-    state_file = get_state_file(args.issue)
+    issue = args.issue or resolve_issue(sys.argv)
 
     if args.cmd == "write":
-        state = {
+        meta = read_meta(issue)
+        existing = meta.get("merge", {})
+        existing.update({
             "phase": args.phase,
             "case": args.case,
             "target": args.target,
             "branch": args.branch,
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        }
-        # 기존 파일이 있으면 병합
-        if state_file.exists():
-            try:
-                old_state = json.loads(state_file.read_text())
-                if isinstance(old_state, dict):
-                    old_state.update(state)
-                    state = old_state
-            except:
-                pass
-        
-        state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2))
-        print(json.dumps({"status": "ok", "data": state}, ensure_ascii=False))
+        })
+        update_meta_key(issue, "merge", existing)
+        print(json.dumps({"status": "ok", "data": existing}, ensure_ascii=False))
 
     elif args.cmd == "read":
-        if state_file.exists():
-            try:
-                state = json.loads(state_file.read_text())
-                print(json.dumps({"status": "ok", "data": state}, ensure_ascii=False))
-            except Exception as e:
-                print(json.dumps({"status": "error", "reason": f"READ_FAILED: {str(e)}"}, ensure_ascii=False))
+        meta = read_meta(issue)
+        state = meta.get("merge")
+        if state:
+            print(json.dumps({"status": "ok", "data": state}, ensure_ascii=False))
         else:
             print(json.dumps({"status": "not_found"}, ensure_ascii=False))
 
     elif args.cmd == "clear":
-        if state_file.exists():
-            state_file.unlink()
+        clear_meta_keys(issue, ["merge"])
         print(json.dumps({"status": "ok"}, ensure_ascii=False))
-    
+
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

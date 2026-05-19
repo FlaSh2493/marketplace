@@ -21,7 +21,7 @@ STEP 4  [GATE] 검토
 STEP 5  완료
 ```
 
-최종 산출물은 항상 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`다.
+최종 산출물은 항상 `~/Documents/autopilot/{data.issue}/plan.md`다.
 
 ---
 
@@ -46,7 +46,7 @@ STEP 5  완료
 
 ## STEP 3: 작성
 
-Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`에 `template.md` 형식으로 플랜을 작성한다.
+Write 도구로 `~/Documents/autopilot/{data.issue}/plan.md`에 `template.md` 형식으로 플랜을 작성한다.
 
 > 플랜 모드일 때는 시스템이 위 경로 쓰기를 차단하므로 `TMP_PLAN_PATH`에 작성한다.
 
@@ -58,7 +58,7 @@ Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`에 `template
 - **저장** → STEP 5.
 - **수정** → 사용자 지시대로 `plan.md`를 덮어쓰고 STEP 4 반복.
 
-플랜 모드면 `ExitPlanMode`를 호출해 검토를 받는다. 승인 직후 `TMP_PLAN_PATH` 내용을 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`로 복사한 뒤 STEP 5로 이동한다.
+플랜 모드면 `ExitPlanMode`를 호출해 검토를 받는다. 승인 직후 `TMP_PLAN_PATH` 내용을 `~/Documents/autopilot/{data.issue}/plan.md`로 복사한 뒤 STEP 5로 이동한다.
 
 ---
 
@@ -66,7 +66,7 @@ Write 도구로 `{data.root_path}/.docs/tasks/{data.issue}/plan.md`에 `template
 
 아래 메시지를 출력하고 종료한다:
 
-> "✅ 플랜 저장 완료: `.docs/tasks/{data.issue}/plan.md`
+> "✅ 플랜 저장 완료: `~/Documents/autopilot/{data.issue}/plan.md`
 > 구현을 시작하려면 `/autopilot:build`를 실행하세요."
 
 이후 어떤 구현도 수행하지 않는다.
