@@ -75,14 +75,20 @@ lint는 `--auto-fix` 플래그로 eslint/biome/ruff `--fix`를 먼저 자동 실
 
 종료 조건:
 - 모든 검증 통과 → STEP 4
-- 3회 시도 후에도 실패 → 보고 후 [STOP]
+- 3회 시도 후에도 실패 → Write 도구로 `~/Documents/autopilot/{issue_key}/check.md`에 실패 항목·에러 개수·실행 시각 기록 후 [STOP]
 
 ---
 
 ## STEP 4: 결과 보고
 
 - 모든 검사 통과: `✅ All checks passed`
+  - Write 도구로 `~/Documents/autopilot/{issue_key}/check.md`에 아래 내용을 작성한다:
+    - 통과한 검증 항목 (lint / check-types / test)
+    - 실행 시각
 - 실패 시: 실패한 도구와 남은 에러 개수 보고
+  - Write 도구로 `~/Documents/autopilot/{issue_key}/check.md`에 아래 내용을 작성한다:
+    - 실패한 검증 항목과 에러 개수
+    - 실행 시각
 
 ---
 

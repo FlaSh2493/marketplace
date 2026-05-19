@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 > **금지:** git push / force push (사용자 확인 없는 강제 동작 일체)
 
+> **종료 규칙:** 어떤 이유로든 [STOP]할 때는 Write 도구로 `~/Documents/autopilot/{issue_key}/merge.md`에 중단 시점(STEP)과 이유를 기록한다. `issue_key`를 알 수 없는 경우(STEP 2 resolve_worktree 실패)에는 `{워크트리브랜치}`를 경로로 대신 사용한다.
+
 ## 사용법
 `/autopilot:merge [{워크트리브랜치}]`
 
@@ -96,6 +98,9 @@ cd '{worktree_path}' && git merge origin/{target_branch}
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/merge_state.py clear --issue '{issue}'
 ```
 
+- Write 도구로 `~/Documents/autopilot/{issue_key}/merge.md`에 아래 내용을 작성한다:
+  - target_branch, worktree_branch
+
 싱크 완료 메시지 출력 (target_branch, worktree_branch, issue_key). AskUserQuestion: "다음 단계: 1) `/autopilot:pr` 2) 추가 작업 계속"
 
 [STOP]
@@ -160,6 +165,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/merge_worktrees.py {target_br
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/merge_state.py clear --issue '{issue}'
 ```
+
+- Write 도구로 `~/Documents/autopilot/{issue_key}/merge.md`에 아래 내용을 작성한다:
+  - target_branch, worktree_branch
 
 머지 완료 메시지 출력 (target_branch, worktree_branch, issue_key). AskUserQuestion: "다음 단계: 1) `/autopilot:pr` 2) `/autopilot:end` 3) 추가 작업 계속"
 
