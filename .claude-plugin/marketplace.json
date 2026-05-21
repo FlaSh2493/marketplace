@@ -24,9 +24,9 @@
       "version": "0.1.0"
     },
     {
-      "name": "task-sync",
-      "source": "./plugins/task-sync",
-      "description": "Task spec & Jira bidirectional sync",
+      "name": "jsync",
+      "source": "./plugins/jsync",
+      "description": "Jira 이슈 REST API 기반 로컬 저장·편집·동기화. 컨텍스트 절약형.",
       "version": "0.1.0"
     },
     {
