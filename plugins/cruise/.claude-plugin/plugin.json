@@ -1,0 +1,9 @@
+{
+  "name": "cruise",
+  "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰",
+  "version": "0.1.0",
+  "author": {
+    "name": "내 프로젝트",
+    "email": "admin@example.com"
+  }
+}
