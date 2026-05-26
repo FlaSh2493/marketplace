@@ -8,11 +8,13 @@ disable-model-invocation: true
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/pr.md` 를 기록하고 [STOP]한다.
+>
 > - frontmatter 공통 10필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
 > **금지:**
+>
 > - force push / `--force-with-lease` 일체 사용 안 함
 > - 산출물 작성 후 요약·다음 액션 추천 일체 출력하지 않는다 ("완료" 한 줄만)
 > - 다른 스킬을 자동으로 호출하지 않는다 (pr 완료 후 review 자동 진입 금지)
@@ -33,9 +35,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
    ```bash
    git log @{upstream}..HEAD --oneline 2>/dev/null || git log origin/{base_branch}..HEAD --oneline
    ```
-2. base 대비 커밋 50개 초과 시 `AskUserQuestion` 경고 게이트:
-   - "커밋이 {n}개입니다. PR을 계속 생성할까요?" (계속/취소)
-   - 취소 → status=cancelled 로 pr.md 기록 후 [STOP]
 
 ---
 
@@ -83,6 +82,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 `AskUserQuestion`: "이 내용으로 PR을 생성할까요?"
 
 표시:
+
 - 제목: `{title}`
 - base 브랜치: `{base_branch}`
 - 라벨: `{labels}`
@@ -102,6 +102,7 @@ git push -u origin HEAD
 ```
 
 실패 (non-ff 등):
+
 - force 일체 사용하지 않음
 - status=failed 로 pr.md 기록 후 [STOP]
 
@@ -127,29 +128,31 @@ gh pr create \
 ## STEP 10 — pr.md 저장
 
 frontmatter (공통 10필드 + 스킬별):
+
 ```yaml
 ---
-key: {KEY}
-key_source: {key_source}
+key: { KEY }
+key_source: { key_source }
 skill: pr
-summary: {task.md에서 상속, 없으면 ""}
-branch: {branch}
-repo: {repo}
-head_sha: {git rev-parse --short HEAD}
+summary: { task.md에서 상속, 없으면 "" }
+branch: { branch }
+repo: { repo }
+head_sha: { git rev-parse --short HEAD }
 status: completed
-created: {UTC ISO8601}
-updated: {UTC ISO8601}
+created: { UTC ISO8601 }
+updated: { UTC ISO8601 }
 tags: []
 pr_url: "https://github.com/{repo}/pull/{n}"
-pr_number: {n}
-base_branch: {base_branch}
+pr_number: { n }
+base_branch: { base_branch }
 labels:
-  - {label}
-assignee: {my_login}
+  - { label }
+assignee: { my_login }
 ---
 ```
 
 본문:
+
 - `# PR — {KEY}` (H1)
 - `## 제목` — PR 제목
 - `## 본문` — PR 본문 (요약)
