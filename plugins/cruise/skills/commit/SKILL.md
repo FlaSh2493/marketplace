@@ -59,7 +59,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/commit/scripts/group_changes.py {root}
 그룹별로 순서대로:
 ```bash
 git add {파일들...}
-git commit -m "{type}({scope}): {subject}
+git commit -m "{type}({scope}): {subject}{ [KEY]}
 
 {body (선택)}"
 ```
@@ -68,7 +68,7 @@ git commit -m "{type}({scope}): {subject}
 - Conventional Commits 형식: `type(scope): subject`
 - type: feat | fix | refactor | chore | docs | style | test | perf
 - subject: 명령형 동사로 시작, 소문자
-- 이슈 키가 있으면 footer: `Closes {KEY}` 추가
+- **이슈 키가 있으면 subject 끝에 ` [{KEY}]` 형태로 반드시 포함한다.** `key_source == "slug"`인 경우 생략.
 
 ---
 
