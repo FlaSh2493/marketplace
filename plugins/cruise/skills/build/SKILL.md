@@ -76,8 +76,6 @@ plan.md 의 `## 구현 계획` 섹션 읽기.
 
 각 Phase 처리:
 
-0. **사전 확인**: Phase 실행 전 대상 파일을 먼저 읽어 의도된 변경이 이미 적용되어 있는지 확인한다. 만족되면 Phase를 `skipped`로 마킹하고 다음 Phase로 진행한다.
-
 1. Phase 메타 `delegate` 확인:
    - `yes` → `agents/cruise-builder.md` 에이전트에 위임
    - `no` → 메인에서 직접 처리
