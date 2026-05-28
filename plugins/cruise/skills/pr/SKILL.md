@@ -27,6 +27,8 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
+결과를 메모리에 보관: `root`, `branch`, `key`, `base_branch`, `repo`, `task_md_exists`, `pr_md_exists`.
+
 ---
 
 ## STEP 2 — 사전 검증
@@ -73,7 +75,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 ## STEP 6 — 제목·본문 생성
 
 `templates/pr-title.md` 와 `templates/pr-body.md` 형식을 사용해 PR 제목과 본문 작성.
-`~/Documents/tasks/{KEY}/task.md` 가 있으면 완료 조건 섹션을 PR 체크리스트로 포함.
+`task_md_exists == true` 이면 `~/Documents/tasks/{KEY}/task.md` 의 완료 조건 섹션을 PR 체크리스트로 포함.
 
 ---
 
@@ -134,7 +136,7 @@ frontmatter (공통 10필드 + 스킬별):
 key: { KEY }
 key_source: { key_source }
 skill: pr
-summary: { task.md에서 상속, 없으면 "" }
+summary: { task_md_exists == true 면 task.md 에서 상속, 아니면 "" }
 branch: { branch }
 repo: { repo }
 head_sha: { git rev-parse --short HEAD }

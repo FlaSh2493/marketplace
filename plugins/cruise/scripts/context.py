@@ -4,7 +4,10 @@ CWD → 컨텍스트 JSON 출력. 모든 cruise 스킬의 진입점.
 
 Usage: python3 context.py
 Output: JSON {root, branch, key, key_source, base_branch, base_source,
-              task_path?, has_uncommitted, has_pr, pr_number?, repo}
+              task_path, task_md_exists, plan_md_exists, build_md_exists,
+              check_md_exists, commit_md_exists, merge_md_exists,
+              pr_md_exists, review_md_exists,
+              has_uncommitted, has_pr, pr_number?, repo}
 """
 import json
 import os
@@ -93,12 +96,19 @@ def main():
             base_branch = best_cand
             base_source = "heuristic"
 
-    # 4. task_path
-    task_path = None
+    # 4. cruise artifact paths (task_path 항상 emit + 산출물별 존재 여부 boolean)
     tasks_dir = Path.home() / "Documents" / "tasks" / key
-    candidate = tasks_dir / "task.md"
-    if candidate.exists():
-        task_path = str(candidate)
+    task_md = tasks_dir / "task.md"
+
+    task_path = str(task_md)
+    task_md_exists = task_md.exists()
+    plan_md_exists = (tasks_dir / "plan.md").exists()
+    build_md_exists = (tasks_dir / "build.md").exists()
+    check_md_exists = (tasks_dir / "check.md").exists()
+    commit_md_exists = (tasks_dir / "commit.md").exists()
+    merge_md_exists = (tasks_dir / "merge.md").exists()
+    pr_md_exists = (tasks_dir / "pr.md").exists()
+    review_md_exists = (tasks_dir / "review.md").exists()
 
     # 5. uncommitted
     out, _, _ = run("git status --porcelain", cwd=root)
@@ -124,8 +134,15 @@ def main():
         "has_pr": has_pr,
         "repo": repo,
     }
-    if task_path:
-        result["task_path"] = task_path
+    result["task_path"] = task_path
+    result["task_md_exists"] = task_md_exists
+    result["plan_md_exists"] = plan_md_exists
+    result["build_md_exists"] = build_md_exists
+    result["check_md_exists"] = check_md_exists
+    result["commit_md_exists"] = commit_md_exists
+    result["merge_md_exists"] = merge_md_exists
+    result["pr_md_exists"] = pr_md_exists
+    result["review_md_exists"] = review_md_exists
     if pr_number is not None:
         result["pr_number"] = pr_number
 

@@ -26,6 +26,8 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
+결과를 메모리에 보관: `root`, `branch`, `key`, `repo`, `has_pr`, `pr_number`, `task_md_exists`, `review_md_exists`.
+
 `has_pr` 가 false면:
 - status=failed 로 review.md 기록 ("PR이 없습니다.")
 - [STOP]
@@ -109,7 +111,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {root}
 
 ## STEP 8 — review.md 저장
 
-기존 review.md 가 있으면 `iterations[]` 에 append. 없으면 신규 생성.
+`review_md_exists == true` 이면 기존 review.md 의 `iterations[]` 에 append. `false` 이면 신규 생성.
 
 frontmatter (공통 10필드 + 스킬별):
 ```yaml
@@ -117,7 +119,7 @@ frontmatter (공통 10필드 + 스킬별):
 key: {KEY}
 key_source: {key_source}
 skill: review
-summary: {task.md에서 상속, 없으면 ""}
+summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
 branch: {branch}
 repo: {repo}
 head_sha: {git rev-parse --short HEAD}

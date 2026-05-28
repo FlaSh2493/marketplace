@@ -29,13 +29,13 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`, `build_md_exists`.
 
 ---
 
 ## STEP 2 — task.md 처리
 
-**있는 경우** (`task_path` 존재):
+**있는 경우** (`task_md_exists == true`):
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py \
@@ -45,7 +45,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/load_issue.py \
 
 섹션 내용을 베이스 명세로 사용. STEP 3 진행.
 
-**없는 경우** (task_path 없음):
+**없는 경우** (`task_md_exists == false`):
 현재 대화 컨텍스트에서 아래 구조로 task.md를 자동 추출한다:
 
 ```yaml

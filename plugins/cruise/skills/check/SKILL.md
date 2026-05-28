@@ -27,7 +27,7 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `task_md_exists`, `check_md_exists`.
 
 ---
 
@@ -91,7 +91,7 @@ frontmatter (공통 10필드 + 스킬별):
 key: {KEY}
 key_source: {key_source}
 skill: check
-summary: {task.md에서 상속, 없으면 ""}
+summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
 branch: {branch}
 repo: {repo}
 head_sha: {git rev-parse --short HEAD}

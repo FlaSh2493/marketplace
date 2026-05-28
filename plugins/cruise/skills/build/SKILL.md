@@ -25,26 +25,26 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `task_path`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `task_path`, `task_md_exists`, `plan_md_exists`, `build_md_exists`.
 
 ---
 
 ## STEP 2 — 선행 조건 확인
 
-`~/Documents/tasks/{KEY}/task.md` 와 `~/Documents/tasks/{KEY}/plan.md` 가 모두 존재해야 한다.
-둘 중 하나라도 없으면:
-- status=failed 로 build.md 기록 (본문에 누락 파일 명시)
+`task_md_exists == true && plan_md_exists == true` 이어야 한다.
+둘 중 하나라도 false면:
+- status=failed 로 build.md 기록 (본문에 누락 파일 명시 — 어떤 boolean이 false인지 기재)
 - [STOP]
 
 ---
 
 ## STEP 3 — 분기: 신규 실행 vs 재호출
 
-`~/Documents/tasks/{KEY}/build.md` 존재 여부 확인.
+`build_md_exists` 확인.
 
-**없음 → STEP 4 (신규 실행)**
+**`build_md_exists == false` → STEP 4 (신규 실행)**
 
-**있음 → STEP 3a (재호출 모드)**
+**`build_md_exists == true` → STEP 3a (재호출 모드)**
 
 ### STEP 3a — 재호출 모드 (후속 조정 자동 감지)
 
