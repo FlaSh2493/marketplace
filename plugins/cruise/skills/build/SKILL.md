@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/build.md` 를 기록하고 [STOP]한다.
-> - frontmatter 공통 10필드 + 스킬별 필드 완비
+> - frontmatter 공통 9필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
@@ -16,6 +16,7 @@ disable-model-invocation: true
 > - 산출물 작성 후 요약·다음 액션 추천·후속 작업 제안 일체 출력하지 않는다 ("완료" 한 줄만)
 > - 사용자가 명시적으로 요청하지 않은 어떤 액션도 수행하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
+> - plan.archive / build.archive 디렉토리는 읽지 않는다 (사용자 참조 전용)
 
 ---
 
@@ -38,65 +39,43 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 
 ---
 
-## STEP 3 — 분기: 신규 실행 vs 재호출
+## STEP 3 — plan.md Phase 파싱
 
-`build_md_exists` 확인.
-
-**`build_md_exists == false` → STEP 4 (신규 실행)**
-
-**`build_md_exists == true` → STEP 3a (재호출 모드)**
-
-### STEP 3a — 재호출 모드 (후속 조정 자동 감지)
-
-1. build.md의 frontmatter `head_sha` 읽기
-2. `git rev-parse --short HEAD` 와 비교:
-   - **동일** → 새 변경 없음. status=completed 유지, "완료" 후 [STOP]
-   - **다름** → `git diff {build_head_sha}..HEAD --name-only` 로 변경 파일 추출
-     - build.md 의 `## 후속 조정` 섹션에 아래 블록 append:
-       ```
-       ### 후속 조정 {n} — {UTC ISO8601}
-       - head: {현재 HEAD sha}
-       - 변경 파일: {파일 목록}
-       - 커밋: {git log --oneline {build_head_sha}..HEAD}
-       ```
-     - frontmatter `updated`, `head_sha`, `commits`, `files_changed` 갱신
-3. plan.md 에 신규 Phase 추가 여부 확인 → 있으면 STEP 4 Phase 루프 진입
-4. 변경만 있고 신규 Phase 없으면 "완료" 후 [STOP]
+plan.md 의 `## 구현 계획` 섹션을 읽어 Phase 목록을 추출한다. 각 Phase의 메타(`delegate`)와 본문(요구 상태, 작업 내용)을 메모리에 보관.
 
 ---
 
-## STEP 4 — plan.md Phase 파싱 및 실행 순서 결정
+## STEP 4 — Phase 단위 실행 루프
 
-plan.md 의 `## 구현 계획` 섹션 읽기.
-재호출 모드면 미완료 Phase만 처리.
+`{ts}` 생성 (UTC ISO8601). build.md 끝에 추가될 새 `## Run {ts}` 섹션을 메모리에 누적한다.
 
----
+각 Phase 처리 순서:
 
-## STEP 5 — Phase 단위 구현 루프
+1. **코드 반영 여부 판단**
+   - Phase 명세가 요구하는 상태가 현재 코드에 이미 반영되어 있는지 LLM이 판단
+   - 필요 시 관련 파일을 Read/Grep으로 확인
+   - 결과:
+     - 이미 반영됨 → Run 섹션에 `- {Phase title}: skipped (이미 반영)` 한 줄 추가, 다음 Phase
+     - 미반영 → 2단계 진행
 
-각 Phase 처리:
-
-1. Phase 메타 `delegate` 확인:
+2. **구현 실행** (delegate 규칙)
    - `yes` → `agents/cruise-builder.md` 에이전트에 위임
    - `no` → 메인에서 직접 처리
    - `auto` (기본) → 변경 파일 ≥5개 또는 신규 파일 포함 시 에이전트 위임, 아니면 메인 처리
 
-2. Phase 완료 후 build.md 갱신:
-   - Phase 진행 표 누적 업데이트 (완료 체크)
-   - frontmatter `updated`, `phases_completed` 갱신
+3. **결과 기록**: Run 섹션에 `- {Phase title}: executed` + 변경 파일 목록 한두 줄 append.
 
 게이트 없음. 사용자가 중단하고 싶으면 직접 중단.
 
-**후속 조정 정책**: 1~2줄 사소한 수정은 build.md에 기록하지 않는다.
-실질적 변경 후 `/cruise:build` 재호출 시 자동 감지·기록된다.
+build.md에 진행 상태(`phases_completed` 등)는 저장하지 않는다. 다음 build 호출 시 동일한 "코드 반영 여부 판단"으로 자연 idempotent 동작.
 
 ---
 
-## STEP 6 — 완료
+## STEP 5 — build.md 저장
 
-모든 Phase 완료 후 build.md 최종 저장:
+`build_md_exists == false` 면 신규 생성, true면 끝에 새 Run 섹션을 **append** 한다.
 
-frontmatter (공통 10필드 + 스킬별):
+frontmatter (공통 9필드 + 스킬별):
 ```yaml
 ---
 key: {KEY}
@@ -105,23 +84,21 @@ skill: build
 summary: {task.md에서 상속}
 branch: {branch}
 repo: {repo}
-head_sha: {git rev-parse --short HEAD}
 status: completed
-created: {최초 생성 시각 UTC}
+created: {최초 생성 시각 UTC, 신규 생성 시만 새로 기록 / 기존 파일이면 보존}
 updated: {UTC ISO8601}
 tags: []
-phases_completed: {완료된 Phase 수}
-phases_total: {전체 Phase 수}
-files_changed: {변경된 파일 수}
-commits:
-  - {sha}
+runs_count: {append 누적 Run 섹션 수}
 ---
 ```
 
-본문 구조:
-- `# Build — {KEY}` (H1)
-- `## Phase 진행` — 체크박스 표
-- `## 구현 메모` — Phase별 주요 결정사항
-- `## 후속 조정` — 재호출 시 append되는 블록들
+본문 구조 (append-only):
+- `# Build — {KEY}` (H1, 신규 생성 시만)
+- `## Run {ts}` — 매 호출마다 끝에 추가되는 섹션
+  - `- head: {sha}`
+  - Phase 처리 결과 목록 (skipped / executed)
+  - 필요한 구현 메모
+
+이전 Run 섹션은 절대 수정하지 않는다. 새 plan으로 전환되면 plan 스킬이 build.md 전체를 archive로 이동시킨다.
 
 "완료" 한 줄 출력 후 [STOP].

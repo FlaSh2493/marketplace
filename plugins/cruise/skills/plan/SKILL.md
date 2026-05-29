@@ -9,7 +9,7 @@ disable-model-invocation: true
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/plan.md` 를 기록하고 [STOP]한다.
 >
-> - frontmatter 공통 10필드 + 스킬별 필드 완비
+> - frontmatter 공통 9필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
@@ -19,7 +19,8 @@ disable-model-invocation: true
 > - 사용자가 명시적으로 요청하지 않은 어떤 액션도 수행하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
 > - Plan mode가 동시 활성화된 경우 `~/Documents/tasks/{KEY}/plan.md` 작성 후 ExitPlanMode 호출만 하고 [STOP]한다. 승인 후에도 구현으로 넘어가지 않는다.
-> - 수정 요청 시 plan.md를 갱신하고 "완료"만 출력한다.
+> - 수정 요청 시 plan.md를 갱신하고 "완료"만 출력한다. (이전 plan/build는 STEP 3.5에서 자동 archive)
+> - build.md는 읽지 않는다. plan은 task.md와 대화 컨텍스트만 입력으로 사용한다.
 
 ---
 
@@ -56,7 +57,6 @@ skill: task
 summary: { 대화에서 추출한 한 줄 요약 }
 branch: { branch }
 repo: { repo }
-head_sha: ""
 status: completed
 created: { UTC ISO8601 }
 updated: { UTC ISO8601 }
@@ -86,11 +86,29 @@ task.md는 이후 수정하지 않는다 (소스 오브 트루스 보존).
 
 ---
 
+## STEP 3.5 — 기존 plan/build archive
+
+`plan_md_exists == true` 인 경우에만 수행. 새 plan을 쓰기 전에 이전 산출물을 아카이브한다.
+
+```bash
+TS=$(date -u +%Y%m%dT%H%M%SZ)
+TASK_DIR=~/Documents/tasks/{KEY}
+mkdir -p "$TASK_DIR/plan.archive" "$TASK_DIR/build.archive"
+mv "$TASK_DIR/plan.md" "$TASK_DIR/plan.archive/plan-$TS.md"
+[ -f "$TASK_DIR/build.md" ] && mv "$TASK_DIR/build.md" "$TASK_DIR/build.archive/build-$TS.md"
+```
+
+- 같은 `{ts}` 로 plan과 build를 짝지어 archive (대응 관계 보존)
+- build.md 없으면 build archive는 생략
+- archive 파일은 이후 어떤 스킬도 읽지 않는다 (사용자 참조 전용)
+
+---
+
 ## STEP 4 — plan.md 작성
 
 `templates/plan.md` 형식을 따른다. Write 도구로 `~/Documents/tasks/{KEY}/plan.md` 저장.
 
-frontmatter (공통 10필드 + 스킬별):
+frontmatter (공통 9필드 + 스킬별):
 
 ```yaml
 ---
@@ -100,7 +118,6 @@ skill: plan
 summary: { task.md에서 상속, 없으면 브랜치명 추론 }
 branch: { branch }
 repo: { repo }
-head_sha: { git rev-parse --short HEAD 결과 }
 status: completed
 created: { UTC ISO8601 }
 updated: { UTC ISO8601 }
