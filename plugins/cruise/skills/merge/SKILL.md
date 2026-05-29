@@ -9,7 +9,7 @@ disable-model-invocation: true
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/merge.md` 를 기록하고 [STOP]한다.
 > - 신규: 새 파일 생성. 재호출: `entries[]` 에 append.
-> - frontmatter 공통 10필드 + 스킬별 필드 완비
+> - frontmatter 공통 9필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
@@ -127,7 +127,7 @@ git commit
 
 `merge_md_exists == true` 이면 기존 merge.md 의 `entries[]` 에 항목 append. `false` 이면 신규 생성.
 
-frontmatter (공통 10필드 + 스킬별):
+frontmatter (공통 9필드 + 스킬별):
 ```yaml
 ---
 key: {KEY}
@@ -136,7 +136,6 @@ skill: merge
 summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
 branch: {branch}
 repo: {repo}
-head_sha: {git rev-parse --short HEAD}
 status: completed
 created: {최초 생성 UTC, 재호출 시 유지}
 updated: {UTC ISO8601}

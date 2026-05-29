@@ -5,7 +5,6 @@ skill: plan
 summary: ""
 branch: ""
 repo: ""
-head_sha: ""
 status: completed
 created: ""
 updated: ""

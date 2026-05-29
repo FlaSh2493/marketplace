@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/commit.md` 를 기록하고 [STOP]한다.
-> - frontmatter 공통 10필드 + 스킬별 필드 완비
+> - frontmatter 공통 9필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
@@ -76,7 +76,7 @@ git commit -m "{type}({scope}): {subject}{ [KEY]}
 
 ## STEP 6 — commit.md 저장
 
-frontmatter (공통 10필드 + 스킬별):
+frontmatter (공통 9필드 + 스킬별):
 ```yaml
 ---
 key: {KEY}
@@ -85,7 +85,6 @@ skill: commit
 summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
 branch: {branch}
 repo: {repo}
-head_sha: {git rev-parse --short HEAD}
 status: completed
 created: {UTC ISO8601}
 updated: {UTC ISO8601}
