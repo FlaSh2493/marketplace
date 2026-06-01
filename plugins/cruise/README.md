@@ -3,7 +3,7 @@
 > 이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰
 
 CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동작.
-산출물은 `~/Documents/tasks/{KEY}/` 에 7개 `.md`로만 남긴다.
+산출물은 `~/Documents/tasks/{KEY}/` 에 `.md`로만 남긴다.
 
 ---
 
@@ -12,7 +12,7 @@ CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동
 | 스킬 | 명령어 | 설명 |
 |------|--------|------|
 | plan | `/cruise:plan` | 이슈 명세 분석 → 코드베이스 영향 탐색 → plan.md 생성 |
-| build | `/cruise:build` | plan.md Phase 단위 구현. 재호출 시 후속 조정 자동 감지 |
+| build | `/cruise:build` | plan.md Phase 단위 구현. 종료 시 브랜치 전체 변경 요약 summary.md 갱신 |
 | check | `/cruise:check` | lint → type → test 순차 실행. 실패 시 자동 수정 (최대 3회) |
 | commit | `/cruise:commit` | 변경사항 도메인별 그룹핑 → Conventional Commits 형식 커밋 |
 | merge | `/cruise:merge` | 현재 브랜치로 소스 브랜치 머지 (항상 `git merge`) |
@@ -42,7 +42,8 @@ plan → build → check → commit → merge → pr → review
 ~/Documents/tasks/{KEY}/
 ├── task.md      ← 이슈 명세 (jsync 또는 cruise-inline)
 ├── plan.md
-├── build.md
+├── build.md     ← ## Run append 로그
+├── summary.md   ← 브랜치 전체(base 대비) 변경 요약. build마다 덮어쓰기
 ├── check.md
 ├── commit.md
 ├── merge.md     ← entries[] append
@@ -50,7 +51,7 @@ plan → build → check → commit → merge → pr → review
 └── review.md    ← iterations[] append
 ```
 
-frontmatter는 모든 파일이 동일한 10개 공통 필드를 가진다 (인덱싱 균일성).
+frontmatter는 모든 파일이 동일한 9개 공통 필드를 가진다 (인덱싱 균일성).
 
 ---
 

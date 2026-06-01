@@ -93,13 +93,14 @@ task.md는 이후 수정하지 않는다 (소스 오브 트루스 보존).
 ```bash
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 TASK_DIR=~/Documents/tasks/{KEY}
-mkdir -p "$TASK_DIR/plan.archive" "$TASK_DIR/build.archive"
+mkdir -p "$TASK_DIR/plan.archive" "$TASK_DIR/build.archive" "$TASK_DIR/summary.archive"
 mv "$TASK_DIR/plan.md" "$TASK_DIR/plan.archive/plan-$TS.md"
-[ -f "$TASK_DIR/build.md" ] && mv "$TASK_DIR/build.md" "$TASK_DIR/build.archive/build-$TS.md"
+[ -f "$TASK_DIR/build.md" ]   && mv "$TASK_DIR/build.md"   "$TASK_DIR/build.archive/build-$TS.md"
+[ -f "$TASK_DIR/summary.md" ] && mv "$TASK_DIR/summary.md" "$TASK_DIR/summary.archive/summary-$TS.md"
 ```
 
-- 같은 `{ts}` 로 plan과 build를 짝지어 archive (대응 관계 보존)
-- build.md 없으면 build archive는 생략
+- 같은 `{ts}` 로 plan / build / summary를 짝지어 archive (대응 관계 보존)
+- build.md · summary.md 없으면 해당 archive는 생략
 - archive 파일은 이후 어떤 스킬도 읽지 않는다 (사용자 참조 전용)
 
 ---
