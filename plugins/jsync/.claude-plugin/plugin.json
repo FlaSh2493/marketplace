@@ -1,7 +1,7 @@
 {
   "name": "jsync",
   "description": "Jira 이슈를 REST API로 로컬에 저장하고 편집 후 동기화. 컨텍스트 절약형 설계 — 응답은 메모리에서 처리 후 디스크에만 저장.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "flash2493",
     "email": "scnam@madup.com"
