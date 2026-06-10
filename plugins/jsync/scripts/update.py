@@ -24,9 +24,9 @@ from jira_client import (
     update_issue, transition_issue, list_transitions,
     add_comment, add_worklog,
     add_issue_link, delete_issue_link,
-    get_issue,
+    get_issue, upload_attachment,
 )
-from md_adf import md_to_adf
+from md_adf import md_to_adf, adf_to_md
 
 ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+-\d+$")
 READONLY_SECTIONS = {"Subtasks", "Comments", "Worklog", "Attachments"}
@@ -239,14 +239,44 @@ def _slugify_link(name: str) -> str:
 # Description diff
 # ---------------------------------------------------------------------------
 
-def desc_changed(new_md: str, raw: dict, refs: dict) -> bool:
+def desc_changed(new_md: str, raw: dict, refs: dict, media_map: dict | None = None) -> bool:
     f = raw.get("fields", {})
     old_adf = f.get("description")
     if not old_adf and not new_md.strip():
         return False
-    from md_adf import adf_to_md
-    old_md = adf_to_md(old_adf, {}) if old_adf else ""
+    old_md = adf_to_md(old_adf, {}, media_map or {}) if old_adf else ""
     return new_md.strip() != old_md.strip()
+
+
+IMG_REF_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+
+
+def resolve_images(key: str, desc_md: str, meta: dict) -> dict:
+    """Build {path: mediaSingle node} for every image referenced in desc_md.
+    - Existing images: restore the original node stored in meta['media_refs'].
+    - New local images (under <KEY>/attachments/): upload, then synthesize a node.
+    Unresolvable paths are omitted (md_to_adf drops them)."""
+    media_refs = meta.get("media_refs", {}) or {}
+    resolve: dict = {}
+    for path in IMG_REF_RE.findall(desc_md):
+        if path in resolve:
+            continue
+        if path in media_refs:
+            resolve[path] = media_refs[path]
+            continue
+        local = STORE_ROOT / key / path
+        if local.exists():
+            created = upload_attachment(key, local)
+            if created:
+                resolve[path] = {
+                    "type": "mediaSingle",
+                    "attrs": {"layout": "center"},
+                    "content": [{
+                        "type": "media",
+                        "attrs": {"id": str(created["id"]), "type": "file", "collection": ""},
+                    }],
+                }
+    return resolve
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +311,9 @@ def main():
     meta = load_meta(key)
     refs = load_adf_refs(key)
 
+    from fetch import build_media_map
+    media_map = build_media_map(raw.get("fields", {}).get("attachment", []))
+
     changed_labels = []
     put_fields = {}
 
@@ -305,8 +338,9 @@ def main():
         changed_labels.append("customfields")
 
     # Description
-    if desc_changed(desc_md, raw, refs):
-        put_fields["description"] = md_to_adf(desc_md, refs)
+    if desc_changed(desc_md, raw, refs, media_map):
+        media_resolve = resolve_images(key, desc_md, meta)
+        put_fields["description"] = md_to_adf(desc_md, refs, media_resolve)
         changed_labels.append("description")
 
     # PUT

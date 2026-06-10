@@ -31,6 +31,12 @@ def issue_dir(key: str) -> Path:
     return d
 
 
+def attachments_dir(key: str) -> Path:
+    d = issue_dir(key) / "attachments"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def log_file(key: str) -> Path:
     return issue_dir(key) / ".log"
 

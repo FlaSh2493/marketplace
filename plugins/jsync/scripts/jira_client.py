@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import sys
 from base64 import b64encode
 from pathlib import Path
@@ -194,6 +195,50 @@ def remove_watcher(key: str, account_id: str):
     resp = _get_session().delete(_url(f"issue/{key}/watchers"), params={"accountId": account_id})
     if not resp.ok:
         _raise(resp, f"DELETE watcher/{key}")
+
+
+def download_file(url: str, dest: Path, key: str = "") -> bool:
+    """Stream a Jira attachment content URL to dest. Returns True on success.
+    Failures are logged and skipped (never abort the whole fetch)."""
+    try:
+        resp = _get_session().get(url, stream=True, headers={"Accept": "*/*"})
+        if not resp.ok:
+            _log(key, f"download failed {resp.status_code}: {url}")
+            return False
+        with open(dest, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=65536):
+                if chunk:
+                    f.write(chunk)
+        return True
+    except Exception as e:
+        _log(key, f"download error: {url}: {e}")
+        return False
+
+
+def upload_attachment(key: str, file_path: Path) -> dict | None:
+    """POST a file as an issue attachment. Returns the created attachment dict
+    (with 'id', 'filename') or None on failure."""
+    fp = Path(file_path)
+    mimetype = mimetypes.guess_type(fp.name)[0] or "application/octet-stream"
+    with open(fp, "rb") as fh:
+        resp = _get_session().post(
+            _url(f"issue/{key}/attachments"),
+            headers={
+                "X-Atlassian-Token": "no-check",
+                # None removes the session's default header so requests can set
+                # the multipart boundary itself.
+                "Content-Type": None,
+                "Accept": "application/json",
+            },
+            files={"file": (fp.name, fh, mimetype)},
+        )
+    if not resp.ok:
+        _raise(resp, f"POST attachment/{key} ({fp.name})", key)
+    data = resp.json()
+    created = data[0] if isinstance(data, list) and data else None
+    if created:
+        _log(key, f"uploaded attachment: {fp.name} -> id={created.get('id')}")
+    return created
 
 
 def lookup_account(email: str) -> str | None:

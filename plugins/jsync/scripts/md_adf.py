@@ -13,7 +13,8 @@ import json
 # ADF -> Markdown
 # ---------------------------------------------------------------------------
 
-def adf_to_md(node: dict, refs: dict | None = None) -> str:
+def adf_to_md(node: dict, refs: dict | None = None,
+              media_map: dict | None = None, media_refs: dict | None = None) -> str:
     if refs is None:
         refs = {}
     t = node.get("type", "")
@@ -21,31 +22,65 @@ def adf_to_md(node: dict, refs: dict | None = None) -> str:
     attrs = node.get("attrs", {})
 
     if t == "doc":
-        return "\n\n".join(_adf_block(c, refs) for c in content).strip()
-    return _adf_block(node, refs)
+        return "\n\n".join(_adf_block(c, refs, media_map, media_refs) for c in content).strip()
+    return _adf_block(node, refs, media_map, media_refs)
 
 
-def _adf_block(node: dict, refs: dict) -> str:
+def _render_media(node: dict, media_map: dict | None, media_refs: dict | None) -> str | None:
+    """Render a media / mediaSingle / mediaGroup node as markdown image line(s).
+    Returns None if any media id is unknown (caller falls back to placeholder).
+    Records the original wrapper in media_refs (keyed by local path) for round-trip."""
+    t = node.get("type", "")
+    if t == "media":
+        medias = [node]
+    else:  # mediaSingle / mediaGroup
+        medias = [c for c in node.get("content", []) if c.get("type") == "media"]
+    if not medias:
+        return None
+
+    single_wrapper = t == "mediaSingle" and len(medias) == 1
+    lines = []
+    for m in medias:
+        mid = m.get("attrs", {}).get("id", "")
+        fname = (media_map or {}).get(mid)
+        if not fname:
+            return None  # unknown media -> let caller preserve as placeholder
+        path = f"attachments/{fname}"
+        if media_refs is not None:
+            if single_wrapper:
+                media_refs[path] = node  # exact original wrapper (common case)
+            else:
+                media_refs[path] = {
+                    "type": "mediaSingle",
+                    "attrs": {"layout": "center"},
+                    "content": [m],
+                }
+        lines.append(f"![{fname}]({path})")
+    return "\n\n".join(lines)
+
+
+def _adf_block(node: dict, refs: dict,
+               media_map: dict | None = None, media_refs: dict | None = None) -> str:
     t = node.get("type", "")
     content = node.get("content", [])
     attrs = node.get("attrs", {})
 
     if t == "paragraph":
-        return _inline_content(content, refs)
+        return _inline_content(content, refs, media_map, media_refs)
 
     if t == "heading":
         level = attrs.get("level", 1)
-        text = _inline_content(content, refs)
+        text = _inline_content(content, refs, media_map, media_refs)
         return f"{'#' * level} {text}"
 
     if t == "bulletList":
-        return "\n".join(_list_item(c, refs, ordered=False) for c in content)
+        return "\n".join(_list_item(c, refs, False, 0, media_map, media_refs) for c in content)
 
     if t == "orderedList":
-        return "\n".join(_list_item(c, refs, ordered=True, idx=i+1) for i, c in enumerate(content))
+        return "\n".join(_list_item(c, refs, True, i+1, media_map, media_refs) for i, c in enumerate(content))
 
     if t == "taskList":
-        return "\n".join(_task_item(c, refs) for c in content)
+        return "\n".join(_task_item(c, refs, media_map, media_refs) for c in content)
 
     if t == "codeBlock":
         lang = attrs.get("language", "")
@@ -53,14 +88,20 @@ def _adf_block(node: dict, refs: dict) -> str:
         return f"```{lang}\n{code}\n```"
 
     if t == "blockquote":
-        inner = "\n\n".join(_adf_block(c, refs) for c in content)
+        inner = "\n\n".join(_adf_block(c, refs, media_map, media_refs) for c in content)
         return "\n".join(f"> {line}" for line in inner.splitlines())
 
     if t == "rule":
         return "---"
 
     if t == "table":
-        return _adf_table(node, refs)
+        return _adf_table(node, refs, media_map, media_refs)
+
+    if t in ("media", "mediaSingle", "mediaGroup"):
+        rendered = _render_media(node, media_map, media_refs)
+        if rendered is not None:
+            return rendered
+        # fall through to placeholder if media id unknown
 
     # Unsupported node — preserve as placeholder
     idx = len(refs)
@@ -69,31 +110,34 @@ def _adf_block(node: dict, refs: dict) -> str:
     return f"<!-- {key} -->"
 
 
-def _list_item(node: dict, refs: dict, ordered: bool, idx: int = 0) -> str:
+def _list_item(node: dict, refs: dict, ordered: bool, idx: int = 0,
+               media_map: dict | None = None, media_refs: dict | None = None) -> str:
     prefix = f"{idx}." if ordered else "-"
     parts = []
     for c in node.get("content", []):
         if c.get("type") == "paragraph":
-            parts.append(_inline_content(c.get("content", []), refs))
+            parts.append(_inline_content(c.get("content", []), refs, media_map, media_refs))
         else:
-            inner = _adf_block(c, refs)
+            inner = _adf_block(c, refs, media_map, media_refs)
             parts.append("\n" + "\n".join(f"  {l}" for l in inner.splitlines()))
     return f"{prefix} " + "\n".join(parts)
 
 
-def _task_item(node: dict, refs: dict) -> str:
+def _task_item(node: dict, refs: dict,
+               media_map: dict | None = None, media_refs: dict | None = None) -> str:
     done = node.get("attrs", {}).get("state") == "DONE"
     check = "[x]" if done else "[ ]"
-    text = _inline_content(node.get("content", [{}])[0].get("content", []), refs)
+    text = _inline_content(node.get("content", [{}])[0].get("content", []), refs, media_map, media_refs)
     return f"- {check} {text}"
 
 
-def _adf_table(node: dict, refs: dict) -> str:
+def _adf_table(node: dict, refs: dict,
+               media_map: dict | None = None, media_refs: dict | None = None) -> str:
     rows = []
     for row in node.get("content", []):
         cells = []
         for cell in row.get("content", []):
-            inner = " ".join(_adf_block(c, refs) for c in cell.get("content", []))
+            inner = " ".join(_adf_block(c, refs, media_map, media_refs) for c in cell.get("content", []))
             cells.append(inner.replace("|", "\\|"))
         rows.append("| " + " | ".join(cells) + " |")
     if not rows:
@@ -103,7 +147,8 @@ def _adf_table(node: dict, refs: dict) -> str:
     return "\n".join([header, sep] + rows[1:])
 
 
-def _inline_content(content: list, refs: dict) -> str:
+def _inline_content(content: list, refs: dict,
+                    media_map: dict | None = None, media_refs: dict | None = None) -> str:
     parts = []
     for node in content:
         t = node.get("type", "")
@@ -150,14 +195,17 @@ def _inline_content(content: list, refs: dict) -> str:
 # Markdown -> ADF
 # ---------------------------------------------------------------------------
 
-def md_to_adf(md: str, refs: dict | None = None) -> dict:
+IMAGE_LINE_RE = re.compile(r"^!\[[^\]]*\]\(([^)]+)\)\s*$")
+
+
+def md_to_adf(md: str, refs: dict | None = None, media_resolve: dict | None = None) -> dict:
     if refs is None:
         refs = {}
-    blocks = _parse_md_blocks(md, refs)
+    blocks = _parse_md_blocks(md, refs, media_resolve)
     return {"type": "doc", "version": 1, "content": blocks}
 
 
-def _parse_md_blocks(md: str, refs: dict) -> list:
+def _parse_md_blocks(md: str, refs: dict, media_resolve: dict | None = None) -> list:
     lines = md.splitlines()
     blocks = []
     i = 0
@@ -169,6 +217,16 @@ def _parse_md_blocks(md: str, refs: dict) -> list:
         m = re.match(r"^<!--\s*(adf-ref-\d+)\s*-->$", line)
         if m and m.group(1) in refs:
             blocks.append(refs[m.group(1)])
+            i += 1
+            continue
+
+        # Image line -> media node (resolved by caller: existing or freshly uploaded)
+        m = IMAGE_LINE_RE.match(line)
+        if m:
+            node = (media_resolve or {}).get(m.group(1))
+            if node is not None:
+                blocks.append(node)
+            # unresolved image path -> drop the line (avoid emitting raw markdown)
             i += 1
             continue
 
@@ -201,7 +259,7 @@ def _parse_md_blocks(md: str, refs: dict) -> list:
             while i < len(lines) and lines[i].startswith("> "):
                 bq_lines.append(lines[i][2:])
                 i += 1
-            inner = _parse_md_blocks("\n".join(bq_lines), refs)
+            inner = _parse_md_blocks("\n".join(bq_lines), refs, media_resolve)
             blocks.append({"type": "blockquote", "content": inner})
             continue
 
@@ -228,13 +286,13 @@ def _parse_md_blocks(md: str, refs: dict) -> list:
 
         # Bullet list
         if re.match(r"^[-*+] ", line):
-            items, i = _collect_list_items(lines, i, refs, ordered=False)
+            items, i = _collect_list_items(lines, i, refs, ordered=False, media_resolve=media_resolve)
             blocks.append({"type": "bulletList", "content": items})
             continue
 
         # Ordered list
         if re.match(r"^\d+\. ", line):
-            items, i = _collect_list_items(lines, i, refs, ordered=True)
+            items, i = _collect_list_items(lines, i, refs, ordered=True, media_resolve=media_resolve)
             blocks.append({"type": "orderedList", "content": items})
             continue
 
@@ -261,11 +319,13 @@ def _is_block_start(line: str) -> bool:
         line.startswith("> ") or
         re.match(r"^[-*+] ", line) or
         re.match(r"^\d+\. ", line) or
+        IMAGE_LINE_RE.match(line) or
         re.match(r"^(-{3,}|\*{3,}|_{3,})$", line.strip())
     )
 
 
-def _collect_list_items(lines: list, start: int, refs: dict, ordered: bool) -> tuple:
+def _collect_list_items(lines: list, start: int, refs: dict, ordered: bool,
+                        media_resolve: dict | None = None) -> tuple:
     items = []
     i = start
     pattern = r"^\d+\. " if ordered else r"^[-*+] "
@@ -279,7 +339,7 @@ def _collect_list_items(lines: list, start: int, refs: dict, ordered: bool) -> t
             nested_lines.append(lines[i][2:])
             i += 1
         if nested_lines:
-            item_content += _parse_md_blocks("\n".join(nested_lines), refs)
+            item_content += _parse_md_blocks("\n".join(nested_lines), refs, media_resolve)
         items.append({"type": "listItem", "content": item_content})
     return items, i
 

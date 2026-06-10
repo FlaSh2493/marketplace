@@ -17,11 +17,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import check_deps, issue_dir, get_env
+from common import check_deps, issue_dir, attachments_dir, get_env
 check_deps()
 
 import yaml
-from jira_client import get_issue, get_editmeta, search_issues, get_comments, get_worklogs
+from jira_client import (
+    get_issue, get_editmeta, search_issues, get_comments, get_worklogs, download_file,
+)
 from md_adf import adf_to_md
 
 ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+-\d+$")
@@ -85,13 +87,31 @@ def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
+def build_media_map(attachments: list) -> dict:
+    """Returns {attachment_id: stored_filename}. Filename collisions (same name,
+    different id) are disambiguated by prefixing the attachment id. The same rule
+    must be used on fetch (download) and update (round-trip) sides."""
+    seen: dict[str, str] = {}  # filename -> id
+    result: dict[str, str] = {}
+    for a in attachments:
+        aid = str(a.get("id", ""))
+        fname = a.get("filename") or aid
+        if fname in seen and seen[fname] != aid:
+            fname = f"{aid}_{fname}"
+        seen[fname] = aid
+        result[aid] = fname
+    return result
+
+
 def build_transitions_map(issue: dict) -> dict:
     """Returns {status_name: transition_id} — placeholder; fetched lazily on update."""
     return {}
 
 
-def render_task_md(issue: dict, refs: dict, cf_map: dict, comments: list, worklogs: list) -> str:
+def render_task_md(issue: dict, refs: dict, cf_map: dict, comments: list, worklogs: list,
+                   media_map: dict | None = None, media_refs: dict | None = None) -> str:
     f = issue.get("fields", {})
+    media_map = media_map or {}
 
     # --- Frontmatter ---
     fm = {}
@@ -146,7 +166,7 @@ def render_task_md(issue: dict, refs: dict, cf_map: dict, comments: list, worklo
     # --- Description body ---
     description_adf = f.get("description")
     if description_adf and isinstance(description_adf, dict):
-        body = adf_to_md(description_adf, refs)
+        body = adf_to_md(description_adf, refs, media_map, media_refs)
     else:
         body = ""
 
@@ -188,7 +208,9 @@ def render_task_md(issue: dict, refs: dict, cf_map: dict, comments: list, worklo
     if attachments:
         att_md = "\n## Attachments  <!-- read-only -->\n"
         for a in attachments:
-            att_md += f"- [{a['filename']}]({a['content']})\n"
+            aid = str(a.get("id", ""))
+            fname = media_map.get(aid, a.get("filename", aid))
+            att_md += f"- [{fname}](attachments/{fname})\n"
 
     parts = [
         f"---\n{yaml_str}---\n",
@@ -216,9 +238,22 @@ def save_issue(issue: dict):
     comments = get_comments(key)
     worklogs = get_worklogs(key)
 
-    # adf refs (for round-trip)
+    # attachments — download all files locally, map id -> stored filename
+    attachments = issue.get("fields", {}).get("attachment", [])
+    media_map = build_media_map(attachments)
+    if attachments:
+        adir = attachments_dir(key)
+        for a in attachments:
+            aid = str(a.get("id", ""))
+            fname = media_map.get(aid)
+            url = a.get("content", "")
+            if fname and url:
+                download_file(url, adir / fname, key)
+
+    # adf refs (for round-trip) + media refs (original media nodes by local path)
     refs: dict = {}
-    task_md = render_task_md(issue, refs, cf_map, comments, worklogs)
+    media_refs: dict = {}
+    task_md = render_task_md(issue, refs, cf_map, comments, worklogs, media_map, media_refs)
 
     # raw.json
     (d / "raw.json").write_text(json.dumps(issue, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -230,6 +265,7 @@ def save_issue(issue: dict):
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "customfield_map": cf_map,
         "adf_refs": refs,
+        "media_refs": media_refs,
     }
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
