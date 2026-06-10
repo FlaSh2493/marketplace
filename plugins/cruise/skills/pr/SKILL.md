@@ -40,7 +40,39 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 
 ---
 
-## STEP 3 — assignee 확인
+## STEP 3 — 베이스 브랜치 충돌 감지
+
+```bash
+git fetch origin {base_branch}
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/precheck.py \
+  --root {root} --source origin/{base_branch}
+```
+
+충돌 없음 → STEP 5. 충돌 있음 → STEP 4.
+
+---
+
+## STEP 4 — [GATE] 충돌 해결
+
+충돌 파일 목록과 함께 "지금 해결하고 진행할까요?" 확인.
+
+취소 → status=cancelled 후 [STOP]
+
+진행 → `git merge origin/{base_branch}` (rebase 금지) 후 파일마다:
+
+`AskUserQuestion`: "`{filepath}` 처리 방법 — 1) ours  2) theirs  3) 직접 편집"
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/resolve_conflict.py {filepath} {ours|theirs}
+```
+
+직접 편집 시 완료 확인 후 stage. 모든 충돌 해결 후 머지 커밋.
+
+실패 → status=failed 후 [STOP]. 성공 → STEP 5.
+
+---
+
+## STEP 5 — assignee 확인
 
 ```bash
 gh api user -q .login
@@ -50,7 +82,7 @@ gh api user -q .login
 
 ---
 
-## STEP 4 — 라벨 추론
+## STEP 6 — 라벨 추론
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/infer_labels.py \
@@ -61,7 +93,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/infer_labels.py \
 
 ---
 
-## STEP 5 — PR 컨텐츠 준비
+## STEP 7 — PR 컨텐츠 준비
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
@@ -72,14 +104,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 
 ---
 
-## STEP 6 — 제목·본문 생성
+## STEP 8 — 제목·본문 생성
 
 `templates/pr-title.md` 와 `templates/pr-body.md` 형식을 사용해 PR 제목과 본문 작성.
 `task_md_exists == true` 이면 `~/Documents/tasks/{KEY}/task.md` 의 완료 조건 섹션을 PR 체크리스트로 포함.
 
 ---
 
-## STEP 7 — [GATE] PR 내용 확인
+## STEP 9 — [GATE] PR 내용 확인
 
 `AskUserQuestion`: "이 내용으로 PR을 생성할까요?"
 
@@ -91,13 +123,13 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 - assignee: `{my_login}`
 - 본문 요약 (첫 200자)
 
-**확인** → STEP 8
-**수정** → 사용자 지시대로 갱신 → STEP 7 반복
+**확인** → STEP 10
+**수정** → 사용자 지시대로 갱신 → STEP 9 반복
 **취소** → status=cancelled 로 pr.md 기록 후 [STOP]
 
 ---
 
-## STEP 8 — Push
+## STEP 10 — Push
 
 ```bash
 git push -u origin HEAD
@@ -110,7 +142,15 @@ git push -u origin HEAD
 
 ---
 
-## STEP 9 — PR 생성
+## STEP 11 — PR 생성
+
+기존 PR 상태 확인:
+```bash
+gh pr view --head {branch} --json state,url 2>/dev/null
+```
+
+- `state=OPEN` → 이미 열린 PR 존재, 기존 URL 그대로 기록 → STEP 12
+- `state=MERGED` or `CLOSED` or 결과 없음 → 신규 생성:
 
 ```bash
 gh pr create \
@@ -121,13 +161,11 @@ gh pr create \
   {--label label1 --label label2 ...}
 ```
 
-- 성공: pr.md 작성 (`pr_url` 포함), status=completed
-- "already exists" 오류: `gh pr list --head {branch} --json url -q '.[0].url'` 로 기존 URL 조회 → 동일하게 기록
-- 그 외 실패: status=failed 로 pr.md 기록 후 [STOP]
+실패 → status=failed 후 [STOP]
 
 ---
 
-## STEP 10 — pr.md 저장
+## STEP 12 — pr.md 저장
 
 frontmatter (공통 9필드 + 스킬별):
 
