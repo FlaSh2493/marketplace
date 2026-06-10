@@ -24,3 +24,9 @@ cd <plugin-root>/scripts && python update.py <KEY>
 - `## New Comment` 섹션에 내용 있으면 → 댓글 POST 후 섹션 초기화
 - `add_worklog` 채워져 있으면 → worklog POST 후 초기화
 - `links` 변경 → 추가/삭제 자동 처리
+
+## 이미지 처리
+
+- 본문의 기존 이미지(`![](attachments/...)`)는 `meta.json`의 `media_refs`에 보존된 원본 노드로 복원되어 Jira에서 **그대로 유지**된다.
+- 사용자가 `<KEY>/attachments/`에 새 이미지를 두고 본문에 `![](attachments/새파일.png)`를 추가하면, 해당 파일을 Jira에 attachment로 **업로드**한 뒤 본문에 표시한다.
+- 즉 로컬 상태가 기준(SSOT)이다. 본문에서 이미지 줄을 지우면 Jira 본문에서도 빠진다.

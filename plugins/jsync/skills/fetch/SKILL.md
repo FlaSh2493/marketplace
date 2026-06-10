@@ -19,6 +19,14 @@ cd <plugin-root>/scripts && python fetch.py <ARGS>
 | `MKT-142,ADX-77` | 다중 이슈 키 |
 | `MKT --jql "status != Done"` | 추가 JQL 필터 (프로젝트 모드 전용) |
 
+## 이미지·첨부파일
+
+- 이슈의 **모든 첨부파일**을 `<KEY>/attachments/`에 다운로드한다.
+- 본문에 박힌 이미지는 task.md에서 `![파일명](attachments/파일명)`으로 렌더링되어 IDE에서 바로 볼 수 있다.
+- 이미지가 아닌 첨부(PDF·문서 등)는 `## Attachments` 섹션에 로컬 링크로 나열된다.
+- 원본 이미지 ADF 노드는 `meta.json`의 `media_refs`에 보존되어, update 시 Jira에서 이미지가 그대로 유지된다.
+- 파일명이 겹치면 `<id>_<파일명>`으로 저장해 충돌을 피한다.
+
 ## 결과 처리
 
 - 스크립트 stdout(1줄 요약)을 사용자에게 보여준다.
