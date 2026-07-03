@@ -123,6 +123,15 @@ def main():
     out, _, rc = run("gh repo view --json nameWithOwner -q .nameWithOwner", cwd=root)
     repo = out if rc == 0 else ""
 
+    # 8. worktree 감지 (linked worktree면 git-common-dir != <root>/.git)
+    common_dir, _, _ = run("git rev-parse --git-common-dir", cwd=root)
+    common_path = Path(common_dir) if common_dir else None
+    if common_path is not None and not common_path.is_absolute():
+        common_path = (Path(root) / common_path).resolve()
+    main_git = (Path(root) / ".git").resolve()
+    is_worktree = bool(common_path) and common_path != main_git
+    worktree_name = Path(root).name if is_worktree else ""
+
     result = {
         "root": root,
         "branch": branch,
@@ -133,6 +142,8 @@ def main():
         "has_uncommitted": has_uncommitted,
         "has_pr": has_pr,
         "repo": repo,
+        "is_worktree": is_worktree,
+        "worktree_name": worktree_name,
     }
     result["task_path"] = task_path
     result["task_md_exists"] = task_md_exists

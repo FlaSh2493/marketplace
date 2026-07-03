@@ -38,8 +38,14 @@
     {
       "name": "cruise",
       "source": "./plugins/cruise",
-      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰",
-      "version": "0.1.0"
+      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고",
+      "version": "0.3.0"
+    },
+    {
+      "name": "brain-sync",
+      "source": "./plugins/brain-sync",
+      "description": "cruise task 산출물을 Brain(지식그래프) 폴더 vault로 일괄 변환·적재. feature 중심·단방향·멱등.",
+      "version": "0.2.0"
     }
   ]
 }

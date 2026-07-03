@@ -15,6 +15,7 @@
 
 # 예시
 /plugin install cruise@flash-plugins
+/plugin install brain-sync@flash-plugins
 /plugin install jsync@flash-plugins
 ```
 
@@ -29,7 +30,8 @@
 
 | 플러그인 | 설명 | 명령어 | 버전 |
 |---------|------|--------|------|
-| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰 | `/cruise:plan`, `/cruise:build`, `/cruise:check`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review` | 0.1.0 |
+| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고 | `/cruise:plan`, `/cruise:build`, `/cruise:check`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review`, `/cruise:result` | 0.3.0 |
+| `brain-sync` | cruise task 산출물을 Brain(지식그래프) 폴더 vault로 일괄 변환·적재 (feature 중심·단방향·멱등) | `/brain-sync:sync`, `/brain-sync:status` | 0.2.0 |
 | `autopilot` | 이슈 단위 워크트리 자동화 — 플랜·구현·검사·머지·PR·리뷰 | `/autopilot:plan`, `/autopilot:build`, `/autopilot:req`, `/autopilot:check`, `/autopilot:merge`, `/autopilot:pr`, `/autopilot:review-fix`, `/autopilot:status`, `/autopilot:help` | 0.1.0 |
 | `jsync` | Jira 이슈 REST API 기반 로컬 저장·편집·동기화 (컨텍스트 절약형) | `/jsync:list`, `/jsync:fetch`, `/jsync:update` | 0.1.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
