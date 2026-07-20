@@ -18,34 +18,16 @@
       "version": "0.1.0"
     },
     {
-      "name": "autopilot",
-      "source": "./plugins/autopilot",
-      "description": "이슈 단위 워크트리 자동화 — 플랜·구현·머지",
-      "version": "0.1.0"
-    },
-    {
       "name": "jsync",
       "source": "./plugins/jsync",
       "description": "Jira 이슈 REST API 기반 로컬 저장·편집·동기화. 컨텍스트 절약형.",
       "version": "0.2.0"
     },
     {
-      "name": "session-insight",
-      "source": "./plugins/session-insight",
-      "description": "휴리스틱 점수로 가치 있는 세션만 필터링한 뒤 일간·주간·월간·rollup 으로 분석",
-      "version": "0.3.0"
-    },
-    {
       "name": "cruise",
       "source": "./plugins/cruise",
-      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고",
-      "version": "0.3.0"
-    },
-    {
-      "name": "brain-sync",
-      "source": "./plugins/brain-sync",
-      "description": "cruise task 산출물을 Brain(지식그래프) 폴더 vault로 일괄 변환·적재. feature 중심·단방향·멱등.",
-      "version": "0.2.0"
+      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰",
+      "version": "0.4.0"
     }
   ]
 }

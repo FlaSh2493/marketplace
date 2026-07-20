@@ -1,14 +1,14 @@
 # Cruise 하네스 산출물 계약 (Harness Artifact Contract)
 
 ```yaml
-contract_version: 2
+contract_version: 3
 ```
 
 이 문서는 cruise 하네스가 디스크에 남기는 산출물의 **안정적 스키마**를 정의한다.
-외부 소비자(예: `brain-sync` 플러그인)는 cruise 코드를 import하지 않고 **이 계약만** 보고
-산출물을 읽는다. cruise 자신은 이 파일을 읽지 않는다.
+외부 도구는 cruise 코드를 import하지 않고 **이 계약만** 보고 산출물을 읽을 수 있다.
+cruise 자신은 이 파일을 읽지 않는다.
 
-> **독립성 원칙** — 하네스는 Brain(지식그래프) 구조를 모른다. 변환은 소비자가 한다.
+> **독립성 원칙** — 하네스는 산출물을 소비하는 쪽의 구조를 모른다. 변환은 소비자가 한다.
 > 하네스와 소비자는 이 계약을 경계로 독립적으로 진화한다. 계약을 깨는 변경(필드 제거·의미 변경)은
 > `contract_version` 을 올린다. 필드 추가는 minor 변경으로 버전을 올리지 않아도 된다.
 
@@ -29,7 +29,7 @@ contract_version: 2
 
 ## 2. 공통 frontmatter (9필드)
 
-`task.md`(cruise-inline 형) 및 cruise가 생성하는 모든 `.md`(plan/build/summary/check/commit/merge/pr/review/result)는
+`task.md`(cruise-inline 형) 및 cruise가 생성하는 모든 `.md`(plan/build/summary/check/commit/merge/pr/review)는
 아래 9필드를 공통으로 가진다.
 
 | 필드 | 타입 | 의미 | 안정성 |
@@ -119,74 +119,6 @@ tags: [bug, feature-toggle]
 | `merge.md` | `entries:[{at,source,target,conflicts_count,result_sha}]` | `## 머지 이력`(append-only) |
 | `pr.md` | `pr_url:str` `pr_number:int` `base_branch` `labels:[]` `assignee` | PR 제목/본문 |
 | `review.md` | `pr_number:int` `iterations:[{n,at,reviews_processed,validation,pushed_sha}]` | 리뷰 이력(append-only) |
-| `result.md` | §5 참조 | §5 참조 |
 
 > 모든 산출물이 항상 존재하는 것은 아니다. 실제 디스크에서는 산출물이 불균일하다
 > (예: review.md·merge.md 는 없는 task가 많다). 소비자는 `*_md_exists` 를 검사하고 없는 것은 건너뛴다.
-
----
-
-## 5. result.md — 변환을 위한 고신호 단일 소스 (`/cruise:result` 생성)
-
-task 종료 시점(pr/review 이후)에 **1회 작성, 덮어쓰기**되는 회고 산출물. 소비자가 가장 먼저 읽는 파일.
-
-> **하네스 고유 어휘만 사용한다.** Pattern/Decision/Incident/Technology 를 *스키마 필드*로 쓰지 않는다.
-> 본문의 `[incident]` 인라인 태그 하나만 소비자 분류 힌트로 허용한다.
-
-### frontmatter (공통 9필드 + result 전용)
-
-```yaml
-# ...공통 9필드 (skill: result)...
-outcome: shipped            # shipped | merged | abandoned | in-progress (상태에서 도출)
-base_branch: develop
-base_source: pr             # pr | upstream | reflog | heuristic | unknown (base 도출 출처)
-pr_url: ""                  # pr.md 에서 복사, 없으면 ""
-pr_number: null             # 없으면 null
-commits_count: 0            # commit.md 에서 복사
-feature: feat/sprint3       # 단위 기능 식별자(브랜치). "" = unassigned (동결 실패 시)
-worktree:                   # 작업 시점 worktree 정체성 (머지 후 삭제돼도 보존)
-  kind: worktree            # worktree | branch | "" (미상)
-  name: sprint3-filter      # linked worktree 디렉토리명, 아니면 ""
-issue_keys: [SPT-4152]      # branch+커밋제목에서 추출한 이슈 키(복수 가능)
-technologies: [react, nextjs, nuqs]   # 평문 소문자 슬러그 (하네스 태그, Brain 노드 아님)
-artifacts_present: [task, plan, build, summary, check, commit, pr]
-```
-
-`outcome` 도출: merge.md 머지 완료 → `merged`; PR 있으나 미머지 → `shipped`;
-`status: cancelled` → `abandoned`; PR·커밋 없음 → `in-progress`.
-
-### feature 동결 규칙 (정확성 우선·추측 금지)
-- feature는 `/cruise:result` 가 **이 task의 체크아웃에서** 1회 계산해 동결한다.
-- **신뢰 가능한 base일 때만 동결**: `base_source ∈ {pr, upstream, reflog}`. `heuristic`/`unknown` 이거나
-  현재 CWD가 이 task의 체크아웃이 아니면 **`feature: ""`(unassigned)** 로 두고 추측하지 않는다.
-- 도출: base_branch가 base군(`develop|main|master|staging|stg|stag|dev|release/*`)이 아니면
-  feature=base_branch(umbrella), 맞으면 feature=branch(독립).
-- 소비자(brain-sync)는 이 값을 **재도출 없이 그대로** 사용한다. `""` 면 feature 미부여.
-
-### 본문 — 고정 H2 헤딩 (= 소비자 파싱 계약)
-
-```markdown
-# Result — <KEY>
-
-## 결과
-1~3문장. 무엇이 나왔고 최종 상태는 무엇인가.
-
-## 잘된 점
-- 재사용 가능한 기법 1개 = 불릿 1개.
-
-## 어려웠던 점 / 실패
-- 부딪힌 문제 / 회귀 / 롤백. 운영급 사고면 `[incident]` 접두.
-
-## 결정
-- <결정> — because <이유> (rejected: <대안>)
-
-## 사용 기술
-- `nuqs` — URL 상태 관리에 도입; `react` — ...
-
-## 후속 작업   (선택)
-- 미룬 TODO / 기술부채.
-```
-
-**안정 보장:** §5의 frontmatter 키와 위 H2 헤딩 텍스트는 `contract_version: 1` 동안 안정.
-각 H2 아래 불릿의 자유 텍스트는 자유 형식이며, `## 결정` 의 `<결정> — because <이유> (rejected: <대안>)`
-패턴과 `## 어려웠던 점 / 실패` 의 `[incident]` 접두만 약하게 구조화되어 있다.

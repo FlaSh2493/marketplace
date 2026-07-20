@@ -1,9 +1,0 @@
-{
-  "name": "brain-sync",
-  "description": "cruise task 산출물을 Brain(지식그래프) 폴더 vault로 일괄 변환·적재. 단방향·멱등.",
-  "version": "0.2.0",
-  "author": {
-    "name": "flash2493",
-    "email": "scnam@madup.com"
-  }
-}

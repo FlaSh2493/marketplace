@@ -18,7 +18,6 @@ CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동
 | merge | `/cruise:merge` | 현재 브랜치로 소스 브랜치 머지 (항상 `git merge`) |
 | pr | `/cruise:pr` | PR 제목·본문 자동 생성 → 확인 후 push + PR 생성 |
 | review | `/cruise:review` | CodeRabbit 리뷰 대기 → 코멘트 적용 → 검증 → push |
-| result | `/cruise:result` | task 종료 후 회고 산출물 result.md 1개 작성·덮어쓰기 (지식 변환용 고신호 소스) |
 
 모든 스킬은 명시적 호출 전용 (`disable-model-invocation: true`).
 
@@ -27,7 +26,7 @@ CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동
 ## 워크플로우
 
 ```
-plan → build → check → commit → merge → pr → review → result
+plan → build → check → commit → merge → pr → review
 ```
 
 각 스킬은 독립적으로 호출 가능. 의존성 없음.
@@ -49,14 +48,12 @@ plan → build → check → commit → merge → pr → review → result
 ├── commit.md
 ├── merge.md     ← entries[] append
 ├── pr.md
-├── review.md    ← iterations[] append
-└── result.md    ← 회고 + outcome/technologies. /cruise:result 가 덮어쓰기
+└── review.md    ← iterations[] append
 ```
 
 frontmatter는 모든 파일이 동일한 9개 공통 필드를 가진다 (인덱싱 균일성).
 
-산출물의 안정적 on-disk 스키마는 [`CONTRACT.md`](./CONTRACT.md) (contract_version 1) 에 정의되어 있다.
-외부 소비자(예: `brain-sync`)는 cruise 코드를 import하지 않고 이 계약만 보고 산출물을 읽는다.
+산출물의 안정적 on-disk 스키마는 [`CONTRACT.md`](./CONTRACT.md) 에 정의되어 있다.
 
 ---
 
