@@ -27,6 +27,7 @@ pip install requests PyYAML
 | `/jsync:fetch <PROJECT\|KEY>` | 이슈를 로컬 디스크에 저장 |
 | `/jsync:draft <KEY\|요구사항>` | 요구사항을 받아 task.md의 description 본문 작성·병합 (키 없으면 새 초안 `DRAFT-*` 생성) |
 | `/jsync:update <KEY>` | 편집한 task.md를 Jira에 반영 |
+| `/jsync:log <KEY>` | cruise 단계별 산출물을 모아 이슈에 '작업 로그' 댓글 1건으로 기록 |
 
 ## 워크플로우
 
@@ -38,6 +39,7 @@ pip install requests PyYAML
    /jsync:draft MKT-142 <요구사항>     → 요구사항을 description 본문으로 작성·병합 (선택)
    /jsync:draft <요구사항>             → 키 없이 새 초안(DRAFT-*) 생성 (선택)
 4. /jsync:update MKT-142               → Jira에 반영
+5. /jsync:log MKT-142                  → cruise 작업 이력을 이슈 댓글로 기록 (cruise 사용 시)
 ```
 
 ## 저장 구조
@@ -99,3 +101,17 @@ python draft.py addimage <KEY|DRAFT-x> <path>    # 이미지를 attachments/로 
 - 같은 task.md에 여러 번 실행하면 기존 본문을 읽어 **지능적으로 병합**합니다 (전체 덮어쓰기 아님).
 - 이미지는 **파일 경로**로 줘야 저장됩니다. 인라인 붙여넣기는 파일로 저장할 수 없어 텍스트로만 반영됩니다.
 - 새 초안(`DRAFT-*`)을 Jira **새 이슈로 생성**하는 기능은 아직 없습니다. `/jsync:update`는 기존 이슈(raw.json 존재)에만 동작합니다.
+
+## log (cruise 연동)
+
+`/jsync:log`는 [cruise](../cruise) 하네스가 같은 `~/Documents/tasks/<KEY>/` 디렉토리에 남긴 단계별 산출물(`plan/build/summary/check/commit/merge/pr/review.md`)과 회고(`result.md`)를 모아, **통합 '작업 로그' 댓글 1건**으로 Jira 이슈에 POST합니다. 이슈의 댓글 타임라인만 봐도 "무엇을 계획했고 / 빌드·검증했고 / 어떤 PR로 / 어떻게 머지됐고 / 회고(결과·잘된 점·실패·결정)"가 한눈에 들어옵니다.
+
+```bash
+python log.py MKT-142            # 산출물을 조합해 댓글 POST
+python log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 미리 출력
+```
+
+- 존재하는 산출물의 섹션만 포함됩니다 (없는 산출물은 건너뜀).
+- 마지막 로그 이후 산출물 변경이 없으면 재실행해도 댓글을 다시 남기지 않습니다 (`.jsync-log.json` 해시 비교).
+- cruise가 브랜치명에서 Jira 키를 못 찾아 만든 slug 디렉토리는 대상이 아닙니다 (Jira 이슈 키 형태만 허용).
+- 남긴 댓글은 `/jsync:fetch <KEY>` 재실행 시 task.md `## Comments`에서 확인됩니다.

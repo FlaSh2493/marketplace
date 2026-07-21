@@ -1,7 +1,7 @@
 # Cruise 하네스 산출물 계약 (Harness Artifact Contract)
 
 ```yaml
-contract_version: 3
+contract_version: 4
 ```
 
 이 문서는 cruise 하네스가 디스크에 남기는 산출물의 **안정적 스키마**를 정의한다.
@@ -121,4 +121,47 @@ tags: [bug, feature-toggle]
 | `review.md` | `pr_number:int` `iterations:[{n,at,reviews_processed,validation,pushed_sha}]` | 리뷰 이력(append-only) |
 
 > 모든 산출물이 항상 존재하는 것은 아니다. 실제 디스크에서는 산출물이 불균일하다
-> (예: review.md·merge.md 는 없는 task가 많다). 소비자는 `*_md_exists` 를 검사하고 없는 것은 건너뛴다.
+> (예: review.md·merge.md·result.md 는 없는 task가 많다). 소비자는 `*_md_exists` 를 검사하고 없는 것은 건너뛴다.
+
+---
+
+## 5. result.md — 회고 (`/cruise:result` 생성)
+
+task 종료 시점(pr/review 이후)에 **1회 작성, 덮어쓰기**되는 회고 산출물.
+task의 결과·교훈·결정을 담는 고신호 요약으로, 외부 소비자(예: jsync:log 가 Jira 이슈 댓글에 포함)가
+cruise 코드를 import하지 않고 **이 스키마만** 보고 읽는다.
+
+### frontmatter (공통 9필드 + result 전용)
+
+```yaml
+# ...공통 9필드 (skill: result)...
+outcome: shipped            # shipped | merged | abandoned | in-progress (상태에서 도출)
+base_branch: develop
+base_source: pr             # pr | upstream | reflog | heuristic | unknown (base 도출 출처)
+pr_url: ""                  # pr.md 에서 복사, 없으면 ""
+pr_number: null             # 없으면 null
+commits_count: 0            # commit.md 에서 복사
+issue_keys: [SPT-4152]      # branch+커밋제목에서 추출한 이슈 키(복수 가능)
+technologies: [react, nextjs, nuqs]   # 평문 소문자 슬러그
+artifacts_present: [task, plan, build, summary, check, commit, pr]
+```
+
+`outcome` 도출: merge.md 머지 완료 → `merged`; PR 있으나 미머지 → `shipped`;
+`status: cancelled` → `abandoned`; PR·커밋 없음 → `in-progress`. (`scripts/result/gather.py` 가 결정적으로 계산)
+
+### 본문 — 고정 H2 헤딩 (= 소비자 파싱 계약)
+
+소비자가 아래 헤딩 텍스트를 그대로 매칭해 불릿을 추출하므로 헤딩을 바꾸지 않는다.
+
+```markdown
+# Result — <KEY>
+
+## 결과                     # 1~3문장, 무엇이 나왔고 최종 상태
+## 잘된 점                  # 재사용 가능한 기법 (불릿)
+## 어려웠던 점 / 실패        # 문제/회귀/롤백. 운영급 사고는 `[incident]` 접두
+## 결정                     # <결정> — because <이유> (rejected: <대안>)
+## 사용 기술                # `tech` — 어디에 왜
+## 후속 작업                # 미룬 TODO (없으면 섹션 생략)
+```
+
+학습 내용이 없는 섹션은 `- 없음` 한 줄로 둔다 (헤딩 유지). `- 없음` 은 소비자가 제외한다.
