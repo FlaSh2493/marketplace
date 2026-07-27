@@ -5,8 +5,9 @@ Usage:
   log.py MKT-142            # 산출물을 조합해 댓글 POST
   log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 stdout으로만 출력
 
-Reads:  ~/Documents/tasks/<KEY>/{plan,summary,commit,merge,pr,review,result}.md
-        (cruise 하네스가 남긴 산출물. CONTRACT.md v3 §4 스키마)
+Reads:  ~/Documents/tasks/<KEY>/{plan,summary,merge,review,result}.md
+        (cruise 하네스가 남긴 산출물. CONTRACT.md v6 §4 스키마)
+        PR·커밋 정보는 산출물이 아니라 GitHub(gh)에서 직접 조회한다.
 Writes: Jira 이슈 댓글 1건 (기존 add_comment 재사용)
         ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지용 해시 상태)
         stdout 1-liner summary
@@ -15,6 +16,7 @@ import sys
 import json
 import re
 import hashlib
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,6 +36,39 @@ STATE_FILE = ".jsync-log.json"
 # ---------------------------------------------------------------------------
 # Artifact parsing
 # ---------------------------------------------------------------------------
+
+def artifact_field(arts: list, field: str) -> str:
+    """여러 산출물 frontmatter에서 field의 첫 비어있지 않은 값을 반환."""
+    for a in arts:
+        if a and a[0].get(field):
+            return str(a[0][field])
+    return ""
+
+
+def gh_pr_info(repo: str, branch: str) -> dict | None:
+    """gh로 branch에 연결된 PR을 조회. GitHub이 PR·커밋의 단일 진실 원천.
+
+    log.py는 repo 체크아웃 밖(~/Documents/tasks)에서 돌기 때문에 --repo로 조회한다.
+    PR이 없거나 gh 미설치/미인증/타임아웃이면 None 반환 (호출측이 섹션을 스킵)."""
+    if not repo or not branch:
+        return None
+    try:
+        r = subprocess.run(
+            ["gh", "pr", "list", "--repo", repo, "--head", branch,
+             "--state", "all", "--limit", "1",
+             "--json", "number,url,title,baseRefName,state,commits"],
+            capture_output=True, text=True, timeout=20,
+        )
+    except Exception:
+        return None
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    try:
+        arr = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return None
+    return arr[0] if arr else None
+
 
 def read_artifact(d: Path, name: str) -> tuple[dict, str] | None:
     """Read a cruise artifact. Returns (frontmatter, body) or None if absent."""
@@ -72,16 +107,6 @@ def body_section(body: str, heading: str) -> str:
     return "\n".join(out).strip()
 
 
-def first_title(body: str) -> str:
-    """First markdown heading or first non-empty line — used as PR title."""
-    for line in body.splitlines():
-        s = line.strip()
-        if not s:
-            continue
-        return re.sub(r"^#+\s*", "", s)
-    return ""
-
-
 def section_bullets(body: str, heading: str, limit: int = 5) -> list[str]:
     """`## heading` 아래 불릿 목록. '- 없음'은 제외."""
     out = []
@@ -115,18 +140,24 @@ def compose(d: Path) -> tuple[str, list[str], str]:
     """Returns (digest_md, present_sections, updated_date)."""
     plan = read_artifact(d, "plan.md")
     summary = read_artifact(d, "summary.md")
-    commit = read_artifact(d, "commit.md")
     merge = read_artifact(d, "merge.md")
-    pr = read_artifact(d, "pr.md")
     review = read_artifact(d, "review.md")
     result = read_artifact(d, "result.md")
+
+    # PR·커밋은 산출물이 아니라 GitHub(gh)에서 직접 조회한다 (commit.md/pr.md 폐지).
+    # repo·branch는 남은 cruise 산출물 frontmatter에서 얻는다.
+    repo = artifact_field([plan, summary, merge, review, result], "repo")
+    branch = artifact_field([plan, summary, merge, review, result], "branch")
+    pr = gh_pr_info(repo, branch)  # dict 또는 None(없음/gh 실패 → 섹션 스킵)
+    pr_commits = pr.get("commits") if isinstance(pr, dict) else None
+    pr_commits = pr_commits if isinstance(pr_commits, list) else []
 
     present: list[str] = []
     body_parts: list[str] = []
 
     # --- most recent `updated` among artifacts, for the header line ---
     updated = ""
-    for art in (plan, summary, commit, merge, pr, review, result):
+    for art in (plan, summary, merge, review, result):
         if art and art[0].get("updated"):
             u = str(art[0]["updated"])
             if u > updated:
@@ -135,28 +166,29 @@ def compose(d: Path) -> tuple[str, list[str], str]:
 
     # --- status header ---
     merge_entries = (merge[0].get("entries") if merge else None) or []
+    pr_state = (pr.get("state") if pr else "") or ""
     if result and result[0].get("outcome"):
         # result.md의 outcome이 가장 권위 있는 최종 상태
         state = str(result[0]["outcome"])
-    elif merge_entries:
+    elif merge_entries or pr_state == "MERGED":
         state = "merged"
-    elif pr:
+    elif pr_state == "OPEN":
         state = "PR open"
-    elif commit:
-        state = "committed"
+    elif pr:
+        state = f"PR {pr_state.lower()}"
     else:
         state = "in progress"
 
     header_bits = [f"**상태:** {state}"]
     if pr:
-        pr_num = pr[0].get("pr_number")
-        pr_url = pr[0].get("pr_url") or ""
+        pr_num = pr.get("number")
+        pr_url = pr.get("url") or ""
         if pr_num and pr_url:
             header_bits.append(f"PR [#{pr_num}]({pr_url})")
         elif pr_num:
             header_bits.append(f"PR #{pr_num}")
-    if commit and commit[0].get("commits_count") is not None:
-        header_bits.append(f"{commit[0]['commits_count']} commits")
+    if pr_commits:
+        header_bits.append(f"{len(pr_commits)} commits")
     if summary and summary[0].get("check_result"):
         header_bits.append(f"check {str(summary[0]['check_result']).upper()}")
     header = " · ".join(header_bits)
@@ -206,29 +238,27 @@ def compose(d: Path) -> tuple[str, list[str], str]:
             lines.append(f"- {detail}".rstrip())
         body_parts.append("\n".join(lines))
 
-    # --- Commits ---
-    if commit:
+    # --- Commits (GitHub PR에서 파생. PR 없으면 스킵) ---
+    if pr_commits:
         present.append("commit")
-        commits = commit[0].get("commits") or []
-        cnt = commit[0].get("commits_count", len(commits))
+        cnt = len(pr_commits)
         lines = [f"### 📦 Commits ({cnt})"]
-        for c in commits[:20]:
-            sha = str(c.get("sha", ""))[:7]
-            msg = str(c.get("message", "")).splitlines()[0] if c.get("message") else ""
+        for c in pr_commits[:20]:
+            sha = str(c.get("oid", ""))[:7]
+            msg = str(c.get("messageHeadline", "")).strip()
             lines.append(f"- `{sha}` {msg}".rstrip())
-        if len(commits) > 20:
-            lines.append(f"- … 외 {len(commits) - 20}건")
+        if cnt > 20:
+            lines.append(f"- … 외 {cnt - 20}건")
         body_parts.append("\n".join(lines))
 
-    # --- PR ---
+    # --- PR (GitHub에서 직접 조회. 없으면 스킵) ---
     if pr:
         present.append("pr")
         lines = ["### 🔀 PR"]
-        title_body = body_section(pr[1], "제목")
-        title = title_body.splitlines()[0].strip() if title_body else first_title(pr[1])
-        pr_num = pr[0].get("pr_number")
-        pr_url = pr[0].get("pr_url") or ""
-        base = pr[0].get("base_branch")
+        title = str(pr.get("title", "")).strip()
+        pr_num = pr.get("number")
+        pr_url = pr.get("url") or ""
+        base = pr.get("baseRefName")
         label = f"#{pr_num} {title}".strip() if pr_num else (title or "PR")
         entry = f"- [{label}]({pr_url})" if pr_url else f"- {label}"
         if base:

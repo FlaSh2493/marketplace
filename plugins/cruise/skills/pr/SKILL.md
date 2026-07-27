@@ -6,17 +6,15 @@ disable-model-invocation: true
 
 # PR
 
-> **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
-> `~/Documents/tasks/{KEY}/pr.md` 를 기록하고 [STOP]한다.
->
-> - frontmatter 공통 9필드 + 스킬별 필드 완비
-> - `status`: completed | cancelled | failed
-> - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
+> **종료 규칙:** 산출물 파일(pr.md)을 남기지 않는다.
+> PR의 진실 원천은 **GitHub**이며, jsync:log·result 스킬이 `gh` 로 직접 조회한다.
+> 어떤 STEP에서 종료하든 상태 한 줄(완료/취소/실패)만 출력하고 [STOP]한다.
 
 > **금지:**
 >
+> - `~/Documents/tasks/{KEY}/pr.md` 등 어떤 산출물 파일도 Write 하지 않는다
 > - force push / `--force-with-lease` 일체 사용 안 함
-> - 산출물 작성 후 요약·다음 액션 추천 일체 출력하지 않는다 ("완료" 한 줄만)
+> - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다 (pr 완료 후 review 자동 진입 금지)
 
 ---
@@ -27,7 +25,7 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `base_branch`, `repo`, `task_md_exists`, `pr_md_exists`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `base_branch`, `repo`, `task_md_exists`.
 
 ---
 
@@ -121,7 +119,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 - `base_branch` 가 불명확하거나(추론값·기본값 fallback) 여러 후보가 가능하면 → `AskUserQuestion`: "이 PR의 타겟 브랜치를 `{base_branch}` 로 할까요?"
   - **확인** → STEP 10
   - **다른 브랜치 선택** → `base_branch` 갱신 후 STEP 10
-  - **취소** → status=cancelled 로 pr.md 기록 후 [STOP]
+  - **취소** → "취소: 사용자가 PR 생성을 취소했습니다." 한 줄 출력 후 [STOP]
 
 ---
 
@@ -134,7 +132,7 @@ git push -u origin HEAD
 실패 (non-ff 등):
 
 - force 일체 사용하지 않음
-- status=failed 로 pr.md 기록 후 [STOP]
+- "실패: push 실패 ({원인})." 한 줄 출력 후 [STOP]
 
 ---
 
@@ -145,7 +143,7 @@ git push -u origin HEAD
 gh pr view --head {branch} --json state,url 2>/dev/null
 ```
 
-- `state=OPEN` → 이미 열린 PR 존재, 기존 URL 그대로 기록 → STEP 12
+- `state=OPEN` → 이미 열린 PR 존재, 기존 URL 사용 → STEP 12
 - `state=MERGED` or `CLOSED` or 결과 없음 → 신규 생성:
 
 ```bash
@@ -157,40 +155,13 @@ gh pr create \
   {--label label1 --label label2 ...}
 ```
 
-실패 → status=failed 후 [STOP]
+실패 → "실패: PR 생성 실패 ({원인})." 한 줄 출력 후 [STOP]
 
 ---
 
-## STEP 12 — pr.md 저장
+## STEP 12 — 종료
 
-frontmatter (공통 9필드 + 스킬별):
+산출물 파일을 남기지 않는다. 생성·확인한 PR은 GitHub이 진실 원천이며,
+나중에 result·jsync:log 스킬이 `gh pr list --repo {repo} --head {branch}` 로 직접 조회한다.
 
-```yaml
----
-key: { KEY }
-key_source: { key_source }
-skill: pr
-summary: { task_md_exists == true 면 task.md 에서 상속, 아니면 "" }
-branch: { branch }
-repo: { repo }
-status: completed
-created: { UTC ISO8601 }
-updated: { UTC ISO8601 }
-tags: []
-pr_url: "https://github.com/{repo}/pull/{n}"
-pr_number: { n }
-base_branch: { base_branch }
-labels:
-  - { label }
-assignee: { my_login }
----
-```
-
-본문:
-
-- `# PR — {KEY}` (H1)
-- `## 제목` — PR 제목
-- `## 본문` — PR 본문 (요약)
-- `## 메타` — labels, assignee, base
-
-"완료" 한 줄 출력 후 [STOP].
+`완료: PR #{n} {url}` 한 줄만 출력하고 [STOP].

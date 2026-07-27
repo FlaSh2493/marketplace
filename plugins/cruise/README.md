@@ -44,12 +44,13 @@ plan → build → commit → merge → pr → review → result
 ├── task.md      ← 이슈 명세 (jsync 또는 cruise-inline)
 ├── plan.md
 ├── summary.md   ← build 유일 산출물. 브랜치 전체(base 대비) 변경 요약 + 검사·요구사항 검증 결과. build마다 덮어쓰기
-├── commit.md
 ├── merge.md     ← entries[] append
-├── pr.md
 ├── review.md    ← iterations[] append
 └── result.md    ← 회고. 1회 작성·덮어쓰기. 소비자(jsync:log 등)가 읽음
 ```
+
+> 커밋·PR은 산출물 파일로 남기지 않는다 (CONTRACT v6). 진실 원천은 git 이력과 GitHub이며,
+> result·jsync:log 는 `gh` 로 직접 조회한다.
 
 frontmatter는 모든 파일이 동일한 9개 공통 필드를 가진다 (인덱싱 균일성).
 

@@ -6,14 +6,13 @@ disable-model-invocation: true
 
 # Commit
 
-> **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
-> `~/Documents/tasks/{KEY}/commit.md` 를 기록하고 [STOP]한다.
-> - frontmatter 공통 9필드 + 스킬별 필드 완비
-> - `status`: completed | cancelled | failed
-> - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
+> **종료 규칙:** 산출물 파일(commit.md)을 남기지 않는다.
+> 커밋 결과의 진실 원천은 **git 이력**이며, jsync:log·result 스킬이 GitHub(gh)에서 직접 조회한다.
+> 어떤 STEP에서 종료하든 상태 한 줄(완료/취소/실패)만 출력하고 [STOP]한다.
 
 > **금지:**
-> - 산출물 작성 후 요약·다음 액션 추천 일체 출력하지 않는다 ("완료" 한 줄만)
+> - `~/Documents/tasks/{KEY}/commit.md` 등 어떤 산출물 파일도 Write 하지 않는다
+> - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다
 > - 사용자가 명시적으로 요청하지 않은 어떤 액션도 수행하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
 
@@ -25,15 +24,14 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `has_uncommitted`, `task_md_exists`, `commit_md_exists`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `has_uncommitted`, `task_md_exists`.
 
 ---
 
 ## STEP 2 — 커밋 대상 확인
 
 `has_uncommitted` 가 false면:
-- status=cancelled 로 commit.md 기록 ("커밋할 변경사항이 없습니다.")
-- [STOP]
+- "취소: 커밋할 변경사항이 없습니다." 한 줄 출력 후 [STOP]
 
 ---
 
@@ -73,31 +71,9 @@ git commit -m "{type}({scope}): {subject}{ [KEY]}
 
 ---
 
-## STEP 6 — commit.md 저장
+## STEP 6 — 종료
 
-frontmatter (공통 9필드 + 스킬별):
-```yaml
----
-key: {KEY}
-key_source: {key_source}
-skill: commit
-summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
-branch: {branch}
-repo: {repo}
-status: completed
-created: {UTC ISO8601}
-updated: {UTC ISO8601}
-tags: []
-commits:
-  - sha: {sha}
-    message: {subject}
-    files_count: {n}
-commits_count: {n}
----
-```
+산출물 파일을 남기지 않는다. 생성한 커밋은 git 이력에 남으며, 나중에 result·jsync:log 스킬이
+GitHub(gh)에서 커밋·PR 정보를 직접 조회한다.
 
-본문:
-- `# Commit — {KEY}` (H1)
-- `## 커밋 목록` — 생성된 커밋 sha/메시지/파일 수 표
-
-"완료" 한 줄 출력 후 [STOP].
+`완료: {n}개 커밋` 한 줄만 출력하고 [STOP].
