@@ -5,7 +5,7 @@ Usage:
   log.py MKT-142            # 산출물을 조합해 댓글 POST
   log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 stdout으로만 출력
 
-Reads:  ~/Documents/tasks/<KEY>/{plan,build,summary,check,commit,merge,pr,review}.md
+Reads:  ~/Documents/tasks/<KEY>/{plan,summary,commit,merge,pr,review,result}.md
         (cruise 하네스가 남긴 산출물. CONTRACT.md v3 §4 스키마)
 Writes: Jira 이슈 댓글 1건 (기존 add_comment 재사용)
         ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지용 해시 상태)
@@ -114,9 +114,7 @@ def section_text(body: str, heading: str) -> str:
 def compose(d: Path) -> tuple[str, list[str], str]:
     """Returns (digest_md, present_sections, updated_date)."""
     plan = read_artifact(d, "plan.md")
-    build = read_artifact(d, "build.md")
     summary = read_artifact(d, "summary.md")
-    check = read_artifact(d, "check.md")
     commit = read_artifact(d, "commit.md")
     merge = read_artifact(d, "merge.md")
     pr = read_artifact(d, "pr.md")
@@ -128,7 +126,7 @@ def compose(d: Path) -> tuple[str, list[str], str]:
 
     # --- most recent `updated` among artifacts, for the header line ---
     updated = ""
-    for art in (plan, build, summary, check, commit, merge, pr, review, result):
+    for art in (plan, summary, commit, merge, pr, review, result):
         if art and art[0].get("updated"):
             u = str(art[0]["updated"])
             if u > updated:
@@ -159,8 +157,8 @@ def compose(d: Path) -> tuple[str, list[str], str]:
             header_bits.append(f"PR #{pr_num}")
     if commit and commit[0].get("commits_count") is not None:
         header_bits.append(f"{commit[0]['commits_count']} commits")
-    if check and check[0].get("result"):
-        header_bits.append(f"check {str(check[0]['result']).upper()}")
+    if summary and summary[0].get("check_result"):
+        header_bits.append(f"check {str(summary[0]['check_result']).upper()}")
     header = " · ".join(header_bits)
 
     # --- Plan ---
@@ -185,33 +183,27 @@ def compose(d: Path) -> tuple[str, list[str], str]:
             lines.append(f"- {r.strip()}")
         body_parts.append("\n".join(lines))
 
-    # --- Build ---
-    if build or summary:
+    # --- Build (변경 통계 + 검사 결과, 모두 summary.md에서) ---
+    if summary:
         present.append("build")
         lines = ["### 🔨 Build"]
         bits = []
-        if build and build[0].get("runs_count") is not None:
-            bits.append(f"Runs {build[0]['runs_count']}")
-        if summary:
-            fc = summary[0].get("files_changed")
-            ins = summary[0].get("insertions")
-            dels = summary[0].get("deletions")
-            if fc is not None:
-                bits.append(f"변경 {fc} files (+{ins or 0} / -{dels or 0})")
+        fc = summary[0].get("files_changed")
+        ins = summary[0].get("insertions")
+        dels = summary[0].get("deletions")
+        if fc is not None:
+            bits.append(f"변경 {fc} files (+{ins or 0} / -{dels or 0})")
         lines.append("- " + " · ".join(bits) if bits else "- (기록 없음)")
-        body_parts.append("\n".join(lines))
 
-    # --- Check ---
-    if check:
-        present.append("check")
-        lines = ["### ✅ Check"]
-        tools = check[0].get("tools") or {}
+        # 검사·검증 결과 (build 스킬이 summary.md frontmatter에 흡수)
+        tools = summary[0].get("check_tools") or {}
         tool_bits = [f"{k} {str(v).upper()}" for k, v in tools.items() if v]
-        detail = " · ".join(tool_bits) if tool_bits else str(check[0].get("result", "")).upper()
-        rc = check[0].get("requirements_checked")
+        detail = " · ".join(tool_bits) if tool_bits else str(summary[0].get("check_result", "")).upper()
+        rc = summary[0].get("requirements_checked")
         if rc is not None:
             detail += f" · 요구사항 검증 {rc}건"
-        lines.append(f"- {detail}".rstrip())
+        if detail.strip():
+            lines.append(f"- {detail}".rstrip())
         body_parts.append("\n".join(lines))
 
     # --- Commits ---

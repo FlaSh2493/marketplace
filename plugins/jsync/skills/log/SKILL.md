@@ -1,6 +1,6 @@
 ---
 name: jsync-log
-description: cruise 하네스가 남긴 단계별 산출물(plan/build/check/commit/pr/review/merge)과 회고(result.md)를 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 기록합니다. 이슈 댓글 타임라인만 봐도 작업 진행과 회고(결과·잘된 점·실패·결정)를 이해할 수 있게 이력을 남깁니다. "작업 로그 남겨줘", "산출물 이슈에 기록해줘", "cruise 결과 Jira에 남겨줘" 같은 요청에 실행됩니다.
+description: cruise 하네스가 남긴 단계별 산출물(plan/build/commit/pr/review/merge)과 회고(result.md)를 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 기록합니다. 이슈 댓글 타임라인만 봐도 작업 진행과 회고(결과·잘된 점·실패·결정)를 이해할 수 있게 이력을 남깁니다. "작업 로그 남겨줘", "산출물 이슈에 기록해줘", "cruise 결과 Jira에 남겨줘" 같은 요청에 실행됩니다.
 ---
 
 사용자가 cruise 작업 이력을 Jira 이슈에 남기려 하면 아래 명령을 실행한다.
