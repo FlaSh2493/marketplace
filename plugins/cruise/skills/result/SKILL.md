@@ -53,7 +53,7 @@ pr_url, pr_number, commits_count, outcome, issue_keys, artifacts_present, create
 
 다음 입력을 읽어 본문 학습을 종합한다:
 - `~/Documents/tasks/{KEY}/task.md` (배경·목표)
-- `summary.md` (`## 변경 통계`·`## 구현 현황`·`## 요구사항 검증`·`## 에러` — 변경 요약 + 검사·검증에서 드러난 문제) — 있으면
+- `summary.md` (`## 개요`·`## 변경 파일`·`## 구현 현황`·`## 검증` — 변경 요약 + 검사·검증에서 드러난 fail/manual) — 있으면
 - `review.md` (리뷰에서 드러난 문제) — 있으면
 
 본문 H2 헤딩별로 채운다 (헤딩 텍스트는 변경 금지). 일반론이 아니라 이 코드베이스에서 재사용·반복

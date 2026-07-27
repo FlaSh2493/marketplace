@@ -112,7 +112,7 @@ tags: [bug, feature-toggle]
 | 파일 | 추가 frontmatter | 본문 H2 (안정) |
 |------|------------------|----------------|
 | `plan.md` | `phases_count: int` | `## 배경` `## 목표` `## 요구사항`(`- [ ] R1:` 체크리스트 + `### 미지수`) `## 영향 범위`(표) `## 아키텍처 / 기술 설계` `## 구현 계획`(Phase별 `<!-- delegate: -->` + 생성/수정 파일·샘플 코드·R-ID) `## 검증 방법`(표) `## 완료 조건` |
-| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` `check_result:pass\|fail` `check_tools:{lint,type,test}` `requirements_checked:int` `fix_attempts:int` | `## 개요` `## 변경 통계` `## 변경 파일` `## 구현 현황` `## 요구사항 검증`(표: 요구사항·검증방법·결과·진단) `## 에러` `## 비고`. **build 스킬이 구현+검사+요구사항 검증 결과를 담아 매 build마다 덮어씀.** 유일한 build 산출물 |
+| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` `check_result:pass\|fail` `check_tools:{lint,type,test}` `requirements_checked:int` `fix_attempts:int` | `## 개요` `## 변경 파일` `## 구현 현황` `## 검증`(압축: 검사 한 줄 + 요구사항 pass/fail 집계 + fail·manual만 진단 한 줄) `## 비고`. 에러 원문·전체 검증 표·변경 통계 본문은 담지 않는다(수치는 frontmatter). **build 스킬이 구현+검사+요구사항 검증 결과를 담아 매 build마다 덮어씀.** 유일한 build 산출물 |
 | `commit.md` | `commits:[{sha,message,files_count}]` `commits_count:int` | 커밋 목록 |
 | `merge.md` | `entries:[{at,source,target,conflicts_count,result_sha}]` | `## 머지 이력`(append-only) |
 | `pr.md` | `pr_url:str` `pr_number:int` `base_branch` `labels:[]` `assignee` | PR 제목/본문 |

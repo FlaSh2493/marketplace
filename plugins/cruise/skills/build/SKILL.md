@@ -119,7 +119,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/build/scripts/run_check.py \
 2. `fix_attempts += 1`
 3. 실패했던 단계부터 재실행
 4. 모두 통과 → STEP 6
-5. `fix_attempts >= 3` → 해당 도구를 `fail` 로 확정하고 STEP 6 진행 (미해결 에러 원문은 summary.md `## 에러` 에 기록)
+5. `fix_attempts >= 3` → 해당 도구를 `fail` 로 확정하고 STEP 6 진행 (`check_tools` 에 `fail` 기록. 에러 원문은 summary.md에 담지 않는다 — frontmatter 신호로 충분)
 
 > **경계:** 이 Fix 루프는 **검사 레벨 에러(lint/type/test)** 전용이다. *기능 미구현*은 여기서 고치지 않는다 — STEP 6·7에서 처리한다.
 
@@ -203,17 +203,18 @@ fix_attempts: {정수}           # 검사 레벨 Fix 시도 횟수
 ---
 ```
 
-본문 구조:
+본문 구조 — **사람이 30초 안에 "이 브랜치가 뭘 했나"를 파악하는 요약**이 목적이다. 검사 원문·전체 표 같은 기계·디버그 material은 담지 않는다.
 
 - `# Summary — {KEY}` (H1)
 - `## 개요` — 이 브랜치가 무엇을 달성했는지 산문 요약 (task.md summary + plan.md `## 목표` 기반)
-- `## 변경 통계` — files_changed, +insertions / -deletions
 - `## 변경 파일` — 도메인/모듈별 그룹, 파일당 한 줄로 "무엇이 왜 바뀌었나" (name-status의 A/M/D 반영)
 - `## 구현 현황` — plan.md Phase별 완료/스킵 상태
-- `## 요구사항 검증` — plan.md 기반 (plan에 검증 방법 없으면 "- 검증 방법 없음"). 표: `| 요구사항 | 검증 방법 | 결과 | 진단 |`. `fail`/`manual` 행은 진단 필수.
-- `## 에러` — lint/type/test 미해결 에러 원문 (없으면 생략)
-- `## 비고` — `has_uncommitted == true` 면 "미커밋 변경 포함" 명시
+- `## 검증` — **압축 요약만**. plan에 검증 방법이 없으면 "- 검증 방법 없음".
+  - 검사 한 줄: `- 검사: lint PASS · type PASS · test PASS` (skipped 포함)
+  - 요구사항 한 줄: `- 요구사항 6건 중 5 pass · 1 fail` (검증 안 했으면 생략)
+  - **fail·manual 항목만** 한 줄씩 진단: `- R3 fail: 빈 목록 시 스피너 미제거 (List.tsx:42)`. pass 항목은 나열하지 않는다. 에러 원문은 담지 않는다.
+- `## 비고` — `has_uncommitted == true` 면 "미커밋 변경 포함", base 통계 미수집 사유 등 (없으면 생략)
 
-summary.md는 누적하지 않고 매번 전체 재작성한다. 입력은 plan.md · git diff · 이번 실행의 검사/검증 결과다.
+변경 통계 수치(files_changed 등)는 frontmatter에만 두고 본문에는 반복하지 않는다. summary.md는 누적하지 않고 매번 전체 재작성한다. 입력은 plan.md · git diff · 이번 실행의 검사/검증 결과다.
 
 "완료" 한 줄 출력 후 [STOP].
