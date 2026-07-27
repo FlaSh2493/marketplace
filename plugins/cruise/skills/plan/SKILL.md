@@ -19,8 +19,8 @@ disable-model-invocation: true
 > - 사용자가 명시적으로 요청하지 않은 어떤 액션도 수행하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
 > - Plan mode가 동시 활성화된 경우 `~/Documents/tasks/{KEY}/plan.md` 작성 후 ExitPlanMode 호출만 하고 [STOP]한다. 승인 후에도 구현으로 넘어가지 않는다.
-> - 수정 요청 시 plan.md를 갱신하고 "완료"만 출력한다. (이전 plan/build는 STEP 3.5에서 자동 archive)
-> - build.md는 읽지 않는다. plan은 task.md와 대화 컨텍스트만 입력으로 사용한다.
+> - 수정 요청 시 plan.md를 갱신하고 "완료"만 출력한다. (이전 plan/summary는 STEP 3.5에서 자동 archive)
+> - summary.md는 읽지 않는다. plan은 task.md와 대화 컨텍스트만 입력으로 사용한다.
 
 ---
 
@@ -30,7 +30,7 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`, `build_md_exists`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`.
 
 ---
 
@@ -104,21 +104,20 @@ task.md는 이후 수정하지 않는다 (소스 오브 트루스 보존).
 
 ---
 
-## STEP 3.5 — 기존 plan/build archive
+## STEP 3.5 — 기존 plan/summary archive
 
 `plan_md_exists == true` 인 경우에만 수행. 새 plan을 쓰기 전에 이전 산출물을 아카이브한다.
 
 ```bash
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 TASK_DIR=~/Documents/tasks/{KEY}
-mkdir -p "$TASK_DIR/plan.archive" "$TASK_DIR/build.archive" "$TASK_DIR/summary.archive"
+mkdir -p "$TASK_DIR/plan.archive" "$TASK_DIR/summary.archive"
 mv "$TASK_DIR/plan.md" "$TASK_DIR/plan.archive/plan-$TS.md"
-[ -f "$TASK_DIR/build.md" ]   && mv "$TASK_DIR/build.md"   "$TASK_DIR/build.archive/build-$TS.md"
 [ -f "$TASK_DIR/summary.md" ] && mv "$TASK_DIR/summary.md" "$TASK_DIR/summary.archive/summary-$TS.md"
 ```
 
-- 같은 `{ts}` 로 plan / build / summary를 짝지어 archive (대응 관계 보존)
-- build.md · summary.md 없으면 해당 archive는 생략
+- 같은 `{ts}` 로 plan / summary를 짝지어 archive (대응 관계 보존)
+- summary.md 없으면 해당 archive는 생략
 - archive 파일은 이후 어떤 스킬도 읽지 않는다 (사용자 참조 전용)
 
 ---

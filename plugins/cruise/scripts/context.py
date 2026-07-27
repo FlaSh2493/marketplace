@@ -4,8 +4,8 @@ CWD → 컨텍스트 JSON 출력. 모든 cruise 스킬의 진입점.
 
 Usage: python3 context.py
 Output: JSON {root, branch, key, key_source, base_branch, base_source,
-              task_path, task_md_exists, plan_md_exists, build_md_exists,
-              check_md_exists, commit_md_exists, merge_md_exists,
+              task_path, task_md_exists, plan_md_exists, summary_md_exists,
+              commit_md_exists, merge_md_exists,
               pr_md_exists, review_md_exists,
               has_uncommitted, has_pr, pr_number?, repo}
 """
@@ -103,8 +103,7 @@ def main():
     task_path = str(task_md)
     task_md_exists = task_md.exists()
     plan_md_exists = (tasks_dir / "plan.md").exists()
-    build_md_exists = (tasks_dir / "build.md").exists()
-    check_md_exists = (tasks_dir / "check.md").exists()
+    summary_md_exists = (tasks_dir / "summary.md").exists()
     commit_md_exists = (tasks_dir / "commit.md").exists()
     merge_md_exists = (tasks_dir / "merge.md").exists()
     pr_md_exists = (tasks_dir / "pr.md").exists()
@@ -148,8 +147,7 @@ def main():
     result["task_path"] = task_path
     result["task_md_exists"] = task_md_exists
     result["plan_md_exists"] = plan_md_exists
-    result["build_md_exists"] = build_md_exists
-    result["check_md_exists"] = check_md_exists
+    result["summary_md_exists"] = summary_md_exists
     result["commit_md_exists"] = commit_md_exists
     result["merge_md_exists"] = merge_md_exists
     result["pr_md_exists"] = pr_md_exists

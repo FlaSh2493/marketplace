@@ -19,7 +19,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-ARTIFACTS = ["task", "plan", "build", "summary", "check",
+ARTIFACTS = ["task", "plan", "summary",
              "commit", "merge", "pr", "review", "result"]
 
 
@@ -87,10 +87,9 @@ def main():
                 return v
         return ""
 
-    summary = pick("summary", ["task", "plan", "build", "summary",
-                               "commit", "pr"])
+    summary = pick("summary", ["task", "plan", "summary", "commit", "pr"])
     # branch/repo/key_source: cruise 산출물에서 (jsync task.md에는 없음)
-    cruise_order = ["plan", "build", "summary", "check", "commit",
+    cruise_order = ["plan", "summary", "commit",
                     "merge", "pr", "review", "task"]
     repo = pick("repo", cruise_order)
     key_source = pick("key_source", cruise_order) or "slug"

@@ -1,7 +1,7 @@
 # Cruise 하네스 산출물 계약 (Harness Artifact Contract)
 
 ```yaml
-contract_version: 4
+contract_version: 5
 ```
 
 이 문서는 cruise 하네스가 디스크에 남기는 산출물의 **안정적 스키마**를 정의한다.
@@ -29,7 +29,7 @@ cruise 자신은 이 파일을 읽지 않는다.
 
 ## 2. 공통 frontmatter (9필드)
 
-`task.md`(cruise-inline 형) 및 cruise가 생성하는 모든 `.md`(plan/build/summary/check/commit/merge/pr/review)는
+`task.md`(cruise-inline 형) 및 cruise가 생성하는 모든 `.md`(plan/summary/commit/merge/pr/review/result)는
 아래 9필드를 공통으로 가진다.
 
 | 필드 | 타입 | 의미 | 안정성 |
@@ -112,9 +112,7 @@ tags: [bug, feature-toggle]
 | 파일 | 추가 frontmatter | 본문 H2 (안정) |
 |------|------------------|----------------|
 | `plan.md` | `phases_count: int` | `## 배경` `## 목표` `## 요구사항`(`- [ ] R1:` 체크리스트 + `### 미지수`) `## 영향 범위`(표) `## 아키텍처 / 기술 설계` `## 구현 계획`(Phase별 `<!-- delegate: -->` + 생성/수정 파일·샘플 코드·R-ID) `## 검증 방법`(표) `## 완료 조건` |
-| `build.md` | `runs_count: int` | append-only `## Run {ts}` 섹션. + 선택 `## Check Feedback {ts}`(check가 append, 미구현 요구사항 R-ID 인박스) |
-| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` | `## 개요` + 변경 요약 (빌드마다 덮어씀) |
-| `check.md` | `result: pass\|fail` `tools:{lint,type,test}` `fix_attempts:int` `requirements_checked:int` | `## 결과` `## 요구사항 검증`(표: 요구사항·검증방법·결과·진단) `## 에러`. 매 check마다 덮어쓰기(이력 아님) |
+| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` `check_result:pass\|fail` `check_tools:{lint,type,test}` `requirements_checked:int` `fix_attempts:int` | `## 개요` `## 변경 통계` `## 변경 파일` `## 구현 현황` `## 요구사항 검증`(표: 요구사항·검증방법·결과·진단) `## 에러` `## 비고`. **build 스킬이 구현+검사+요구사항 검증 결과를 담아 매 build마다 덮어씀.** 유일한 build 산출물 |
 | `commit.md` | `commits:[{sha,message,files_count}]` `commits_count:int` | 커밋 목록 |
 | `merge.md` | `entries:[{at,source,target,conflicts_count,result_sha}]` | `## 머지 이력`(append-only) |
 | `pr.md` | `pr_url:str` `pr_number:int` `base_branch` `labels:[]` `assignee` | PR 제목/본문 |
@@ -143,7 +141,7 @@ pr_number: null             # 없으면 null
 commits_count: 0            # commit.md 에서 복사
 issue_keys: [SPT-4152]      # branch+커밋제목에서 추출한 이슈 키(복수 가능)
 technologies: [react, nextjs, nuqs]   # 평문 소문자 슬러그
-artifacts_present: [task, plan, build, summary, check, commit, pr]
+artifacts_present: [task, plan, summary, commit, pr]
 ```
 
 `outcome` 도출: merge.md 머지 완료 → `merged`; PR 있으나 미머지 → `shipped`;

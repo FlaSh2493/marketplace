@@ -14,7 +14,7 @@ CONTRACT.md §5 스키마만 보고 이 파일을 읽는다.
 > **덮어쓰기**(append 아님) 기록하고 [STOP]한다.
 > - frontmatter 공통 9필드 + result 전용 필드 완비
 > - 본문은 고정 H2 헤딩을 그대로 사용 (소비자 파싱 계약)
-> - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 4) 를 따른다
+> - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 5) 를 따른다
 
 > **금지:**
 > - 산출물 작성 후 요약·다음 액션 추천·후속 작업 제안 일체 출력하지 않는다 ("완료" 한 줄만).
@@ -53,9 +53,8 @@ pr_url, pr_number, commits_count, outcome, issue_keys, artifacts_present, create
 
 다음 입력을 읽어 본문 학습을 종합한다:
 - `~/Documents/tasks/{KEY}/task.md` (배경·목표)
-- `summary.md` (`## 변경 통계` 등 변경 요약) — 있으면
-- `build.md` (Run 로그에서 시도/문제) — 있으면
-- `check.md` / `review.md` (검사·리뷰에서 드러난 문제) — 있으면
+- `summary.md` (`## 변경 통계`·`## 구현 현황`·`## 요구사항 검증`·`## 에러` — 변경 요약 + 검사·검증에서 드러난 문제) — 있으면
+- `review.md` (리뷰에서 드러난 문제) — 있으면
 
 본문 H2 헤딩별로 채운다 (헤딩 텍스트는 변경 금지). 일반론이 아니라 이 코드베이스에서 재사용·반복
 회피 가능한 **구체적 교훈**으로 쓴다.

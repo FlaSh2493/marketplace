@@ -12,8 +12,7 @@ CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동
 | 스킬 | 명령어 | 설명 |
 |------|--------|------|
 | plan | `/cruise:plan` | 이슈 명세 분석 → 코드베이스 영향 탐색 → plan.md 생성 |
-| build | `/cruise:build` | plan.md Phase 단위 구현. 종료 시 브랜치 전체 변경 요약 summary.md 갱신 |
-| check | `/cruise:check` | lint → type → test 순차 실행. 실패 시 자동 수정 (최대 3회) |
+| build | `/cruise:build` | plan.md Phase 단위 구현 + lint/type/test 검사 + 요구사항 검증(미구현 시 인메모리 재구현). 종료 시 브랜치 전체 요약 summary.md 갱신 |
 | commit | `/cruise:commit` | 변경사항 도메인별 그룹핑 → Conventional Commits 형식 커밋 |
 | merge | `/cruise:merge` | 현재 브랜치로 소스 브랜치 머지 (항상 `git merge`) |
 | pr | `/cruise:pr` | PR 제목·본문 자동 생성 → 확인 후 push + PR 생성 |
@@ -27,7 +26,7 @@ CWD의 git HEAD가 단일 진실. 메인 체크아웃과 워크트리 동등 동
 ## 워크플로우
 
 ```
-plan → build → check → commit → merge → pr → review → result
+plan → build → commit → merge → pr → review → result
 ```
 
 각 스킬은 독립적으로 호출 가능. 의존성 없음.
@@ -44,9 +43,7 @@ plan → build → check → commit → merge → pr → review → result
 ~/Documents/tasks/{KEY}/
 ├── task.md      ← 이슈 명세 (jsync 또는 cruise-inline)
 ├── plan.md
-├── build.md     ← ## Run append 로그
-├── summary.md   ← 브랜치 전체(base 대비) 변경 요약. build마다 덮어쓰기
-├── check.md
+├── summary.md   ← build 유일 산출물. 브랜치 전체(base 대비) 변경 요약 + 검사·요구사항 검증 결과. build마다 덮어쓰기
 ├── commit.md
 ├── merge.md     ← entries[] append
 ├── pr.md
@@ -66,7 +63,7 @@ frontmatter는 모든 파일이 동일한 9개 공통 필드를 가진다 (인�
 산출물은 `~/Documents/tasks/{slug}/` 에 저장.
 
 `plan` 스킬: task.md 없으면 대화 컨텍스트에서 자동 추출.
-`check / commit / merge / pr / review / result`: 이슈 키 없이도 단독 동작.
+`build / commit / merge / pr / review / result`: 이슈 키 없이도 단독 동작.
 
 ---
 
