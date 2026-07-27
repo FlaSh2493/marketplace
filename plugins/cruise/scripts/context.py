@@ -5,7 +5,7 @@ CWD → 컨텍스트 JSON 출력. 모든 cruise 스킬의 진입점.
 Usage: python3 context.py
 Output: JSON {root, branch, key, key_source, base_branch, base_source,
               task_path, task_md_exists, plan_md_exists, summary_md_exists,
-              commit_md_exists, merge_md_exists,
+              commit_md_exists,
               pr_md_exists, review_md_exists,
               has_uncommitted, has_pr, pr_number?, repo}
 """
@@ -15,6 +15,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from common import tasks_root  # noqa: E402
 
 
 def run(cmd, cwd=None):
@@ -97,7 +100,7 @@ def main():
             base_source = "heuristic"
 
     # 4. cruise artifact paths (task_path 항상 emit + 산출물별 존재 여부 boolean)
-    tasks_dir = Path.home() / "Documents" / "tasks" / key
+    tasks_dir = tasks_root() / key
     task_md = tasks_dir / "task.md"
 
     task_path = str(task_md)
@@ -105,7 +108,6 @@ def main():
     plan_md_exists = (tasks_dir / "plan.md").exists()
     summary_md_exists = (tasks_dir / "summary.md").exists()
     commit_md_exists = (tasks_dir / "commit.md").exists()
-    merge_md_exists = (tasks_dir / "merge.md").exists()
     pr_md_exists = (tasks_dir / "pr.md").exists()
     review_md_exists = (tasks_dir / "review.md").exists()
 
@@ -149,7 +151,6 @@ def main():
     result["plan_md_exists"] = plan_md_exists
     result["summary_md_exists"] = summary_md_exists
     result["commit_md_exists"] = commit_md_exists
-    result["merge_md_exists"] = merge_md_exists
     result["pr_md_exists"] = pr_md_exists
     result["review_md_exists"] = review_md_exists
     if pr_number is not None:

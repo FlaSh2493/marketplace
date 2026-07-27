@@ -7,14 +7,14 @@ disable-model-invocation: true
 # Result
 
 task 종료 시점(pr/review 이후)에 **회고 산출물 result.md 1개를 작성·덮어쓴다.**
-task의 결과·교훈·결정을 담는 고신호 요약이다. 소비자(예: `/jsync:log` 가 Jira 이슈 댓글에 회고를 포함)는
+task의 결과·교훈·결정을 담는 고신호 요약이다. 소비자(예: `/cruise:log` 가 Jira 이슈 댓글에 회고를 포함)는
 CONTRACT.md §5 스키마만 보고 이 파일을 읽는다.
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로 `~/Documents/tasks/{KEY}/result.md` 를
 > **덮어쓰기**(append 아님) 기록하고 [STOP]한다.
-> - frontmatter 공통 9필드 + result 전용 필드 완비
+> - frontmatter 공통 5필드 + result 전용 필드 완비
 > - 본문은 고정 H2 헤딩을 그대로 사용 (소비자 파싱 계약)
-> - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 5) 를 따른다
+> - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 8) 를 따른다
 
 > **금지:**
 > - 산출물 작성 후 요약·다음 액션 추천·후속 작업 제안 일체 출력하지 않는다 ("완료" 한 줄만).
@@ -29,7 +29,7 @@ CONTRACT.md §5 스키마만 보고 이 파일을 읽는다.
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-`key`, `key_source`, `branch`, `repo` 등을 메모리에 보관한다.
+`branch`, `repo` 등을 메모리에 보관한다.
 
 ---
 
@@ -39,13 +39,12 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/result/scripts/gather.py {KEY}
 ```
 
-출력 JSON: `key, key_source, summary, branch, repo, base_branch, base_source,
-pr_url, pr_number, commits_count, outcome, issue_keys, artifacts_present, created_existing, now`.
+출력 JSON: `summary, branch, repo, outcome, now`.
 
-- 이 값들은 (live git + 형제 산출물)에서 결정적으로 추출된 것이다. **그대로 frontmatter에 복사**한다.
-- `created`: `created_existing` 이 비어있지 않으면 그 값을 유지, 비어있으면 `now`. `updated`: 항상 `now`.
+- 이 값들은 (live git + 형제 산출물 + gh)에서 결정적으로 추출된 것이다. **그대로 frontmatter에 복사**한다.
+- `updated`: 항상 `now`.
 - `outcome`: gather가 제안한 값을 기본으로 하되, 명백히 틀리면 LLM이 보정한다.
-- `issue_keys` 는 gather 출력을 그대로 쓴다 (추측·수정 금지).
+- PR·커밋·이슈키 등은 frontmatter에 담지 않는다 — 소비자가 `gh`/git·본문에서 파생한다.
 
 ---
 
@@ -63,7 +62,7 @@ pr_url, pr_number, commits_count, outcome, issue_keys, artifacts_present, create
 - `## 잘된 점` — 재사용 가능한 기법 1개 = 불릿 1개.
 - `## 어려웠던 점 / 실패` — 문제/회귀/롤백. 운영급 사고면 불릿 앞에 `[incident]`.
 - `## 결정` — `<결정> — because <이유> (rejected: <대안>)` 형식. 대안 없으면 `(rejected: 없음)`.
-- `## 사용 기술` — `` `tech` — 어디에 왜 `` . frontmatter `technologies` 는 여기 등장한 기술의 소문자 슬러그 평문 배열.
+- `## 사용 기술` — `` `tech` — 어디에 왜 `` . (사용 기술은 본문에만 남긴다 — frontmatter에 중복 기재하지 않는다.)
 - `## 후속 작업` — 미룬 TODO. 없으면 섹션 자체를 생략.
 
 학습할 내용이 없는 섹션은 `- 없음` 한 줄로 둔다 (헤딩은 유지).
@@ -76,29 +75,16 @@ pr_url, pr_number, commits_count, outcome, issue_keys, artifacts_present, create
 
 Write 도구로 `~/Documents/tasks/{KEY}/result.md` 를 **항상 덮어쓰기** 저장한다.
 
-frontmatter (공통 9필드 + result 전용):
+frontmatter (공통 5필드 + result 전용):
 
 ```yaml
 ---
-key: {KEY}
-key_source: {key_source}
-skill: result
 summary: {gather.summary}
 branch: {branch}
 repo: {repo}
 status: completed
-created: {created_existing 있으면 유지, 없으면 now}
 updated: {now}
-tags: []
 outcome: {shipped | merged | abandoned | in-progress}
-base_branch: {base_branch}
-base_source: {base_source}
-pr_url: "{pr_url}"
-pr_number: {pr_number 또는 null}
-commits_count: {commits_count}
-issue_keys: [{gather.issue_keys}]
-technologies: [{소문자 슬러그 평문 배열}]
-artifacts_present: [{gather.artifacts_present}]
 ---
 ```
 

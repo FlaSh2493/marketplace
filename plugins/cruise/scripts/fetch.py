@@ -1,5 +1,5 @@
 """
-jsync fetch — Jira 이슈를 ~/Documents/jsync/<KEY>/ 에 저장.
+cruise fetch — Jira 이슈를 ~/Documents/tasks/<KEY>/ 에 저장.
 
 Usage:
   fetch.py MKT                        # 프로젝트: 활성스프린트 × 본인할당

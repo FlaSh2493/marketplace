@@ -1,12 +1,12 @@
 """
-jsync update — task.md 변경사항을 Jira에 반영.
+cruise update — task.md 변경사항을 Jira에 반영.
 
 Usage:
   update.py MKT-142
 
-Reads:  ~/Documents/jsync/MKT-142/task.md   (edited by user)
-        ~/Documents/jsync/MKT-142/raw.json   (SSOT diff baseline)
-        ~/Documents/jsync/MKT-142/meta.json  (customfield map, adf_refs)
+Reads:  ~/Documents/tasks/MKT-142/task.md   (edited by user)
+        ~/Documents/tasks/MKT-142/raw.json   (SSOT diff baseline)
+        ~/Documents/tasks/MKT-142/meta.json  (customfield map, adf_refs)
 Writes: stdout 1-liner summary
         raw.json re-synced after PUT
 """
@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import check_deps, issue_dir, STORE_ROOT
+from common import check_deps, issue_dir, tasks_root
 check_deps()
 
 import yaml
@@ -83,7 +83,7 @@ def parse_task_md(path: Path) -> tuple[dict, str, dict]:
 
 
 def load_raw_fm(key: str) -> dict:
-    raw_path = STORE_ROOT / key / "raw.json"
+    raw_path = tasks_root() / key / "raw.json"
     if not raw_path.exists():
         return {}
     raw = json.loads(raw_path.read_text(encoding="utf-8"))
@@ -106,7 +106,7 @@ def load_raw_fm(key: str) -> dict:
 
 
 def load_meta(key: str) -> dict:
-    meta_path = STORE_ROOT / key / "meta.json"
+    meta_path = tasks_root() / key / "meta.json"
     if not meta_path.exists():
         return {}
     return json.loads(meta_path.read_text(encoding="utf-8"))
@@ -264,7 +264,7 @@ def resolve_images(key: str, desc_md: str, meta: dict) -> dict:
         if path in media_refs:
             resolve[path] = media_refs[path]
             continue
-        local = STORE_ROOT / key / path
+        local = tasks_root() / key / path
         if local.exists():
             created = upload_attachment(key, local)
             if created:
@@ -294,7 +294,7 @@ def main():
         print(f"error: '{key}' is not a valid issue key (e.g. MKT-142)", file=sys.stderr)
         sys.exit(1)
 
-    d = STORE_ROOT / key
+    d = tasks_root() / key
     task_md_path = d / "task.md"
     raw_path = d / "raw.json"
 

@@ -1,15 +1,10 @@
 ---
-key: ""
-key_source: slug
-skill: task
 summary: ""
 branch: ""
 repo: ""
 status: completed
-created: ""
 updated: ""
 source: cruise-inline
-tags: []
 ---
 
 # Task — {KEY}

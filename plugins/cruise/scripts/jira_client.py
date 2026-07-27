@@ -62,6 +62,26 @@ def get_issue(key: str) -> dict:
     return resp.json()
 
 
+def create_issue(project_key: str, issuetype: str, summary: str,
+                 description_adf: dict | None = None, extra_fields: dict | None = None) -> dict:
+    """Create a new Jira issue. Returns the created issue dict ({"key": "MKT-500", "id": ...}).
+    Minimal fields only (project/type/summary/description); project-specific required
+    customfields surface as a 400 with per-field errors via _raise."""
+    fields = {
+        "project": {"key": project_key},
+        "issuetype": {"name": issuetype},
+        "summary": summary,
+    }
+    if description_adf:
+        fields["description"] = description_adf
+    if extra_fields:
+        fields.update(extra_fields)
+    resp = _get_session().post(_url("issue"), json={"fields": fields})
+    if not resp.ok:
+        _raise(resp, f"POST issue (create, project={project_key})")
+    return resp.json()
+
+
 def get_editmeta(key: str) -> dict:
     resp = _get_session().get(_url(f"issue/{key}/editmeta"))
     if not resp.ok:

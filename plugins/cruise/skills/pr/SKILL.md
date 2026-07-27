@@ -7,7 +7,7 @@ disable-model-invocation: true
 # PR
 
 > **종료 규칙:** 산출물 파일(pr.md)을 남기지 않는다.
-> PR의 진실 원천은 **GitHub**이며, jsync:log·result 스킬이 `gh` 로 직접 조회한다.
+> PR의 진실 원천은 **GitHub**이며, cruise:log·result 스킬이 `gh` 로 직접 조회한다.
 > 어떤 STEP에서 종료하든 상태 한 줄(완료/취소/실패)만 출력하고 [STOP]한다.
 
 > **금지:**
@@ -162,6 +162,6 @@ gh pr create \
 ## STEP 12 — 종료
 
 산출물 파일을 남기지 않는다. 생성·확인한 PR은 GitHub이 진실 원천이며,
-나중에 result·jsync:log 스킬이 `gh pr list --repo {repo} --head {branch}` 로 직접 조회한다.
+나중에 result·cruise:log 스킬이 `gh pr list --repo {repo} --head {branch}` 로 직접 조회한다.
 
 `완료: PR #{n} {url}` 한 줄만 출력하고 [STOP].

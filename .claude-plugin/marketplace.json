@@ -18,16 +18,10 @@
       "version": "0.1.0"
     },
     {
-      "name": "jsync",
-      "source": "./plugins/jsync",
-      "description": "Jira 이슈 REST API 기반 로컬 저장·편집·동기화. 컨텍스트 절약형.",
-      "version": "0.2.0"
-    },
-    {
       "name": "cruise",
       "source": "./plugins/cruise",
-      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고.",
-      "version": "0.5.0"
+      "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고 + Jira 동기화(생성·조회·업데이트·작업 로그).",
+      "version": "0.7.0"
     }
   ]
 }

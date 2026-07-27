@@ -9,7 +9,7 @@ disable-model-invocation: true
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
 > `~/Documents/tasks/{KEY}/review.md` 를 기록하고 [STOP]한다.
 > - 신규: 새 파일 생성. 재호출: `iterations[]` 에 append.
-> - frontmatter 공통 9필드 + 스킬별 필드 완비
+> - frontmatter 공통 5필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
 
@@ -80,10 +80,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/review/scripts/detect_env.py {root}
 
 ## STEP 6 — 검증
 
-check 스킬과 동일한 로직으로 lint → type → test 실행:
+build STEP 5와 동일한 로직으로 lint → type → test 실행:
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {root}
-# 각 도구 run_check.py 실행
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/build/scripts/detect_commands.py {root}
+# 각 도구 run_check.py 실행 (skills/build/scripts/run_check.py)
 ```
 
 실패 시 `AskUserQuestion`:
@@ -113,19 +113,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/detect_commands.py {root}
 
 `review_md_exists == true` 이면 기존 review.md 의 `iterations[]` 에 append. `false` 이면 신규 생성.
 
-frontmatter (공통 9필드 + 스킬별):
+frontmatter (공통 5필드 + 스킬별):
 ```yaml
 ---
-key: {KEY}
-key_source: {key_source}
-skill: review
-summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
+summary: {plan.md 또는 summary.md frontmatter에서 상속, 없으면 ""}
 branch: {branch}
 repo: {repo}
 status: completed
-created: {최초 생성 UTC, 재호출 시 유지}
 updated: {UTC ISO8601}
-tags: []
 pr_number: {n}
 iterations:
   - n: 1

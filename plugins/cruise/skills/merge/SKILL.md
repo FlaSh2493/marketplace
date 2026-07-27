@@ -6,17 +6,15 @@ disable-model-invocation: true
 
 # Merge
 
-> **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
-> `~/Documents/tasks/{KEY}/merge.md` 를 기록하고 [STOP]한다.
-> - 신규: 새 파일 생성. 재호출: `entries[]` 에 append.
-> - frontmatter 공통 9필드 + 스킬별 필드 완비
-> - `status`: completed | cancelled | failed
-> - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
+> **종료 규칙:** 산출물 파일(merge.md)을 남기지 않는다.
+> 머지 이력의 진실 원천은 **git 이력**이며, 소비자는 `git log --merges` 로 직접 조회한다.
+> 어떤 STEP에서 종료하든 상태 한 줄(완료/취소/실패)만 출력하고 [STOP]한다.
 
 > **절대 금지:**
 > - rebase / force-push / `--force-with-lease` / `pull --rebase`
 > - push (pr·review 스킬 전용, 또는 사용자 수동)
-> - 산출물 작성 후 요약·다음 액션 추천 일체 출력하지 않는다 ("완료" 한 줄만)
+> - `~/Documents/tasks/{KEY}/merge.md` 등 어떤 산출물 파일도 Write 하지 않는다
+> - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
 
 단일 의미: **현재 브랜치로 source를 머지한다.**
@@ -29,15 +27,14 @@ disable-model-invocation: true
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `base_branch`, `base_source`, `has_uncommitted`, `task_md_exists`, `merge_md_exists`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `base_branch`, `base_source`, `has_uncommitted`, `task_md_exists`.
 
 ---
 
 ## STEP 2 — 미커밋 변경 확인
 
 `has_uncommitted` 가 true면:
-- status=cancelled 로 merge.md 기록 ("커밋 먼저 필요")
-- [STOP]
+- "취소: 미커밋 변경이 있습니다. 커밋 먼저 필요." 한 줄 출력 후 [STOP]
 
 ---
 
@@ -50,7 +47,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 2. `origin/main` (base_branch와 다를 경우)
 3. `origin/develop` (base_branch와 다를 경우)
 4. 직접 입력
-5. 취소 → status=cancelled 로 merge.md 기록 후 [STOP]
+5. 취소 → "취소: 사용자가 머지를 취소했습니다." 한 줄 출력 후 [STOP]
 
 base_branch 가 null/unknown이면 옵션 1 없이 표시, 사용자에게 직접 입력 유도.
 
@@ -62,7 +59,7 @@ base_branch 가 null/unknown이면 옵션 1 없이 표시, 사용자에게 직�
 git fetch origin {selected_source}
 ```
 
-네트워크 실패 → status=failed 로 merge.md 기록 후 [STOP].
+네트워크 실패 → "실패: fetch 실패 ({원인})." 한 줄 출력 후 [STOP].
 
 ---
 
@@ -87,7 +84,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/precheck.py \
 - 충돌 파일 목록 (있을 경우)
 
 **진행** → STEP 7
-**취소** → status=cancelled 로 merge.md 기록 후 [STOP]
+**취소** → "취소: 사용자가 머지를 취소했습니다." 한 줄 출력 후 [STOP]
 
 ---
 
@@ -119,38 +116,14 @@ git add -A
 git commit
 ```
 
-실패 → status=failed 로 merge.md 기록 후 [STOP]
+실패 → "실패: 머지 실패 ({원인})." 한 줄 출력 후 [STOP]
 
 ---
 
-## STEP 8 — merge.md 저장
+## STEP 8 — 종료
 
-`merge_md_exists == true` 이면 기존 merge.md 의 `entries[]` 에 항목 append. `false` 이면 신규 생성.
+산출물 파일을 남기지 않는다. 머지 커밋은 git 이력이 진실 원천이며,
+나중에 소비자가 `git log --merges` 로 직접 조회한다.
 
-frontmatter (공통 9필드 + 스킬별):
-```yaml
----
-key: {KEY}
-key_source: {key_source}
-skill: merge
-summary: {task_md_exists == true 면 task.md 에서 상속, 아니면 ""}
-branch: {branch}
-repo: {repo}
-status: completed
-created: {최초 생성 UTC, 재호출 시 유지}
-updated: {UTC ISO8601}
-tags: []
-entries:
-  - at: {UTC ISO8601}
-    source: {selected_source}
-    target: {branch}
-    conflicts_count: {n}
-    result_sha: {git rev-parse --short HEAD}
----
-```
-
-본문:
-- `# Merge — {KEY}` (H1)
-- `## 머지 이력` — entries 테이블 (at, source→target, conflicts, sha)
-
-"완료" 한 줄 출력 후 [STOP].
+`완료: {selected_source} → {branch} 머지 ({result_sha})` 한 줄만 출력하고 [STOP].
+(`result_sha` = `git rev-parse --short HEAD`)

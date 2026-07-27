@@ -11,6 +11,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from common import tasks_root  # noqa: E402
+
 
 def strip_frontmatter(text: str) -> str:
     if text.startswith("---"):
@@ -38,7 +41,7 @@ def main():
     parser.add_argument("--sections", default="")
     args = parser.parse_args()
 
-    task_path = Path.home() / "Documents" / "tasks" / args.key / "task.md"
+    task_path = tasks_root() / args.key / "task.md"
     if not task_path.exists():
         print(f"task.md not found: {task_path}", file=sys.stderr)
         sys.exit(1)

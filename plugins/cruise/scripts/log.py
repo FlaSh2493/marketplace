@@ -1,12 +1,12 @@
 """
-jsync log — cruise 단계별 산출물을 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 POST.
+cruise log — cruise 단계별 산출물을 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 POST.
 
 Usage:
   log.py MKT-142            # 산출물을 조합해 댓글 POST
   log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 stdout으로만 출력
 
-Reads:  ~/Documents/tasks/<KEY>/{plan,summary,merge,review,result}.md
-        (cruise 하네스가 남긴 산출물. CONTRACT.md v6 §4 스키마)
+Reads:  ~/Documents/tasks/<KEY>/{plan,summary,review,result}.md
+        (cruise 하네스가 남긴 산출물. CONTRACT.md v9 스키마)
         PR·커밋 정보는 산출물이 아니라 GitHub(gh)에서 직접 조회한다.
 Writes: Jira 이슈 댓글 1건 (기존 add_comment 재사용)
         ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지용 해시 상태)
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import check_deps, STORE_ROOT, log_file
+from common import check_deps, tasks_root, log_file
 
 check_deps()
 
@@ -140,14 +140,13 @@ def compose(d: Path) -> tuple[str, list[str], str]:
     """Returns (digest_md, present_sections, updated_date)."""
     plan = read_artifact(d, "plan.md")
     summary = read_artifact(d, "summary.md")
-    merge = read_artifact(d, "merge.md")
     review = read_artifact(d, "review.md")
     result = read_artifact(d, "result.md")
 
-    # PR·커밋은 산출물이 아니라 GitHub(gh)에서 직접 조회한다 (commit.md/pr.md 폐지).
+    # PR·커밋·머지는 산출물이 아니라 git/GitHub에서 직접 조회한다 (commit.md/pr.md/merge.md 폐지).
     # repo·branch는 남은 cruise 산출물 frontmatter에서 얻는다.
-    repo = artifact_field([plan, summary, merge, review, result], "repo")
-    branch = artifact_field([plan, summary, merge, review, result], "branch")
+    repo = artifact_field([plan, summary, review, result], "repo")
+    branch = artifact_field([plan, summary, review, result], "branch")
     pr = gh_pr_info(repo, branch)  # dict 또는 None(없음/gh 실패 → 섹션 스킵)
     pr_commits = pr.get("commits") if isinstance(pr, dict) else None
     pr_commits = pr_commits if isinstance(pr_commits, list) else []
@@ -157,7 +156,7 @@ def compose(d: Path) -> tuple[str, list[str], str]:
 
     # --- most recent `updated` among artifacts, for the header line ---
     updated = ""
-    for art in (plan, summary, merge, review, result):
+    for art in (plan, summary, review, result):
         if art and art[0].get("updated"):
             u = str(art[0]["updated"])
             if u > updated:
@@ -165,12 +164,11 @@ def compose(d: Path) -> tuple[str, list[str], str]:
     updated_date = updated[:10] if updated else ""
 
     # --- status header ---
-    merge_entries = (merge[0].get("entries") if merge else None) or []
     pr_state = (pr.get("state") if pr else "") or ""
     if result and result[0].get("outcome"):
         # result.md의 outcome이 가장 권위 있는 최종 상태
         state = str(result[0]["outcome"])
-    elif merge_entries or pr_state == "MERGED":
+    elif pr_state == "MERGED":
         state = "merged"
     elif pr_state == "OPEN":
         state = "PR open"
@@ -279,17 +277,6 @@ def compose(d: Path) -> tuple[str, list[str], str]:
         lines.append("- " + " · ".join(bits))
         body_parts.append("\n".join(lines))
 
-    # --- Merge ---
-    if merge_entries:
-        present.append("merge")
-        lines = ["### 🔗 Merge"]
-        for e in merge_entries:
-            src = e.get("source", "")
-            tgt = e.get("target", "")
-            conf = e.get("conflicts_count", 0)
-            lines.append(f"- {tgt} ← {src} (conflicts {conf})")
-        body_parts.append("\n".join(lines))
-
     # --- 회고 (result.md) ---
     if result:
         rbody = result[1]
@@ -370,7 +357,7 @@ def main():
         )
         sys.exit(1)
 
-    d = STORE_ROOT / key
+    d = tasks_root() / key
     if not d.is_dir():
         print(f"error: no task directory: {d}", file=sys.stderr)
         sys.exit(1)

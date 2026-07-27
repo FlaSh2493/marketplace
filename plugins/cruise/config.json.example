@@ -1,0 +1,11 @@
+{
+  "credentials": {
+    "email": "you@madup.com",
+    "jira_api_token": "여기에 Jira API 토큰 (발급: https://id.atlassian.com/manage-profile/security/api-tokens)"
+  },
+  "settings": {
+    "base_url": "https://madup.atlassian.net",
+    "default_project": "IET",
+    "tasks_root": "~/Documents/tasks"
+  }
+}

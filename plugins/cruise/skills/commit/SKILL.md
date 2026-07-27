@@ -7,7 +7,7 @@ disable-model-invocation: true
 # Commit
 
 > **종료 규칙:** 산출물 파일(commit.md)을 남기지 않는다.
-> 커밋 결과의 진실 원천은 **git 이력**이며, jsync:log·result 스킬이 GitHub(gh)에서 직접 조회한다.
+> 커밋 결과의 진실 원천은 **git 이력**이며, cruise:log·result 스킬이 GitHub(gh)에서 직접 조회한다.
 > 어떤 STEP에서 종료하든 상태 한 줄(완료/취소/실패)만 출력하고 [STOP]한다.
 
 > **금지:**
@@ -73,7 +73,7 @@ git commit -m "{type}({scope}): {subject}{ [KEY]}
 
 ## STEP 6 — 종료
 
-산출물 파일을 남기지 않는다. 생성한 커밋은 git 이력에 남으며, 나중에 result·jsync:log 스킬이
+산출물 파일을 남기지 않는다. 생성한 커밋은 git 이력에 남으며, 나중에 result·cruise:log 스킬이
 GitHub(gh)에서 커밋·PR 정보를 직접 조회한다.
 
 `완료: {n}개 커밋` 한 줄만 출력하고 [STOP].

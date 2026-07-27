@@ -1,5 +1,5 @@
 """
-jsync list — Jira 활성스프린트 이슈 목록 조회 (stdout only, 디스크 저장 없음).
+cruise list — Jira 활성스프린트 이슈 목록 조회 (stdout only, 디스크 저장 없음).
 
 Usage:
   list.py MKT                        # 활성스프린트 × 본인할당

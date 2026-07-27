@@ -1,23 +1,10 @@
 ---
-key: ""
-key_source: issue
-skill: result
 summary: ""
 branch: ""
 repo: ""
 status: completed
-created: ""
 updated: ""
-tags: []
 outcome: in-progress
-base_branch: ""
-base_source: unknown
-pr_url: ""
-pr_number: null
-commits_count: 0
-issue_keys: []
-technologies: []
-artifacts_present: []
 ---
 
 # Result — {KEY}

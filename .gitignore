@@ -9,3 +9,6 @@ tasks/jira_search.json
 
 # session-insight runtime state (per-project, not committed)
 .claude/session-insight/
+
+# cruise/review-retro 설정(비밀 토큰 포함) — 레포 밖(~/.config)에 두지만 방어적으로 제외
+config.json

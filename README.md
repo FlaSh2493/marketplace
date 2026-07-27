@@ -15,7 +15,6 @@
 
 # 예시
 /plugin install cruise@flash-plugins
-/plugin install jsync@flash-plugins
 ```
 
 3. 플러그인 업데이트 (변경사항 반영)
@@ -29,8 +28,7 @@
 
 | 플러그인 | 설명 | 명령어 | 버전 |
 |---------|------|--------|------|
-| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현/검사·커밋·머지·PR·리뷰·회고 | `/cruise:plan`, `/cruise:build`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review`, `/cruise:result` | 0.6.0 |
-| `jsync` | Jira 이슈 REST API 기반 로컬 저장·편집·동기화 (컨텍스트 절약형) | `/jsync:list`, `/jsync:fetch`, `/jsync:draft`, `/jsync:update`, `/jsync:log` | 0.3.0 |
+| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현/검사·커밋·머지·PR·리뷰·회고 + Jira 동기화 | `/cruise:plan`, `/cruise:build`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review`, `/cruise:result`, `/cruise:log`, `/cruise:update` | 0.7.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
 

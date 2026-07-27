@@ -11,10 +11,10 @@ plan.md의 Phase를 구현하고, lint/type/test 검사와 요구사항 검증�
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로 `~/Documents/tasks/{KEY}/summary.md` 를
 > **덮어쓰기**(append 아님) 기록하고 [STOP]한다.
-> - frontmatter 공통 9필드 + summary 전용 필드(검사 결과 흡수) 완비
+> - frontmatter 공통 5필드 + summary 전용 필드(검사 결과 흡수) 완비
 > - `status`: completed | cancelled | failed (**cruise 생애주기 상태** — Jira 상태 아님)
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
-> - 검사·검증이 실패해도 summary.md는 **항상** 쓴다 (`check_result: fail` 로). 소비자(jsync:log·result)가 실패 사실을 봐야 하기 때문.
+> - 검사·검증이 실패해도 summary.md는 **항상** 쓴다 (`check_result: fail` 로). 소비자(cruise:log·result)가 실패 사실을 봐야 하기 때문.
 > - 예외: 선행 조건(STEP 2) 미충족은 아직 요약할 변경이 없으므로 summary.md를 쓰지 않고 종료한다.
 
 > **금지:**
@@ -175,20 +175,15 @@ git diff --name-status "$BASE"   # 파일별 변경 유형(A/M/D)
 
 Write 도구로 `~/Documents/tasks/{KEY}/summary.md` 를 **항상 덮어쓰기** 저장한다.
 
-frontmatter (공통 9필드 + summary 전용):
+frontmatter (공통 5필드 + summary 전용):
 
 ```yaml
 ---
-key: {KEY}
-key_source: {key_source}
-skill: summary
 summary: {task.md에서 상속}
 branch: {branch}
 repo: {repo}
 status: completed          # completed | cancelled | failed (cruise 생애주기)
-created: {summary.md 기존 존재 시 보존, 없으면 신규 UTC ISO8601}
 updated: {UTC ISO8601}
-tags: []
 base_branch: {base_branch}
 files_changed: {정수}
 insertions: {정수}
@@ -206,7 +201,7 @@ fix_attempts: {정수}           # 검사 레벨 Fix 시도 횟수
 본문 구조 — **사람이 30초 안에 "이 브랜치가 뭘 했나"를 파악하는 요약**이 목적이다. 검사 원문·전체 표 같은 기계·디버그 material은 담지 않는다.
 
 - `# Summary — {KEY}` (H1)
-- `## 개요` — 이 브랜치가 무엇을 달성했는지 산문 요약 (task.md summary + plan.md `## 목표` 기반)
+- `## 개요` — 이 브랜치가 무엇을 달성했는지 산문 요약 (task.md summary + task.md `## 목표` 기반)
 - `## 변경 파일` — 도메인/모듈별 그룹, 파일당 한 줄로 "무엇이 왜 바뀌었나" (name-status의 A/M/D 반영)
 - `## 구현 현황` — plan.md Phase별 완료/스킵 상태
 - `## 검증` — **압축 요약만**. plan에 검증 방법이 없으면 "- 검증 방법 없음".

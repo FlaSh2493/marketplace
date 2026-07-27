@@ -1,9 +1,9 @@
 {
   "name": "cruise",
-  "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고.",
-  "version": "0.6.0",
+  "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고 + Jira 동기화(생성·조회·업데이트·작업 로그).",
+  "version": "0.7.0",
   "author": {
-    "name": "내 프로젝트",
-    "email": "admin@example.com"
+    "name": "flash2493",
+    "email": "scnam@madup.com"
   }
 }
