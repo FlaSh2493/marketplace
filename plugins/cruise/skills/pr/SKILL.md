@@ -111,21 +111,17 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 
 ---
 
-## STEP 9 — [GATE] PR 내용 확인
+## STEP 9 — 타겟 브랜치 확인 (제목·본문은 질문 없음)
 
-`AskUserQuestion`: "이 내용으로 PR을 생성할까요?"
+**제목·본문·라벨은 사용자에게 묻지 않는다.** STEP 8에서 생성한 내용을 그대로 사용해 STEP 10으로 진행한다.
 
-표시:
+단, **타겟(base) 브랜치가 확실하지 않은 경우에만** 확인한다:
 
-- 제목: `{title}`
-- base 브랜치: `{base_branch}`
-- 라벨: `{labels}`
-- assignee: `{my_login}`
-- 본문 요약 (첫 200자)
-
-**확인** → STEP 10
-**수정** → 사용자 지시대로 갱신 → STEP 9 반복
-**취소** → status=cancelled 로 pr.md 기록 후 [STOP]
+- `base_branch` 가 context.py에서 upstream/기존 PR base 등으로 명확히 확정됐다면 → 질문 없이 STEP 10.
+- `base_branch` 가 불명확하거나(추론값·기본값 fallback) 여러 후보가 가능하면 → `AskUserQuestion`: "이 PR의 타겟 브랜치를 `{base_branch}` 로 할까요?"
+  - **확인** → STEP 10
+  - **다른 브랜치 선택** → `base_branch` 갱신 후 STEP 10
+  - **취소** → status=cancelled 로 pr.md 기록 후 [STOP]
 
 ---
 

@@ -47,12 +47,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/commit/scripts/group_changes.py {root}
 
 ---
 
-## STEP 4 — [GATE] 그룹핑 확인
+## STEP 4 — 그룹핑 확정 (질문 없음)
 
-`AskUserQuestion`: "이 그룹핑으로 커밋할까요?"
-- **확인** → STEP 5
-- **수정** → 사용자 지시대로 그룹 재조정 → STEP 4 반복
-- **취소** → status=cancelled 로 commit.md 기록 후 [STOP]
+STEP 3의 제안 그룹핑을 그대로 확정하고 STEP 5로 진행한다.
+- 사용자에게 질문하지 않는다 (`AskUserQuestion` 사용 금지).
+- 제안 그룹핑이 명백히 부적절한 경우에만 스스로 합리적으로 재조정한 뒤 진행한다.
 
 ---
 
