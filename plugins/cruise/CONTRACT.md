@@ -124,14 +124,17 @@ source: cruise-inline
 | 파일 | 추가 frontmatter | 본문 H2 (안정) |
 |------|------------------|----------------|
 | `plan.md` | `phases_count: int` | `## 요구사항`(`- [ ] R1:` 체크리스트 + `### 미지수`) `## 구현 계획`(Phase별 `<!-- delegate: -->` + 생성/수정 파일 + 작업항목↔R-ID) `## 검증 방법`(표). **얇은 계약** — 배경·목표·완료 조건은 task.md가 소스, plan에 복제하지 않음. 샘플 코드·영향 범위·아키텍처 산문·재사용 목록 제거(구현도 재사용도 build가 실제 파일 읽고 결정) |
-| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` `check_result:pass\|fail` `check_tools:{lint,type,test}` `requirements_checked:int` `fix_attempts:int` | `## 개요` `## 변경 파일` `## 구현 현황` `## 검증`(압축: 검사 한 줄 + 요구사항 pass/fail 집계 + fail·manual만 진단 한 줄) `## 비고`. 에러 원문·전체 검증 표·변경 통계 본문은 담지 않는다(수치는 frontmatter). **build 스킬이 구현+검사+요구사항 검증 결과를 담아 매 build마다 덮어씀.** 유일한 build 산출물 |
+| `summary.md` | `base_branch` `files_changed:int` `insertions:int` `deletions:int` `check_result:pass\|fail` `check_tools:{lint,type,test}` `requirements_checked:int` `fix_attempts:int` | `## 개요` `## 변경 파일`(작업단위별 `### 그룹명` 서브헤딩 + 하위 파일 불릿) `## 구현 현황` `## 검증`(압축: 검사 한 줄 + 요구사항 pass/fail 집계 + fail·manual만 진단 한 줄) `## 비고`. 에러 원문·전체 검증 표·변경 통계 본문은 담지 않는다(수치는 frontmatter). **build 스킬이 구현+검사+요구사항 검증 결과를 담아 매 build마다 덮어씀.** 유일한 build 산출물 |
 | `review.md` | `pr_number:int` `iterations:[{n,at,reviews_processed,validation,pushed_sha}]` | 리뷰 이력(append-only) |
 
 > **커밋·PR·머지는 산출물이 아니다 (v6·v7).** commit 스킬은 git 이력만 남기고, pr 스킬은 GitHub에
 > PR만 만들며, merge 스킬은 머지 커밋만 남긴다. 커밋 목록·PR URL·번호·base·상태가 필요한 소비자는
 > `gh pr list --repo {repo} --head {branch} --json number,url,title,baseRefName,state,commits` 로,
 > 머지 이력이 필요하면 `git log --merges` 로 조회한다. `repo`·`branch` 는 남은 산출물
-> (plan/summary/review/result)의 공통 frontmatter에서 얻는다. gh 실패·PR 없음이면 해당 정보를 건너뛴다.
+> (plan/summary/review/result)의 공통 frontmatter에서 얻는다. **최신 산출물부터 조회한다
+> (result → review → summary → plan)** — 워크트리 전환 등으로 plan.md의 branch가 stale해질 수
+> 있으므로, 이후 작성된 산출물이 실제 작업 브랜치를 더 정확히 반영한다. gh 실패·PR 없음이면
+> 해당 정보를 건너뛴다.
 
 > 모든 산출물이 항상 존재하는 것은 아니다. 실제 디스크에서는 산출물이 불균일하다
 > (예: review.md·result.md 는 없는 task가 많다). 소비자는 `*_md_exists` 를 검사하고 없는 것은 건너뛴다.

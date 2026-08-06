@@ -202,7 +202,12 @@ fix_attempts: {정수}           # 검사 레벨 Fix 시도 횟수
 
 - `# Summary — {KEY}` (H1)
 - `## 개요` — 이 브랜치가 무엇을 달성했는지 산문 요약 (task.md summary + task.md `## 목표` 기반)
-- `## 변경 파일` — 도메인/모듈별 그룹, 파일당 한 줄로 "무엇이 왜 바뀌었나" (name-status의 A/M/D 반영)
+- `## 변경 파일` — 작업단위(도메인/모듈)별로 `### 그룹명` 서브헤딩을 붙이고, 그 아래 파일당 한 줄로 "무엇이 왜 바뀌었나" (name-status의 A/M/D 반영). 예:
+  ```
+  ### GA4 이벤트 큐 워커
+  - workers/ga4-queue.ts (신규) — 큐 처리 워커 본체
+  - lib/retry.ts (신규) — 실패 시 지수 백오프 재시도
+  ```
 - `## 구현 현황` — plan.md Phase별 완료/스킵 상태
 - `## 검증` — **압축 요약만**. plan에 검증 방법이 없으면 "- 검증 방법 없음".
   - 검사 한 줄: `- 검사: lint PASS · type PASS · test PASS` (skipped 포함)

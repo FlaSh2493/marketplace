@@ -132,6 +132,30 @@ def section_text(body: str, heading: str) -> str:
     return " ".join(out)
 
 
+def section_groups(body: str, heading: str, group_limit: int = 5, item_limit: int = 5) -> list[tuple[str, list[str]]]:
+    """`## heading` 아래 `### 그룹명` 서브헤딩별로 묶인 불릿 목록.
+    서브헤딩이 없으면(구 flat 포맷) 빈 리스트를 반환 — 호출측이 section_bullets로 폴백."""
+    groups: list[tuple[str, list[str]]] = []
+    name: str | None = None
+    items: list[str] = []
+    for line in body_section(body, heading).splitlines():
+        m = re.match(r"^###\s+(.+?)\s*$", line)
+        if m:
+            if name is not None:
+                groups.append((name, items[:item_limit]))
+            name = m.group(1).strip()
+            items = []
+            continue
+        s = line.strip()
+        if s.startswith("- ") or s.startswith("* "):
+            item = s[2:].strip()
+            if item and item != "없음":
+                items.append(item)
+    if name is not None:
+        groups.append((name, items[:item_limit]))
+    return groups[:group_limit]
+
+
 # ---------------------------------------------------------------------------
 # Digest composition
 # ---------------------------------------------------------------------------
@@ -145,8 +169,9 @@ def compose(d: Path) -> tuple[str, list[str], str]:
 
     # PR·커밋·머지는 산출물이 아니라 git/GitHub에서 직접 조회한다 (commit.md/pr.md/merge.md 폐지).
     # repo·branch는 남은 cruise 산출물 frontmatter에서 얻는다.
-    repo = artifact_field([plan, summary, review, result], "repo")
-    branch = artifact_field([plan, summary, review, result], "branch")
+    # 최신 산출물부터 조회 (stale plan.md가 최신 summary.md 이후 값을 덮어쓰지 않도록)
+    repo = artifact_field([result, review, summary, plan], "repo")
+    branch = artifact_field([result, review, summary, plan], "branch")
     pr = gh_pr_info(repo, branch)  # dict 또는 None(없음/gh 실패 → 섹션 스킵)
     pr_commits = pr.get("commits") if isinstance(pr, dict) else None
     pr_commits = pr_commits if isinstance(pr_commits, list) else []
@@ -213,17 +238,36 @@ def compose(d: Path) -> tuple[str, list[str], str]:
             lines.append(f"- {r.strip()}")
         body_parts.append("\n".join(lines))
 
-    # --- Build (변경 통계 + 검사 결과, 모두 summary.md에서) ---
+    # --- Build (개요 + 변경 파일 + 검사 결과, 모두 summary.md에서) ---
     if summary:
         present.append("build")
         lines = ["### 🔨 Build"]
+        overview = section_text(summary[1], "개요")
+        if overview:
+            lines.append(overview)
+
         bits = []
         fc = summary[0].get("files_changed")
         ins = summary[0].get("insertions")
         dels = summary[0].get("deletions")
         if fc is not None:
             bits.append(f"변경 {fc} files (+{ins or 0} / -{dels or 0})")
+        fa = summary[0].get("fix_attempts")
+        if fa:
+            bits.append(f"수정 시도 {fa}회")
         lines.append("- " + " · ".join(bits) if bits else "- (기록 없음)")
+
+        groups = section_groups(summary[1], "변경 파일")
+        if groups:
+            lines.append("**변경 파일:**")
+            for name, items in groups:
+                lines.append(f"- {name}")
+                lines += [f"  - {it}" for it in items]
+        else:
+            changed = section_bullets(summary[1], "변경 파일", limit=6)
+            if changed:
+                lines.append("**변경 파일:**")
+                lines += [f"- {c}" for c in changed]
 
         # 검사·검증 결과 (build 스킬이 summary.md frontmatter에 흡수)
         tools = summary[0].get("check_tools") or {}

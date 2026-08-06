@@ -110,7 +110,7 @@ def main():
 
     summary = pick("summary", ["task", "plan", "summary"])
     # branch/repo: cruise 산출물에서 (Jira task.md에는 없음)
-    cruise_order = ["plan", "summary", "review", "task"]
+    cruise_order = ["review", "summary", "plan", "task"]
     repo = pick("repo", cruise_order)
 
     # branch: frontmatter 기록값(작업 시점 권위)을 우선.
