@@ -105,7 +105,22 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/pr/scripts/prepare_pr.py \
 ## STEP 8 — 제목·본문 생성
 
 `templates/pr-title.md` 와 `templates/pr-body.md` 형식을 사용해 PR 제목과 본문 작성.
-`task_md_exists == true` 이면 `~/Documents/tasks/{KEY}/task.md` 의 완료 조건 섹션을 PR 체크리스트로 포함.
+
+본문은 **3섹션 고정**이다 (`## 1. 뭘 만들었나` / `## 2. 코드 말고 따로 해줘야 하는 것` / `## 3. 이게 붙으면서 생길 수 있는 일`).
+설계 논쟁·대안 검토·커밋 히스토리·코드 인용은 넣지 않는다.
+
+2번 섹션을 쓰기 전에 **환경변수·시크릿 경로·마이그레이션을 코드에서 확인**한다 (추측 금지):
+
+```bash
+git diff origin/{base_branch}...HEAD --stat -- \
+  '*config*' '*settings*' '.env*' 'deploy/**' '**/migrations/**' 'helm/**' '*.tf'
+```
+
+- 히트가 있으면 해당 파일의 diff 를 읽고 표(이름·값·**어디에**)로 정리한다.
+- 히트가 없으면 "환경변수·설정값은 하나도 추가되지 않습니다" 라고 명시한다. 섹션을 비우지 않는다.
+
+`task_md_exists == true` 이면 `~/Documents/tasks/{KEY}/task.md` 의 완료 조건 섹션을
+3섹션 뒤에 `## 완료 조건` 체크리스트로 붙인다.
 
 ---
 
