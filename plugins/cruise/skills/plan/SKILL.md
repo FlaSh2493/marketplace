@@ -10,7 +10,9 @@ plan.md 는 **누적 산출물**이다 (CONTRACT §4a). 최초에는 명세·대
 **개정 모드**로 부분 수정하며 자란다. 작은 추가·개정은 `cruise:build` 의 세미플랜이 담당하고,
 plan 은 **최초 작성 · Phase 구조 재편 · Jira 명세 반영**을 맡는다.
 
-개정 절차의 단일 규약: `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/amend.md`
+규약 문서 (읽고 따른다):
+- 개정 절차: `${CLAUDE_PLUGIN_ROOT}/references/amend.md`
+- **산출물 문장**: `${CLAUDE_PLUGIN_ROOT}/references/wording.md`
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/plan.md` 를 기록하고 [STOP]한다.
 > `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
@@ -31,6 +33,9 @@ plan 은 **최초 작성 · Phase 구조 재편 · Jira 명세 반영**을 맡�
 > - **R-ID를 재발급·재번호·삭제하지 않는다.** 철회는 `(철회: 사유)` 접미로 보존한다
 > - summary.md는 읽지 않는다. plan의 입력은 task.md · 대화 컨텍스트 · 인자 · 이전 plan.md다.
 > - 근거로 인용할 발화가 없는 요구사항은 만들지 않는다 (추측 금지)
+> - **R 문장에 컴포넌트·훅·함수·라이브러리 이름을 쓰지 않는다.** R 문장은 Jira 댓글에 그대로
+>   실리므로 비전문가가 읽을 수 있어야 한다 (`references/wording.md`). 기술 서술은
+>   `## 구현 계획` 의 작업 항목에 둔다
 
 > **Plan Mode:** 승인 **전에는 읽기만** 한다. 판별 결과를 ExitPlanMode 본문으로 제시하고,
 > 승인 후에 쓰기·외부 액션을 실행한 뒤 [STOP]한다. 승인 후에도 **구현으로 넘어가지 않는다.**
@@ -268,6 +273,9 @@ phases_count: { Phase 수 정수 }
 
 - `# Plan — {KEY}` (H1)
 - `## 요구사항` — `- [ ] R1: …` 체크리스트 (전부 미체크로 시작). 하단에 `### 미지수`(없으면 생략).
+  **문장은 `references/wording.md` 를 따른다** — 내부 구조가 아니라 "무엇이 가능해지는가 /
+  무엇이 달라지는가" 로, 합니다체로, 전문용어는 풀어서. (예: `useInfiniteQuery 커서 페이징` ✗ →
+  `목록을 아래로 내리면 다음 페이지가 이어서 나옵니다` ○)
 - `## 구현 계획` — Phase 단위 계획. 각 Phase에 **반드시 포함**:
   - `<!-- delegate: auto|yes|no -->` 메타
   - 작업 항목 체크리스트 — 각 항목 끝에 충족하는 요구사항 ID 표기 (예: `- [ ] … (R1, R3)`)
