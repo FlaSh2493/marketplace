@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 > **금지:**
 >
-> - `~/Documents/tasks/{KEY}/pr.md` 등 어떤 산출물 파일도 Write 하지 않는다
+> - `pr.md` 등 어떤 산출물 파일도 Write 하지 않는다
 > - force push / `--force-with-lease` 일체 사용 안 함
 > - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다 (pr 완료 후 review 자동 진입 금지)
@@ -119,7 +119,7 @@ git diff origin/{base_branch}...HEAD --stat -- \
 - 히트가 있으면 해당 파일의 diff 를 읽고 표(이름·값·**어디에**)로 정리한다.
 - 히트가 없으면 "환경변수·설정값은 하나도 추가되지 않습니다" 라고 명시한다. 섹션을 비우지 않는다.
 
-`task_md_exists == true` 이면 `~/Documents/tasks/{KEY}/task.md` 의 완료 조건 섹션을
+`task_md_exists == true` 이면 `task_path`(= `context.py` 출력) 의 완료 조건 섹션을
 3섹션 뒤에 `## 완료 조건` 체크리스트로 붙인다.
 
 ---

@@ -6,8 +6,8 @@ disable-model-invocation: true
 
 # Review
 
-> **종료 규칙:** 어떤 STEP에서 종료하든 Write 도구로
-> `~/Documents/tasks/{KEY}/review.md` 를 기록하고 [STOP]한다.
+> **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/review.md` 를 기록하고 [STOP]한다.
+> `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
 > - 신규: 새 파일 생성. 재호출: `iterations[]` 에 append.
 > - frontmatter 공통 5필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
@@ -15,7 +15,7 @@ disable-model-invocation: true
 
 > **절대 금지:**
 > - force-push / `pull --rebase`
-> - 산출물 작성 후 요약·다음 액션 추천 일체 출력하지 않는다 ("완료" 한 줄만)
+> - 상태 한 줄 + 산출물 링크 외에 요약·다음 액션 추천 일체 출력하지 않는다
 > - 다른 스킬을 자동으로 호출하지 않는다
 
 ---
@@ -98,14 +98,14 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/build/scripts/detect_commands.py {root}
 
 1. **커밋 + Push**:
    ```bash
-   git add -A
+   git add {STEP 5에서 수정된 파일들}      # -A 금지: 무관한 작업트리 변경이 섞인다
    git commit -m "review: address CodeRabbit feedback"
    git push
    ```
    - non-ff 실패 시: status=failed 로 review.md 기록 후 [STOP] (force 사용 안 함)
    - 성공 시: `add_reactions.py` 로 처리한 코멘트에 +1 반응 추가
 2. **커밋만**: `git add -A && git commit -m "..."` 후 [STOP]
-3. **롤백**: `git checkout -- .` 후 status=cancelled 로 review.md 기록 후 [STOP]
+3. **롤백**: `git checkout -- {수정된 파일들}` 후 status=cancelled 로 review.md 기록 후 [STOP]
 
 ---
 
@@ -135,4 +135,11 @@ iterations:
 - `# Review — {KEY}` (H1)
 - `## 이터레이션 이력` — iterations 테이블
 
-STEP 9 복귀 (다음 iteration).
+**STEP 2 복귀** (다음 iteration). 단 iteration 이 **5회를 넘으면** status=cancelled 로 기록 후 [STOP].
+
+종료 시 **상태 한 줄 + 산출물 링크**를 출력한다.
+
+```
+완료: 리뷰 3건 반영
+[review.md](file://{task_dir}/review.md)
+```

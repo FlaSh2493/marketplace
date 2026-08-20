@@ -13,8 +13,8 @@ disable-model-invocation: true
 > **절대 금지:**
 > - rebase / force-push / `--force-with-lease` / `pull --rebase`
 > - push (pr·review 스킬 전용, 또는 사용자 수동)
-> - `~/Documents/tasks/{KEY}/merge.md` 등 어떤 산출물 파일도 Write 하지 않는다
-> - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다
+> - `merge.md` 등 어떤 산출물 파일도 Write 하지 않는다
+> - 상태 한 줄 외 요약·다음 액션 추천 일체 출력하지 않는다 (산출물이 없으므로 링크도 없다)
 > - 다른 스킬을 자동으로 호출하지 않는다
 
 단일 의미: **현재 브랜치로 source를 머지한다.**
@@ -112,7 +112,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/merge/scripts/resolve_conflict.py {filepath
 
 모든 충돌 해결 후:
 ```bash
-git add -A
+git add {충돌 해결한 파일들}      # -A 금지: 무관한 작업트리 변경이 섞인다
 git commit
 ```
 

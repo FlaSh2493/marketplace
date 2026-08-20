@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import check_deps, tasks_root, log_file
+from common import check_deps, tasks_root, log_file, load_settings
 
 check_deps()
 
@@ -162,6 +162,7 @@ def section_groups(body: str, heading: str, group_limit: int = 5, item_limit: in
 
 def compose(d: Path) -> tuple[str, list[str], str]:
     """Returns (digest_md, present_sections, updated_date)."""
+    task = read_artifact(d, "task.md")
     plan = read_artifact(d, "plan.md")
     summary = read_artifact(d, "summary.md")
     review = read_artifact(d, "review.md")
@@ -173,8 +174,6 @@ def compose(d: Path) -> tuple[str, list[str], str]:
     repo = artifact_field([result, review, summary, plan], "repo")
     branch = artifact_field([result, review, summary, plan], "branch")
     pr = gh_pr_info(repo, branch)  # dict 또는 None(없음/gh 실패 → 섹션 스킵)
-    pr_commits = pr.get("commits") if isinstance(pr, dict) else None
-    pr_commits = pr_commits if isinstance(pr_commits, list) else []
 
     present: list[str] = []
     body_parts: list[str] = []
@@ -188,164 +187,60 @@ def compose(d: Path) -> tuple[str, list[str], str]:
                 updated = u
     updated_date = updated[:10] if updated else ""
 
-    # --- status header ---
-    pr_state = (pr.get("state") if pr else "") or ""
-    if result and result[0].get("outcome"):
-        # result.md의 outcome이 가장 권위 있는 최종 상태
-        state = str(result[0]["outcome"])
-    elif pr_state == "MERGED":
-        state = "merged"
-    elif pr_state == "OPEN":
-        state = "PR open"
-    elif pr:
-        state = f"PR {pr_state.lower()}"
-    else:
-        state = "in progress"
+    # --- 해결한 문제 (task.md 배경 → summary 개요 폴백) ---
+    problem: list[str] = []
+    if task:
+        problem = section_bullets(task[1], "배경", limit=4) or [
+            ln for ln in section_text(task[1], "배경").splitlines() if ln.strip()
+        ][:3]
+    if not problem and summary:
+        problem = [ln for ln in section_text(summary[1], "개요").splitlines() if ln.strip()][:3]
+    if problem:
+        present.append("문제")
+        body_parts.append("**해결한 문제**\n" + "\n".join(f"- {b}" for b in problem))
 
-    header_bits = [f"**상태:** {state}"]
-    if pr:
-        pr_num = pr.get("number")
-        pr_url = pr.get("url") or ""
-        if pr_num and pr_url:
-            header_bits.append(f"PR [#{pr_num}]({pr_url})")
-        elif pr_num:
-            header_bits.append(f"PR #{pr_num}")
-    if pr_commits:
-        header_bits.append(f"{len(pr_commits)} commits")
-    if summary and summary[0].get("check_result"):
-        header_bits.append(f"check {str(summary[0]['check_result']).upper()}")
-    header = " · ".join(header_bits)
-
-    # --- Plan ---
+    # --- 완료한 작업 / 미해결 (plan.md 요구사항 체크박스) ---
+    done, todo = [], []
     if plan:
-        present.append("plan")
-        lines = ["### 📋 Plan"]
-        summ = plan[0].get("summary")
-        if summ:
-            lines.append(str(summ))
-        meta_bits = []
-        if plan[0].get("phases_count") is not None:
-            meta_bits.append(f"Phases {plan[0]['phases_count']}")
         req_body = body_section(plan[1], "요구사항")
-        # 신 포맷: `- [ ] R1: ...` 체크리스트 우선, 구 포맷: 평범한 불릿 fallback
-        reqs = re.findall(r"^-\s*\[[ xX]\]\s*(R\d+:.*)$", req_body, re.MULTILINE)
-        req_count = len(reqs) if reqs else len(re.findall(r"^-\s+\S", req_body, re.MULTILINE))
-        if req_count:
-            meta_bits.append(f"요구사항 {req_count}건")
-        if meta_bits:
-            lines.append("- " + " · ".join(meta_bits))
-        for r in reqs[:8]:
-            lines.append(f"- {r.strip()}")
-        body_parts.append("\n".join(lines))
+        for m in re.finditer(r"^-\s*\[([ xX])\]\s*R\d+:\s*(.+?)\s*$", req_body, re.MULTILINE):
+            checked, text = m.group(1).lower() == "x", m.group(2).strip()
+            if "(철회" in text:          # 철회 항목은 집계·표시에서 제외 (CONTRACT §4a)
+                continue
+            (done if checked else todo).append(text)
+    if done:
+        present.append("작업")
+        body_parts.append("**완료한 작업**\n" + "\n".join(f"- {t}" for t in done))
+    if todo:
+        present.append("미해결")
+        body_parts.append("**미해결**\n" + "\n".join(f"- {t}" for t in todo))
 
-    # --- Build (개요 + 변경 파일 + 검사 결과, 모두 summary.md에서) ---
+    # --- 상태 (브랜치 · 검사 · PR) ---
+    status_bits = []
+    if branch:
+        status_bits.append(f"- 브랜치: `{branch}`")
     if summary:
-        present.append("build")
-        lines = ["### 🔨 Build"]
-        overview = section_text(summary[1], "개요")
-        if overview:
-            lines.append(overview)
-
-        bits = []
-        fc = summary[0].get("files_changed")
-        ins = summary[0].get("insertions")
-        dels = summary[0].get("deletions")
-        if fc is not None:
-            bits.append(f"변경 {fc} files (+{ins or 0} / -{dels or 0})")
-        fa = summary[0].get("fix_attempts")
-        if fa:
-            bits.append(f"수정 시도 {fa}회")
-        lines.append("- " + " · ".join(bits) if bits else "- (기록 없음)")
-
-        groups = section_groups(summary[1], "변경 파일")
-        if groups:
-            lines.append("**변경 파일:**")
-            for name, items in groups:
-                lines.append(f"- {name}")
-                lines += [f"  - {it}" for it in items]
-        else:
-            changed = section_bullets(summary[1], "변경 파일", limit=6)
-            if changed:
-                lines.append("**변경 파일:**")
-                lines += [f"- {c}" for c in changed]
-
-        # 검사·검증 결과 (build 스킬이 summary.md frontmatter에 흡수)
         tools = summary[0].get("check_tools") or {}
         tool_bits = [f"{k} {str(v).upper()}" for k, v in tools.items() if v]
-        detail = " · ".join(tool_bits) if tool_bits else str(summary[0].get("check_result", "")).upper()
-        rc = summary[0].get("requirements_checked")
-        if rc is not None:
-            detail += f" · 요구사항 검증 {rc}건"
-        if detail.strip():
-            lines.append(f"- {detail}".rstrip())
-        body_parts.append("\n".join(lines))
-
-    # --- Commits (GitHub PR에서 파생. PR 없으면 스킵) ---
-    if pr_commits:
-        present.append("commit")
-        cnt = len(pr_commits)
-        lines = [f"### 📦 Commits ({cnt})"]
-        for c in pr_commits[:20]:
-            sha = str(c.get("oid", ""))[:7]
-            msg = str(c.get("messageHeadline", "")).strip()
-            lines.append(f"- `{sha}` {msg}".rstrip())
-        if cnt > 20:
-            lines.append(f"- … 외 {cnt - 20}건")
-        body_parts.append("\n".join(lines))
-
-    # --- PR (GitHub에서 직접 조회. 없으면 스킵) ---
+        if tool_bits:
+            status_bits.append("- 검사: " + " · ".join(tool_bits))
+        elif summary[0].get("check_result"):
+            status_bits.append(f"- 검사: {str(summary[0]['check_result']).upper()}")
     if pr:
-        present.append("pr")
-        lines = ["### 🔀 PR"]
-        title = str(pr.get("title", "")).strip()
-        pr_num = pr.get("number")
-        pr_url = pr.get("url") or ""
-        base = pr.get("baseRefName")
-        label = f"#{pr_num} {title}".strip() if pr_num else (title or "PR")
-        entry = f"- [{label}]({pr_url})" if pr_url else f"- {label}"
-        if base:
-            entry += f" → base `{base}`"
-        lines.append(entry)
-        body_parts.append("\n".join(lines))
-
-    # --- Review ---
+        pr_num, pr_url = pr.get("number"), pr.get("url") or ""
+        st = str(pr.get("state") or "").upper()
+        label = f"#{pr_num} {st}".strip()
+        status_bits.append(f"- PR: [{label}]({pr_url})" if pr_url else f"- PR: {label}")
     if review:
-        present.append("review")
         iters = review[0].get("iterations") or []
-        lines = ["### 👀 Review"]
-        bits = [f"{len(iters)} iterations"]
         if iters:
-            last = iters[-1]
-            if last.get("validation"):
-                bits.append(f"validation {last['validation']}")
-        lines.append("- " + " · ".join(bits))
-        body_parts.append("\n".join(lines))
+            status_bits.append(f"- 리뷰: {len(iters)}회 반영")
+    if status_bits:
+        present.append("상태")
+        body_parts.append("**상태**\n" + "\n".join(status_bits))
 
-    # --- 회고 (result.md) ---
-    if result:
-        rbody = result[1]
-        outcome_line = section_text(rbody, "결과")
-        fails = section_bullets(rbody, "어려웠던 점")
-        decisions = section_bullets(rbody, "결정")
-        wins = section_bullets(rbody, "잘된 점")
-        if outcome_line or fails or decisions or wins:
-            present.append("result")
-            lines = ["### 📝 회고"]
-            if outcome_line:
-                lines.append(outcome_line)
-            if wins:
-                lines.append("**잘된 점:**")
-                lines += [f"- {b}" for b in wins]
-            if fails:
-                lines.append("**어려웠던 점 / 실패:**")
-                lines += [f"- {b}" for b in fails]
-            if decisions:
-                lines.append("**결정:**")
-                lines += [f"- {b}" for b in decisions]
-            body_parts.append("\n".join(lines))
-
-    head_line = f"🚢 cruise 작업 로그 — {updated_date}" if updated_date else "🚢 cruise 작업 로그"
-    digest = head_line + "\n\n" + header + "\n\n" + "\n\n".join(body_parts)
+    head_line = f"🚀 작업내역 — {updated_date}" if updated_date else "🚀 작업내역"
+    digest = head_line + "\n\n" + "\n\n".join(body_parts)
     return digest, present, updated_date
 
 
@@ -430,7 +325,13 @@ def main():
         sys.exit(1)
 
     save_state(d, h)
-    print(f"logged {key}: {', '.join(present)} ({len(present)} sections)")
+    try:
+        base = str(load_settings()["base_url"]).rstrip("/")
+        url = f"{base}/browse/{key}"
+    except Exception:
+        url = ""
+    tail = f"  {url}" if url else ""
+    print(f"logged {key}: {', '.join(present)} ({len(present)} sections){tail}")
 
 
 if __name__ == "__main__":

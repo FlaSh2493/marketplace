@@ -9,8 +9,9 @@ build 스킬로부터 Phase 단위 구현 작업을 위임받는다.
 
 ## 입력 (호출 시 전달)
 
-- `plan_path`: `~/Documents/tasks/{KEY}/plan.md` 경로
+- `plan_path`: plan.md 절대경로 (build 가 `context.py` 의 `task_path` 로부터 해석해 전달)
 - `phase`: 구현할 Phase 번호 또는 제목
+- `target_requirements`: 이번에 구현할 **미체크 R-ID 목록** (이 밖의 요구사항은 건드리지 않는다)
 - `context`: {repo 루트, 브랜치, 주요 영향 파일 목록}
 - `task_summary`: task.md의 목표·요구사항 요약
 
