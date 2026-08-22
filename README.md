@@ -28,7 +28,7 @@
 
 | 플러그인 | 설명 | 명령어 | 버전 |
 |---------|------|--------|------|
-| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현/검사·커밋·머지·PR·리뷰·회고 + Jira 동기화 | `/cruise:plan`, `/cruise:build`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review`, `/cruise:result`, `/cruise:log`, `/cruise:update` | 0.7.0 |
+| `cruise` | 이슈 단위 개발 사이클 자동화 — 플랜·구현/검사·커밋·머지·PR·리뷰·회고 + Jira 동기화 | `/cruise:plan`, `/cruise:build`, `/cruise:commit`, `/cruise:merge`, `/cruise:pr`, `/cruise:review`, `/cruise:result`, `/cruise:log`, `/cruise:update` | 0.8.0 |
 | `gh-sub` | 복수 GitHub 계정 관리 및 저장소별 계정 전환 | `/gh-sub:switch`, `/gh-sub:add`, `/gh-sub:status` | 0.1.0 |
 | `e2e-testid-sync` | E2E 테스트를 위한 test-id 및 aria-busy 상태 주입 | N/A | 0.1.0 |
 

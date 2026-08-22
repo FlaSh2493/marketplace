@@ -2,14 +2,15 @@
 cruise log — cruise 단계별 산출물을 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 POST.
 
 Usage:
-  log.py MKT-142            # 산출물을 조합해 댓글 POST
+  log.py MKT-142            # 아직 보고하지 않은 완료 항목(델타)만 조합해 댓글 POST
+  log.py MKT-142 --all      # 이미 보고한 항목까지 [x] 전량을 다시 보고
   log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 stdout으로만 출력
 
 Reads:  ~/Documents/tasks/<KEY>/{plan,summary,review,result}.md
         (cruise 하네스가 남긴 산출물. CONTRACT.md v9 스키마)
         PR·커밋 정보는 산출물이 아니라 GitHub(gh)에서 직접 조회한다.
 Writes: Jira 이슈 댓글 1건 (기존 add_comment 재사용)
-        ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지용 해시 상태)
+        ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지 해시 + 보고 완료한 요구사항 목록)
         stdout 1-liner summary
 """
 import sys
@@ -160,8 +161,19 @@ def section_groups(body: str, heading: str, group_limit: int = 5, item_limit: in
 # Digest composition
 # ---------------------------------------------------------------------------
 
-def compose(d: Path) -> tuple[str, list[str], str]:
-    """Returns (digest_md, present_sections, updated_date)."""
+def req_hash(text: str) -> str:
+    """요구사항 문장의 매칭 키. R-ID가 아니라 문장을 해싱한다 —
+    plan 전면 재작성으로 R 번호가 1부터 다시 붙어도 같은 문장은 같은 키가 되도록."""
+    return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()
+
+
+def compose(d: Path, seen: set[str] | None) -> tuple[str, list[str], str, list[dict], bool]:
+    """Returns (digest_md, present_sections, updated_date, reported_entries, has_reqs).
+
+    seen: 이미 보고한 요구사항 문장 해시 집합. None이면 델타 없이 [x] 전량을 보고한다
+    (--all 및 `logged` 키가 없는 구 상태 파일의 최초 마이그레이션).
+    reported_entries: 이번 댓글의 `완료한 작업`에 실린 항목 [{"rid","hash"}, …].
+    has_reqs: plan.md `## 요구사항`에서 항목을 하나라도 파싱했는지."""
     task = read_artifact(d, "task.md")
     plan = read_artifact(d, "plan.md")
     summary = read_artifact(d, "summary.md")
@@ -200,17 +212,32 @@ def compose(d: Path) -> tuple[str, list[str], str]:
         body_parts.append("**해결한 문제**\n" + "\n".join(f"- {b}" for b in problem))
 
     # --- 완료한 작업 / 미해결 (plan.md 요구사항 체크박스) ---
-    done, todo = [], []
+    # plan.md는 사이클을 거듭하며 누적되는 산출물이라 [x] 전량을 매번 실으면 같은 항목이 반복된다.
+    # `완료한 작업`은 아직 보고한 적 없는 항목만(델타), `미해결`은 항상 전량 스냅샷.
+    done: list[tuple[str, str]] = []   # (rid, text)
+    todo: list[str] = []
+    has_reqs = False
     if plan:
         req_body = body_section(plan[1], "요구사항")
-        for m in re.finditer(r"^-\s*\[([ xX])\]\s*R\d+:\s*(.+?)\s*$", req_body, re.MULTILINE):
-            checked, text = m.group(1).lower() == "x", m.group(2).strip()
+        for m in re.finditer(r"^-\s*\[([ xX])\]\s*(R\d+):\s*(.+?)\s*$", req_body, re.MULTILINE):
+            checked, rid, text = m.group(1).lower() == "x", m.group(2), m.group(3).strip()
             if "(철회" in text:          # 철회 항목은 집계·표시에서 제외 (CONTRACT §4a)
                 continue
-            (done if checked else todo).append(text)
-    if done:
+            has_reqs = True
+            if checked:
+                done.append((rid, text))
+            else:
+                todo.append(text)
+
+    if seen is None:
+        fresh = list(done)
+    else:
+        fresh = [(rid, t) for rid, t in done if req_hash(t) not in seen]
+    reported = [{"rid": rid, "hash": req_hash(t)} for rid, t in fresh]
+
+    if fresh:
         present.append("작업")
-        body_parts.append("**완료한 작업**\n" + "\n".join(f"- {t}" for t in done))
+        body_parts.append("**완료한 작업**\n" + "\n".join(f"- {t}" for _, t in fresh))
     if todo:
         present.append("미해결")
         body_parts.append("**미해결**\n" + "\n".join(f"- {t}" for t in todo))
@@ -241,7 +268,7 @@ def compose(d: Path) -> tuple[str, list[str], str]:
 
     head_line = f"🚀 작업내역 — {updated_date}" if updated_date else "🚀 작업내역"
     digest = head_line + "\n\n" + "\n\n".join(body_parts)
-    return digest, present, updated_date
+    return digest, present, updated_date, reported, has_reqs
 
 
 # ---------------------------------------------------------------------------
@@ -264,10 +291,21 @@ def load_state(d: Path) -> dict:
     return {}
 
 
-def save_state(d: Path, h: str):
+def save_state(d: Path, h: str, state: dict, reported: list[dict]):
+    """POST 성공 뒤에만 호출한다. 기존 `logged`에 이번에 보고한 항목을 해시 기준으로 합친다."""
+    logged = list(state.get("logged") or [])
+    seen = {e.get("hash") for e in logged if isinstance(e, dict)}
+    for e in reported:
+        if e["hash"] not in seen:
+            logged.append(e)
+            seen.add(e["hash"])
     (d / STATE_FILE).write_text(
         json.dumps(
-            {"last_hash": h, "last_posted_at": datetime.now(timezone.utc).isoformat()},
+            {
+                "last_hash": h,
+                "last_posted_at": datetime.now(timezone.utc).isoformat(),
+                "logged": logged,
+            },
             ensure_ascii=False, indent=2,
         ),
         encoding="utf-8",
@@ -282,9 +320,10 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     flags = {a for a in sys.argv[1:] if a.startswith("-")}
     dry_run = "--dry-run" in flags
+    report_all = "--all" in flags
 
     if not args:
-        print("error: KEY required. usage: log.py <KEY> [--dry-run]", file=sys.stderr)
+        print("error: KEY required. usage: log.py <KEY> [--all] [--dry-run]", file=sys.stderr)
         sys.exit(1)
     key = args[0]
 
@@ -301,7 +340,14 @@ def main():
         print(f"error: no task directory: {d}", file=sys.stderr)
         sys.exit(1)
 
-    digest, present, updated_date = compose(d)
+    state = load_state(d)
+    # `logged`가 없는 구 상태 파일(과 최초 실행)은 전량 보고 후 전체 시드로 마이그레이션한다.
+    migrating = "logged" not in state
+    seen = None if (report_all or migrating) else {
+        e.get("hash") for e in (state.get("logged") or []) if isinstance(e, dict)
+    }
+
+    digest, present, updated_date, reported, has_reqs = compose(d, seen)
     if not present:
         print(f"no artifacts  {key}  (cruise 산출물이 없습니다)")
         sys.exit(0)
@@ -311,9 +357,14 @@ def main():
         print(f"\n--- dry-run: {len(present)} sections ({', '.join(present)}) ---", file=sys.stderr)
         return
 
+    # 완료 델타가 0건이면 `해결한 문제`·`상태`만 남은 껍데기 댓글이 된다 — POST하지 않는다.
+    if has_reqs and not reported:
+        print(f"no changes  {key}  (마지막 로그 이후 새로 완료된 항목 없음)")
+        return
+
     h = content_hash(digest)
-    state = load_state(d)
-    if state.get("last_hash") == h:
+    # --all은 전량 재보고가 목적이므로 last_hash 중복 방지도 함께 우회한다.
+    if not report_all and state.get("last_hash") == h:
         print(f"no changes  {key}  (마지막 로그 이후 변경 없음)")
         return
 
@@ -324,7 +375,7 @@ def main():
         print(f"  자세한 내용: {log_file(key)}", file=sys.stderr)
         sys.exit(1)
 
-    save_state(d, h)
+    save_state(d, h, state, reported)
     try:
         base = str(load_settings()["base_url"]).rstrip("/")
         url = f"{base}/browse/{key}"
