@@ -16,6 +16,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 |-------------|------|
 | "로그 남겨줘", "작업내역 남겨줘" | `log.py <KEY>` — **델타**(아직 보고 안 한 완료 항목만) |
 | "이전 작업까지 전부 다시", "전체 다시 로그" | `log.py <KEY> --all` — `[x]` 전량 재보고 |
+| 첫 실행이 `seeded` 로 끝났고 그 항목들을 남기고 싶다 | `log.py <KEY> --all` |
 | "POST 전에 미리 보여줘" | `log.py <KEY> --dry-run` |
 
 ## 동작 규칙
@@ -30,7 +31,18 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
   - 매칭 키는 R-ID가 아니라 **요구사항 문장의 해시**다. plan을 전면 재작성해 R 번호가 1부터 다시 붙어도
     같은 문장은 다시 실리지 않고, 문장을 개정하면 해시가 달라져 다시 실린다.
   - 보고 이력은 `{task_dir}/.jsync-log.json` 의 `logged: [{"rid","hash"}, …]` 에 쌓인다
-    (`last_hash`·`last_posted_at`은 그대로 유지). `logged` 키가 없는 기존 상태 파일은 최초 1회 전량 보고 후 시드한다.
+    (`last_hash`·`last_posted_at`은 그대로 유지).
+  - **`[x]` 는 "언제 완료됐는지"를 말해주지 않는다** — 이전에 이미 보고된 항목도 `[x]` 로 남아있다.
+    "저번에 로그를 찍었는지"의 판단 기준은 `logged` 이고, `logged` 가 없는 기존 상태 파일은
+    `last_posted_at` 으로 가른다:
+
+    | `logged` | `last_posted_at` | 동작 |
+    |---|---|---|
+    | 있음 | — | 정상 델타 |
+    | 없음 | 있음 | 이미 댓글을 남긴 이슈 → **POST 없이 시드만** 하고 `seeded` 로 종료 (중복 댓글 방지) |
+    | 없음 | 없음 | 로그를 남긴 적 없음 → 전량 보고 후 시드 |
+
+    시드만 한 경우 그때 삼킨 항목은 `--all` 로 되찾는다.
   - 상태 갱신은 **POST 성공 뒤에만** 일어난다 — `--dry-run`과 실패는 상태를 건드리지 않는다.
 - **새로 완료된 항목이 0건이면 POST하지 않는다** (`no changes`). `해결한 문제`·`상태`만 남은 껍데기 댓글을 막는다.
 - `--all` 이면 델타와 `last_hash` 중복 방지를 모두 우회해 `[x]` 전량을 다시 보고하고, 전체를 상태에 재시드한다
@@ -58,6 +70,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 - 성공 시 stdout 1줄: `logged MKT-142: 문제, 작업, 미해결, 상태 (4 sections)  https://…/browse/MKT-142`
   (이슈 URL을 함께 낸다 — 사용자가 바로 확인할 수 있도록)
 - 변경 없거나 새로 완료된 항목이 없으면: `no changes  MKT-142`
+- 구 상태 파일 마이그레이션(시드만 하고 댓글 없음): `seeded MKT-142: 완료 N건을 '이미 보고됨'으로 기록 (댓글 없음) …`
 - 산출물 없으면: `no artifacts  MKT-142`
 - 실패 시 1줄 에러 + 상세 로그는 `{task_dir}/.log`
 - stdout 1줄만 사용자에게 보여준다.

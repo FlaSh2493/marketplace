@@ -341,9 +341,15 @@ def main():
         sys.exit(1)
 
     state = load_state(d)
-    # `logged`가 없는 구 상태 파일(과 최초 실행)은 전량 보고 후 전체 시드로 마이그레이션한다.
-    migrating = "logged" not in state
-    seen = None if (report_all or migrating) else {
+    # `logged`가 없는 구 상태 파일 마이그레이션 — `[x]` 만으로는 그 항목이 이번 사이클에 완료된
+    # 것인지 이전에 이미 보고된 것인지 구분할 수 없다. `last_posted_at` 이 그 구분 신호다:
+    #   있음 → 이미 댓글을 남긴 이슈. 어느 항목이었는지는 모르지만 현재 `[x]` 는 그때 실렸다고
+    #          보는 게 맞다. POST 없이 시드만 하고 종료한다 (중복 댓글 방지).
+    #          시드가 삼킨 항목이 있으면 `--all` 로 되찾는다.
+    #   없음 → 로그를 남긴 적 없다. 전량 보고 후 시드 (정상 최초 실행).
+    no_logged = "logged" not in state
+    seed_only = no_logged and bool(state.get("last_posted_at")) and not report_all
+    seen = None if (report_all or no_logged) else {
         e.get("hash") for e in (state.get("logged") or []) if isinstance(e, dict)
     }
 
@@ -355,6 +361,15 @@ def main():
     if dry_run:
         print(digest)
         print(f"\n--- dry-run: {len(present)} sections ({', '.join(present)}) ---", file=sys.stderr)
+        return
+
+    if seed_only:
+        save_state(d, state.get("last_hash") or "", state, reported)
+        print(
+            f"seeded {key}: 완료 {len(reported)}건을 '이미 보고됨'으로 기록 (댓글 없음). "
+            "이전 버전이 남긴 댓글과 중복되지 않도록 첫 실행은 보고를 건너뜁니다. "
+            f"전량을 다시 남기려면 --all"
+        )
         return
 
     # 완료 델타가 0건이면 `해결한 문제`·`상태`만 남은 껍데기 댓글이 된다 — POST하지 않는다.
