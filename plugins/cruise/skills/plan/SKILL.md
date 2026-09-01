@@ -43,7 +43,7 @@ plan 은 **최초 작성 · Phase 구조 재편 · Jira 명세 반영**을 맡�
 > **Plan Mode:** 승인 **전에는 읽기만** 한다. 판별 결과를 ExitPlanMode 본문으로 제시하고,
 > 승인 후에 쓰기·외부 액션을 실행한 뒤 [STOP]한다. 승인 후에도 **구현으로 넘어가지 않는다.**
 >
-> - 승인 전 실행 금지: `fetch.py` · `create.py` · `git checkout -b` · `git branch -m` ·
+> - 승인 전 실행 금지: `fetch.py` · `create.py` · `git checkout -b` · `git branch -m` · `git worktree add` ·
 >   `update.py` · plan.md 쓰기
 > - 허용: `context.py` · `load_issue.py`(로컬 읽기) · Read/Grep/Glob
 > - 게이트는 `AskUserQuestion` 대신 **ExitPlanMode 로 대체**한다 (이중 승인 금지)
@@ -324,6 +324,65 @@ cp "{task_dir}/plan.md.bak" "{task_dir}/plan.archive/plan-$TS.md"   # 쓰기 전
 
 ---
 
+## STEP 4.7 — 갈래 분할 제안 (신규 모드에서만)
+
+plan.md 를 쓴 **직후** 한 번 판단한다. 요구사항이 다 나온 뒤여야 무엇을 무엇과 묶을지 보인다.
+개정 모드에서는 하지 않는다 (이미 갈래가 정해진 뒤다).
+
+### 언제 제안하나
+
+`## 요구사항` 이 **서로 독립적인 덩어리로 갈라지고**, 각 덩어리가 따로 구현·검증·PR 될 수 있을 때만.
+아래 신호를 본다:
+
+- 건드리는 파일·모듈 집합이 겹치지 않는다
+- 한쪽이 끝나야 다른 쪽이 시작되는 의존이 **없다**
+- 각각이 독립적으로 리뷰·머지될 만한 크기다
+
+**갈래가 하나로 보이면 제안하지 않는다.** 요구사항이 많다는 이유만으로 쪼개지 않는다 —
+서로 얽혀 있으면 갈라도 PR 이 서로를 기다려 이득이 없다. 확신이 없으면 제안하지 않는다.
+
+### 제안 형식
+
+```
+plan.md 작성 완료 — R1~R7
+
+이 요구사항은 2갈래로 독립 진행할 수 있습니다.
+
+ auth   R1 R2 R5   로그인·세션        src/features/auth/
+ modal  R3 R4 R6 R7 모달 스크롤       src/shared/ui/modal/
+
+갈래를 나눌까요? (나누면 갈래마다 워크트리·플랜·PR 이 따로 생깁니다)
+  - 예            → 위 안대로 분리
+  - 이렇게 나눠줘  → 배분을 직접 지정
+  - 아니오         → 한 갈래로 진행 (지금 상태 그대로)
+```
+
+- **묶음 근거를 한 줄로 함께 보여준다** (무슨 관심사인지 + 주 파일 경로). 근거 없이 이름만
+  나열하면 사용자가 판단할 수 없다.
+- 승인 없이 워크트리를 만들지 않는다. `아니오` 면 아무것도 하지 않고 STEP 5 로 간다.
+
+### 분리 실행 (승인했을 때만)
+
+현재 브랜치가 **첫 갈래**다. 추가 갈래마다 아래를 반복한다.
+
+```bash
+REPO=$(git rev-parse --show-toplevel)
+WT="$(dirname "$REPO")/$(basename "$REPO")-{unit}"          # 레포 옆 형제 디렉토리
+git worktree add -b {KEY}-{unit} "$WT" {base_branch}
+cd "$WT" && python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py   # 그 갈래의 task_dir 확정
+mkdir -p "{그 갈래의 task_dir}"
+```
+
+- 워크트리·브랜치가 **이미 있으면 만들지 않고 재사용**한다 (`git worktree list` · `git branch` 확인).
+- 새 갈래의 `plan.md` 는 그 갈래 `task_dir` 에 **새로 작성**한다. R-ID 는 **그 갈래 안에서 R1 부터**
+  다시 붙인다 — plan.md 마다 R 공간이 독립이다(CONTRACT §1a). `## 개정 이력` 첫 줄에
+  `- {날짜}: R1~Rn 최초 작성 ({원래갈래} 에서 분리)` 를 남긴다.
+- 원래 갈래의 plan.md 에서 이관된 요구사항은 **지우지 않고** `(이관: {unit})` 접미를 붙인다
+  (철회와 같은 방식 — R-ID 는 삭제하지 않는다, CONTRACT §4a). 이관 항목은 집계·로그에서 제외된다.
+- **현재 세션은 옮기지 않는다.** 이미 첫 갈래에 있다. 추가 갈래는 STEP 5 에서 명령어로 안내한다.
+
+---
+
 ## STEP 5 — 종료
 
 **상태 한 줄 + 산출물 링크**를 출력하고 [STOP]. 요약·다음 액션 추천은 하지 않는다.
@@ -338,3 +397,14 @@ cp "{task_dir}/plan.md.bak" "{task_dir}/plan.archive/plan-$TS.md"   # 쓰기 전
 - 최초 fetch 로 task.md 를 새로 만들었으면 `task.md` 링크도 함께 낸다
 - 빈 선언이면: `변경 없음` 만 출력 (링크 없음)
 - 경로는 `~` 가 아니라 **절대경로**로 낸다 (클릭 가능해야 하므로)
+- STEP 4.7 에서 갈래를 나눴으면 갈래 목록과 **여는 명령**을 함께 낸다. 창을 자동으로 열지 않는다:
+
+  ```
+  완료: R1~R7 신규 · 2갈래로 분리
+
+  ✓ auth   이 세션 (R1 R2 R5)
+    [plan.md](file:///…/tasks/IET-9001/auth/plan.md)
+  ○ modal  새 세션에서 이어서 진행 (R1~R4)
+    cd ../xpert-fe-modal && claude
+    [plan.md](file:///…/tasks/IET-9001/modal/plan.md)
+  ```
