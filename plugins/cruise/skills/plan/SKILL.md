@@ -332,14 +332,18 @@ phases_count: { Phase 수 정수 }
   들고 있고 기확보 범위로 이미 제외되므로, 새 번호를 붙여 되살리면 중복이 된다.
   대신 `## 개정 이력` 첫 줄에 갈래 상황을 남겨 live plan 만 봐도 갈래의 존재를 알 수 있게 한다:
   `- {날짜}: R1~Rn 전체 재작성 (이 이슈는 {units} 갈래로 나뉘어 있음 — 이 파일은 {unit})`
-- **전체 재작성 시에만** 아래를 수행하며, 반드시 **새 plan.md 쓰기가 성공한 뒤**에 한다
-  (중단 시 live 산출물이 사라지지 않도록)
+- **전체 재작성 시에만** 수행하며, **새 plan.md 를 쓰기 전에** 원본을 archive 로 복사한다.
+  `cp` 이므로 live plan.md 는 그대로 남고, 쓰기가 중단되더라도 원본이 archive 에 이미 있다.
 
 ```bash
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 mkdir -p "{task_dir}/plan.archive"
-cp "{task_dir}/plan.md.bak" "{task_dir}/plan.archive/plan-$TS.md"   # 쓰기 전 백업본을 이동
+cp "{task_dir}/plan.md" "{task_dir}/plan.archive/plan-$TS.md"   # 원본을 먼저 보존
+# → 그 다음 plan.md 를 새로 쓴다
 ```
+
+> **`plan.md.bak` 같은 중간 파일을 만들지 않는다.** v11 까지 이 블록이 만들어지지 않는 `.bak` 을
+> 복사하고 있어 archive 가 조용히 실패했다 — 전면 재작성 때마다 원본이 그냥 사라졌다.
 
 - `summary.md` 는 **건드리지 않는다.** build 산출물은 build 가 관리한다 (v11)
 
@@ -388,12 +392,15 @@ plan.md 작성 완료 — R1~R7
 않는다 — 현재 갈래도 새 갈래와 똑같이 **R1 부터 새로** 쓴다. 원본은 archive 에 통째로 남으므로
 live plan 에 이관 흔적을 남길 필요가 없다.
 
-1. **원본 보존** — 새 plan.md 들을 다 쓴 **뒤에** 수행한다 (중단 시 원본이 사라지지 않도록).
+1. **원본 보존** — 갈래별 plan.md 를 **쓰기 전에** 원본을 현재 갈래의 archive 로 복사한다.
+   분할은 전면 재작성이므로 일반 재작성과 같은 규칙(§archive)을 그대로 쓴다.
    ```bash
    TS=$(date -u +%Y%m%dT%H%M%SZ)
    mkdir -p "{task_dir}/plan.archive"
-   cp "{task_dir}/plan.md.bak" "{task_dir}/plan.archive/plan-$TS.md"
+   cp "{task_dir}/plan.md" "{task_dir}/plan.archive/plan-$TS.md"
    ```
+   원본은 **현재 갈래의 archive 에만** 둔다 (갈래마다 복제하지 않는다). 대신 아래 4번에서
+   모든 갈래의 `## 개정 이력` 에 이 파일명을 적어, 어느 갈래에서 보든 출처를 찾을 수 있게 한다.
 
 2. **추가 갈래마다 워크트리 생성** — 이미 있으면 만들지 않고 재사용한다
    (`git worktree list` · `git branch` 로 확인).
@@ -416,8 +423,12 @@ live plan 에 이관 흔적을 남길 필요가 없다.
 4. **갈래마다 plan.md 를 새로 쓴다** — 현재 갈래 것도 포함해 전부 다시 쓴다.
    - 요구사항 R-ID 는 **각 갈래 안에서 R1 부터**. plan.md 마다 R 공간이 독립이다 (CONTRACT §1a).
    - `## 구현 계획`·`## 검증 방법` 도 그 갈래 몫만 남긴다.
-   - `## 개정 이력` 첫 줄: `- {날짜}: R1~Rn — {원래 R 범위} 를 {units} 갈래로 분할 (이 파일은 {unit})`.
-     갈래 목록을 함께 적어 live plan 만 봐도 다른 갈래의 존재를 알 수 있게 한다.
+   - `## 개정 이력` 첫 줄에 **갈래 목록 + 원본 archive 경로**를 함께 적는다. 갈래 목록은 live plan
+     만 봐도 다른 갈래의 존재를 알게 하고, archive 경로는 새 갈래에서 계보를 되짚게 한다:
+     ```
+     - 2026-09-01: R1~R2 — auth 의 R1~R4 를 auth·modal 갈래로 분할
+       (원본: auth/plan.archive/plan-20260901T031200Z.md)
+     ```
 
 5. **현재 세션은 옮기지 않는다.** 이미 현재 갈래에 있다. 추가 갈래는 STEP 5 에서 명령어로 안내한다.
 
