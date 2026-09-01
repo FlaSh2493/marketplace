@@ -1,7 +1,7 @@
 # 개정 규약 (amend)
 
 `plan.md` 의 요구사항을 **추가·개정·철회**하는 공통 절차. `cruise:plan`(개정 모드)과
-`cruise:build`(STEP 0 세미플랜)가 이 규약을 따른다. 산출물 스키마는 `CONTRACT.md` §4a.
+`cruise:build`(STEP 2.5 세미플랜)가 이 규약을 따른다. 산출물 스키마는 `CONTRACT.md` §4a.
 
 원칙: **전체 재작성이 아니라 부분 수정.** 손대지 않은 줄은 바이트 단위로 보존한다.
 
@@ -55,7 +55,7 @@ R 은 그대로고 구현 방식·범위만 바뀌나?        → revise (작업
 모든 연산 후 `phases_count`·`updated` frontmatter 를 갱신한다.
 개정 사유를 파일에 남기지 않는다 (`## 개정 이력` 폐지, CONTRACT v13).
 
-**빈 선언** — `add`·`revise`·`withdraw`·미지수가 모두 비면 **파일을 쓰지 않고 archive 도 하지 않고**
+**빈 선언** — `add`·`revise`·`withdraw`·미지수가 모두 비면 **파일을 쓰지 않고**
 `변경 없음` 한 줄 출력 후 [STOP].
 
 ---
