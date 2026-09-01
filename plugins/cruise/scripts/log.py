@@ -284,10 +284,7 @@ def compose(issue_dir: Path, unit_dir: Path, seen: set[str] | None,
         req_body = body_section(plan[1], "요구사항")
         for m in re.finditer(r"^-\s*\[([ xX])\]\s*(R\d+):\s*(.+?)\s*$", req_body, re.MULTILINE):
             checked, rid, text = m.group(1).lower() == "x", m.group(2), m.group(3).strip()
-            # 철회·이관 항목은 집계·표시에서 제외 (CONTRACT §4a).
-            # 이관은 다른 갈래의 plan.md 가 그 항목을 R1 부터 새로 들고 있으므로,
-            # 여기서 세면 같은 요구사항이 두 갈래의 댓글에 중복으로 실린다.
-            if "(철회" in text or "(이관" in text:
+            if "(철회" in text:          # 철회 항목은 집계·표시에서 제외 (CONTRACT §4a)
                 continue
             has_reqs = True
             if checked:

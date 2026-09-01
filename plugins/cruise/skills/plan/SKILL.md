@@ -82,7 +82,16 @@ python3 -c "import json,sys; c=json.load(open('$CONFIG_DIR/config.json')); r=c.g
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
-결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`.
+결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`, `unit`, `units`.
+
+### 다른 갈래의 기확보 범위 (`units` 에 현재 `unit` 말고 다른 값이 있을 때만)
+
+`task.md` 는 **이슈 레벨**이라 다른 갈래가 맡은 얘기까지 들어 있다. 그대로 요구사항을 도출하면
+이미 다른 갈래가 들고 있는 것을 다시 만들어 **같은 요구사항이 두 갈래에 중복으로 존재**하게 된다
+(양쪽에서 구현하거나, 두 Jira 댓글에 같은 항목이 실린다).
+
+다른 갈래마다 `<issue_dir>/<other>/plan.md` 의 `## 요구사항` **문장만** 읽어 `기확보 범위` 로
+메모리에 둔다. 그 파일을 수정하지 않는다 — 읽기 전용이다.
 `task_dir` = context.py 의 `task_dir` 필드(`<tasks_root>/<KEY>/<unit>`). 이후 모든 산출물 경로는
 `task_dir` 기준으로만 해석한다 — 단, `task.md` 는 `task_path`(이슈 레벨)를 쓴다.
 `unit` 은 브랜치에서 도출된 **작업 단위**다. 한 이슈를 여러 브랜치·워크트리로 나눠 진행하면
@@ -196,6 +205,11 @@ task.md는 확보 이후 plan이 수정하지 않는다 (소스 오브 트루스
 
 베이스 명세 + 대화 컨텍스트 + 인자를 종합하여 요구사항을 **원자 단위로 분해**한다.
 
+> **기확보 범위는 도출하지 않는다.** STEP 1 에서 모은 다른 갈래의 요구사항과 같은 것을 뜻하는
+> 항목은 만들지 않는다. 문장이 달라도 **같은 변화를 가리키면** 중복이다. 제외한 항목은 버리지
+> 말고 게이트에 `- {요약} → {갈래} 갈래가 맡고 있어 제외` 로 한 줄씩 보여준다 — 빠뜨린 게
+> 아니라 의도적으로 뺀 것임을 사용자가 확인할 수 있어야 한다.
+
 - 각 요구사항에 `R1`, `R2`, … ID를 부여한다. 이 ID는 `## 구현 계획`의 작업 항목·`## 검증 방법` 표, 그리고 이후 build 의 체크박스·재구현 타깃이 역참조하는 **추적 키**다 (요구사항↔구현↔검증).
 - **명시 요구사항**(명세에 적힌 것)뿐 아니라 **암묵 요구사항**도 끌어낸다: 엣지케이스, 에러 처리, 빈/로딩 상태, 권한·인증, 하위 호환성, 접근성 등.
 - 불명확하거나 가정이 필요한 항목은 임의로 단정하지 말고 **미지수**로 따로 모은다 (plan.md `## 요구사항` 하단 `### 미지수`).
@@ -211,6 +225,9 @@ task.md는 확보 이후 plan이 수정하지 않는다 (소스 오브 트루스
 ```
 
 ### 개정 모드 (`plan_md_exists == true`)
+
+> 신규 모드와 같이 **기확보 범위는 추가하지 않는다.** 다른 갈래가 맡은 것을 이 갈래에
+> `add` 하면 중복이다.
 
 **`references/amend.md` 규약을 따른다.** 요약하면:
 
@@ -311,6 +328,10 @@ phases_count: { Phase 수 정수 }
 ### archive
 
 - **부분 개정에서는 archive하지 않는다** (변경 사유는 `## 개정 이력` 에 있으므로 백업이 중복)
+- **전체 재작성에서 `(이관: {unit})` 줄은 다시 쓰지 않는다.** 그 항목은 해당 갈래의 plan.md 가
+  들고 있고 기확보 범위로 이미 제외되므로, 새 번호를 붙여 되살리면 중복이 된다.
+  대신 `## 개정 이력` 첫 줄에 갈래 상황을 남겨 live plan 만 봐도 갈래의 존재를 알 수 있게 한다:
+  `- {날짜}: R1~Rn 전체 재작성 (이 이슈는 {units} 갈래로 나뉘어 있음 — 이 파일은 {unit})`
 - **전체 재작성 시에만** 아래를 수행하며, 반드시 **새 plan.md 쓰기가 성공한 뒤**에 한다
   (중단 시 live 산출물이 사라지지 않도록)
 
@@ -363,23 +384,42 @@ plan.md 작성 완료 — R1~R7
 
 ### 분리 실행 (승인했을 때만)
 
-현재 브랜치가 **첫 갈래**다. 추가 갈래마다 아래를 반복한다.
+**분할은 전면 재작성이다.** 원래 plan.md 를 갈래별로 나눠 쓰는 것이므로, 갈래를 특별 대우하지
+않는다 — 현재 갈래도 새 갈래와 똑같이 **R1 부터 새로** 쓴다. 원본은 archive 에 통째로 남으므로
+live plan 에 이관 흔적을 남길 필요가 없다.
 
-```bash
-REPO=$(git rev-parse --show-toplevel)
-WT="$(dirname "$REPO")/$(basename "$REPO")-{unit}"          # 레포 옆 형제 디렉토리
-git worktree add -b {KEY}-{unit} "$WT" {base_branch}
-cd "$WT" && python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py   # 그 갈래의 task_dir 확정
-mkdir -p "{그 갈래의 task_dir}"
-```
+1. **원본 보존** — 새 plan.md 들을 다 쓴 **뒤에** 수행한다 (중단 시 원본이 사라지지 않도록).
+   ```bash
+   TS=$(date -u +%Y%m%dT%H%M%SZ)
+   mkdir -p "{task_dir}/plan.archive"
+   cp "{task_dir}/plan.md.bak" "{task_dir}/plan.archive/plan-$TS.md"
+   ```
 
-- 워크트리·브랜치가 **이미 있으면 만들지 않고 재사용**한다 (`git worktree list` · `git branch` 확인).
-- 새 갈래의 `plan.md` 는 그 갈래 `task_dir` 에 **새로 작성**한다. R-ID 는 **그 갈래 안에서 R1 부터**
-  다시 붙인다 — plan.md 마다 R 공간이 독립이다(CONTRACT §1a). `## 개정 이력` 첫 줄에
-  `- {날짜}: R1~Rn 최초 작성 ({원래갈래} 에서 분리)` 를 남긴다.
-- 원래 갈래의 plan.md 에서 이관된 요구사항은 **지우지 않고** `(이관: {unit})` 접미를 붙인다
-  (철회와 같은 방식 — R-ID 는 삭제하지 않는다, CONTRACT §4a). 이관 항목은 집계·로그에서 제외된다.
-- **현재 세션은 옮기지 않는다.** 이미 첫 갈래에 있다. 추가 갈래는 STEP 5 에서 명령어로 안내한다.
+2. **추가 갈래마다 워크트리 생성** — 이미 있으면 만들지 않고 재사용한다
+   (`git worktree list` · `git branch` 로 확인).
+   ```bash
+   REPO=$(git rev-parse --show-toplevel)
+   WT="$(dirname "$REPO")/$(basename "$REPO")-{unit}"      # 레포 옆 형제 디렉토리
+   git worktree add -b {KEY}-{unit} "$WT" {base_branch}
+   cd "$WT" && python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py   # 그 갈래의 task_dir 확정
+   mkdir -p "{그 갈래의 task_dir}"
+   ```
+
+3. **보고 이력 승계** — 추가 갈래의 상태 파일을 **원래 갈래에서 복사**한다.
+   ```bash
+   cp "{원래 task_dir}/.jsync-log.json" "{새 task_dir}/.jsync-log.json"   # 있을 때만
+   ```
+   > 안 하면 이미 Jira 에 보고한 요구사항이 **새 갈래에서 다시 보고된다.** 새 디렉토리는
+   > 상태 파일이 없어 `log` 가 "처음 실행"으로 판정하기 때문이다. 매칭이 **문장 해시** 기준이라
+   > 원래 갈래의 이력을 전부 복사해도 안전하다 — 새 plan 에 없는 해시는 쓰이지 않는다.
+
+4. **갈래마다 plan.md 를 새로 쓴다** — 현재 갈래 것도 포함해 전부 다시 쓴다.
+   - 요구사항 R-ID 는 **각 갈래 안에서 R1 부터**. plan.md 마다 R 공간이 독립이다 (CONTRACT §1a).
+   - `## 구현 계획`·`## 검증 방법` 도 그 갈래 몫만 남긴다.
+   - `## 개정 이력` 첫 줄: `- {날짜}: R1~Rn — {원래 R 범위} 를 {units} 갈래로 분할 (이 파일은 {unit})`.
+     갈래 목록을 함께 적어 live plan 만 봐도 다른 갈래의 존재를 알 수 있게 한다.
+
+5. **현재 세션은 옮기지 않는다.** 이미 현재 갈래에 있다. 추가 갈래는 STEP 5 에서 명령어로 안내한다.
 
 ---
 
