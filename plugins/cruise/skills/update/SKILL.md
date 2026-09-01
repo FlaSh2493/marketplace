@@ -17,7 +17,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update.py <KEY>
 - **raw.json, meta.json을 직접 Read하지 않는다.**
 - 성공 시 stdout 1줄: `updated MKT-142: summary, labels (2 changed)` + 이슈 URL
 - 변경 없으면: `no changes  MKT-142`
-- 실패 시 1줄 에러 + 상세 로그는 `{task_dir}/.log`
+- 실패 시 1줄 에러 + 상세 로그는 `{issue_dir}/.log`
+  (`{issue_dir}` = `<tasks_root>/<KEY>` — 이슈 레벨. task.md·raw.json·meta.json·attachments/·.log 가 여기 있다.)
 
 ## 특수 필드 처리
 
@@ -29,5 +30,5 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update.py <KEY>
 ## 이미지 처리
 
 - 본문의 기존 이미지(`![](attachments/...)`)는 `meta.json`의 `media_refs`에 보존된 원본 노드로 복원되어 Jira에서 **그대로 유지**된다.
-- 사용자가 `{task_dir}/attachments/`에 새 이미지를 두고 본문에 `![](attachments/새파일.png)`를 추가하면, 해당 파일을 Jira에 attachment로 **업로드**한 뒤 본문에 표시한다.
+- 사용자가 `{issue_dir}/attachments/`에 새 이미지를 두고 본문에 `![](attachments/새파일.png)`를 추가하면, 해당 파일을 Jira에 attachment로 **업로드**한 뒤 본문에 표시한다.
 - 즉 로컬 상태가 기준(SSOT)이다. 본문에서 이미지 줄을 지우면 Jira 본문에서도 빠진다.

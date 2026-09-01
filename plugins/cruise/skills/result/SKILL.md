@@ -11,7 +11,10 @@ task의 결과·교훈·결정을 담는 고신호 요약이다. 소비자(예: 
 CONTRACT.md §5 스키마만 보고 이 파일을 읽는다.
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/result.md` 를 **덮어쓰기**(append 아님)
-> 기록하고 [STOP]한다. `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
+> 기록하고 [STOP]한다. `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리 (v12).
+> `{issue_dir}` = `context.py` 의 `issue_dir` 필드 = `<tasks_root>/<KEY>` — **이슈 레벨**.
+> `task.md`·`raw.json`·`meta.json`·`attachments/`·`.log` 는 `{issue_dir}` 에 있고 단위끼리 공유한다.
+> 그 외 산출물(plan·summary·review·result·상태 파일)은 `{task_dir}` 다. 리터럴 경로를 쓰지 않는다.
 > - frontmatter 공통 5필드 + result 전용 필드 완비
 > - 본문은 고정 H2 헤딩을 그대로 사용 (소비자 파싱 계약)
 > - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 8) 를 따른다
@@ -51,7 +54,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/result/scripts/gather.py {KEY}
 ## STEP 3 — 회고 종합 (LLM 작업)
 
 다음 입력을 읽어 본문 학습을 종합한다:
-- `{task_dir}/task.md` (배경·목표)
+- `{issue_dir}/task.md` (배경·목표 — 이슈 레벨)
 - `plan.md` `## 개정 이력` — **요구사항이 언제·왜 바뀌었나.** 시도했다가 되돌린 것이 여기만 남아
   있으므로 `## 결정`(rejected 대안)·`## 어려웠던 점`(방향 전환·반복 개정)의 핵심 재료다
 - `plan.md` `## 요구사항` 체크 상태 — 완료/미해결/철회 (최종 달성 범위)

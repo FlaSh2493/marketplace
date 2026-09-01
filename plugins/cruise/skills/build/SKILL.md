@@ -15,7 +15,10 @@ plan.md의 미체크 요구사항을 구현하고, lint/type/test 검사와 요�
 - **산출물 문장**: `${CLAUDE_PLUGIN_ROOT}/references/wording.md`
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/summary.md` 를 **덮어쓰기**(append 아님) 기록하고 [STOP]한다.
-> `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
+> `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리 (v12).
+> `{issue_dir}` = `context.py` 의 `issue_dir` 필드 = `<tasks_root>/<KEY>` — **이슈 레벨**.
+> `task.md`·`raw.json`·`meta.json`·`attachments/`·`.log` 는 `{issue_dir}` 에 있고 단위끼리 공유한다.
+> 그 외 산출물(plan·summary·review·result·상태 파일)은 `{task_dir}` 다. 리터럴 경로를 쓰지 않는다.
 > - frontmatter 공통 5필드 + summary 전용 필드(검사 결과 흡수) 완비
 > - `status`: completed | cancelled | failed (**cruise 생애주기 상태** — Jira 상태 아님)
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용

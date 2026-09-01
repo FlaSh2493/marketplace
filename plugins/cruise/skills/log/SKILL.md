@@ -24,7 +24,8 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 
 - 단건만 지원. `KEY`는 `MKT-142` 형태의 **Jira 이슈 키**여야 한다.
 - `{task_dir}/` 의 cruise 산출물을 파싱해 **작업내역 댓글 1건**을 조합·POST한다.
-  (`{task_dir}` 는 `config.json` 의 `settings.tasks_root` 기준 — 리터럴 경로를 쓰지 않는다.)
+  (`{task_dir}` = `<tasks_root>/<KEY>/<unit>` 작업 단위 레벨, `{issue_dir}` = `<tasks_root>/<KEY>` 이슈 레벨.
+  `tasks_root` 는 `config.json` 의 `settings.tasks_root` — 리터럴 경로를 쓰지 않는다.)
 - **로그는 작업 단위(=브랜치)별로 나뉜다** (CONTRACT §1a, v12). plan.md 가 단위마다 따로 있으므로
   댓글도 그 단위 것만 담는다. 단위는 스크립트가 **CWD 워크트리의 브랜치에서 스스로 감지**하므로
   평소에는 인자를 넘길 필요가 없다 — 해당 워크트리에서 실행하기만 하면 된다.
@@ -81,7 +82,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 - 구 상태 파일 마이그레이션(시드만 하고 댓글 없음): `seeded MKT-142: 완료 N건을 '이미 보고됨'으로 기록 (댓글 없음) …`
 - 산출물 없으면: `no artifacts  MKT-142/auth`
 - 단위가 여럿인데 감지 실패: 에러 + 있는 단위 목록. `--unit` 으로 다시 실행한다.
-- 실패 시 1줄 에러 + 상세 로그는 `{task_dir}/.log`
+- 실패 시 1줄 에러 + 상세 로그는 `{issue_dir}/.log`
 - stdout 1줄만 사용자에게 보여준다.
 
 ## 대상 제약
