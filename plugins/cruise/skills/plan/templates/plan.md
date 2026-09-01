@@ -56,7 +56,3 @@ src/other.ts          (수정)
 | R1 | {무엇을 어떻게 확인} | `npm test path` |
 | R2 | {수동 확인 절차} | 수동 |
 | R3 | lint/type/test 통과 | check |
-
-## 개정 이력
-
-- {YYYY-MM-DD}: R1~Rn 최초 작성 (task.md 명세 + 암묵 요구사항 도출)
