@@ -7,7 +7,7 @@ disable-model-invocation: true
 # Review
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/review.md` 를 기록하고 [STOP]한다.
-> `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
+> `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
 > - 신규: 새 파일 생성. 재호출: `iterations[]` 에 append.
 > - frontmatter 공통 5필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed

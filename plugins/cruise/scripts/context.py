@@ -3,7 +3,8 @@
 CWD → 컨텍스트 JSON 출력. 모든 cruise 스킬의 진입점.
 
 Usage: python3 context.py
-Output: JSON {root, branch, key, key_source, base_branch, base_source,
+Output: JSON {root, branch, key, key_source, unit, units,
+              issue_dir, task_dir,
               task_path, task_md_exists, plan_md_exists, summary_md_exists,
               commit_md_exists,
               pr_md_exists, review_md_exists,
@@ -29,6 +30,20 @@ def slug(branch: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "-", branch).strip("-").lower()
 
 
+def unit_from_branch(branch: str, key: str, key_source: str) -> str:
+    """브랜치 → 작업 단위 디렉토리명. 이슈 키를 뺀 나머지를 slug 로 쓴다.
+
+        IET-8412-auth         → auth
+        feature/IET-8412-auth → feature-auth
+        IET-8412              → default   (나머지가 없음)
+
+    key_source == "slug" 이면 이슈 키가 없어 디렉토리명이 이미 브랜치 단위로 유일하므로
+    항상 "default" 다."""
+    if key_source != "issue":
+        return "default"
+    return slug(branch.replace(key, " ")) or "default"
+
+
 def main():
     # 1. Git root + branch
     root, _, rc = run("git rev-parse --show-toplevel")
@@ -46,6 +61,12 @@ def main():
     else:
         key = slug(branch)
         key_source = "slug"
+
+    # 2b. 작업 단위 = 브랜치 (v12).
+    # 한 이슈를 여러 브랜치·워크트리로 나눠 진행하면 단위도 그만큼 생긴다. 쪼갤지 말지는
+    # cruise 가 판단하지 않는다 — 사람이 브랜치를 딴 행위가 곧 분리 선언이다.
+    # 브랜치가 하나면 단위도 하나이므로 기존과 동일하게 동작한다(경로만 한 단계 깊어진다).
+    unit = unit_from_branch(branch, key, key_source)
 
     # 3. base_branch (우선순위 체인)
     base_branch = None
@@ -99,17 +120,27 @@ def main():
             base_branch = best_cand
             base_source = "heuristic"
 
-    # 4. cruise artifact paths (task_path 항상 emit + 산출물별 존재 여부 boolean)
-    tasks_dir = tasks_root() / key
-    task_md = tasks_dir / "task.md"
+    # 4. cruise artifact paths (v12 — 2계층)
+    #   issue_dir  = tasks_root/<KEY>          이슈 레벨. task.md·raw.json·meta.json·attachments
+    #   task_dir   = tasks_root/<KEY>/<unit>   작업 단위 레벨. plan/summary/review/result·상태 파일
+    # 산출물 경로는 전부 task_dir 기준이고, task.md 만 issue_dir 에 있다(단위끼리 공유).
+    issue_path = tasks_root() / key
+    task_dir = issue_path / unit   # 생성하지 않는다 — context.py 는 조회 전용.
+    task_md = issue_path / "task.md"
 
     task_path = str(task_md)
     task_md_exists = task_md.exists()
-    plan_md_exists = (tasks_dir / "plan.md").exists()
-    summary_md_exists = (tasks_dir / "summary.md").exists()
-    commit_md_exists = (tasks_dir / "commit.md").exists()
-    pr_md_exists = (tasks_dir / "pr.md").exists()
-    review_md_exists = (tasks_dir / "review.md").exists()
+    plan_md_exists = (task_dir / "plan.md").exists()
+    summary_md_exists = (task_dir / "summary.md").exists()
+    commit_md_exists = (task_dir / "commit.md").exists()
+    pr_md_exists = (task_dir / "pr.md").exists()
+    review_md_exists = (task_dir / "review.md").exists()
+
+    # 같은 이슈의 다른 단위들 — 소비자가 "이 이슈가 몇 갈래로 진행 중인지" 알 수 있도록.
+    siblings = sorted(
+        p.name for p in issue_path.iterdir()
+        if p.is_dir() and p.name not in ("attachments",) and not p.name.endswith(".archive")
+    ) if issue_path.is_dir() else []
 
     # 5. uncommitted
     out, _, _ = run("git status --porcelain", cwd=root)
@@ -145,7 +176,11 @@ def main():
         "repo": repo,
         "is_worktree": is_worktree,
         "worktree_name": worktree_name,
+        "unit": unit,
+        "units": siblings,
     }
+    result["issue_dir"] = str(issue_path)
+    result["task_dir"] = str(task_dir)
     result["task_path"] = task_path
     result["task_md_exists"] = task_md_exists
     result["plan_md_exists"] = plan_md_exists

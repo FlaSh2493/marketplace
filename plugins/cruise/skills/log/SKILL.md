@@ -18,12 +18,20 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 | "이전 작업까지 전부 다시", "전체 다시 로그" | `log.py <KEY> --all` — `[x]` 전량 재보고 |
 | 첫 실행이 `seeded` 로 끝났고 그 항목들을 남기고 싶다 | `log.py <KEY> --all` |
 | "POST 전에 미리 보여줘" | `log.py <KEY> --dry-run` |
+| repo 밖에서 실행 · 단위가 모호하다는 에러 | `log.py <KEY> --unit <name>` |
 
 ## 동작 규칙
 
 - 단건만 지원. `KEY`는 `MKT-142` 형태의 **Jira 이슈 키**여야 한다.
 - `{task_dir}/` 의 cruise 산출물을 파싱해 **작업내역 댓글 1건**을 조합·POST한다.
   (`{task_dir}` 는 `config.json` 의 `settings.tasks_root` 기준 — 리터럴 경로를 쓰지 않는다.)
+- **로그는 작업 단위(=브랜치)별로 나뉜다** (CONTRACT §1a, v12). plan.md 가 단위마다 따로 있으므로
+  댓글도 그 단위 것만 담는다. 단위는 스크립트가 **CWD 워크트리의 브랜치에서 스스로 감지**하므로
+  평소에는 인자를 넘길 필요가 없다 — 해당 워크트리에서 실행하기만 하면 된다.
+  - 감지 실패 시: 단위가 하나뿐이면 그것을 쓰고, 여럿이면 **추측하지 않고 에러**로 지정을 요구한다.
+  - repo 밖에서 부를 때는 `--unit <name>` 으로 지정한다.
+  - 이슈에 단위가 둘 이상일 때만 댓글 헤더에 `· auth` 처럼 단위를 표기한다 (하나면 표기하지 않는다).
+  - `task.md`(해결한 문제)는 이슈 레벨이라 모든 단위가 공유한다.
 - 존재하는 산출물의 섹션만 댓글에 포함된다 (없는 산출물은 건너뜀).
 - commit·PR·merge는 산출물 파일이 아니다 — 스크립트가 `gh pr list`·`git log --merges`로 직접 조회해 포함한다.
 - **`완료한 작업`은 델타다.** plan.md는 사이클을 거듭하며 누적되는 산출물이라 `[x]` 전량을 매번 실으면
@@ -69,9 +77,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/log.py <KEY>
 
 - 성공 시 stdout 1줄: `logged MKT-142: 문제, 작업, 미해결, 상태 (4 sections)  https://…/browse/MKT-142`
   (이슈 URL을 함께 낸다 — 사용자가 바로 확인할 수 있도록)
-- 변경 없거나 새로 완료된 항목이 없으면: `no changes  MKT-142`
+- 변경 없거나 새로 완료된 항목이 없으면: `no changes  MKT-142/auth`
 - 구 상태 파일 마이그레이션(시드만 하고 댓글 없음): `seeded MKT-142: 완료 N건을 '이미 보고됨'으로 기록 (댓글 없음) …`
-- 산출물 없으면: `no artifacts  MKT-142`
+- 산출물 없으면: `no artifacts  MKT-142/auth`
+- 단위가 여럿인데 감지 실패: 에러 + 있는 단위 목록. `--unit` 으로 다시 실행한다.
 - 실패 시 1줄 에러 + 상세 로그는 `{task_dir}/.log`
 - stdout 1줄만 사용자에게 보여준다.
 

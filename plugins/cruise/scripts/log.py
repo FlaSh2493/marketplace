@@ -1,16 +1,19 @@
 """
 cruise log — cruise 단계별 산출물을 모아 Jira 이슈에 '작업 로그' 댓글 1건으로 POST.
 
-Usage:
-  log.py MKT-142            # 아직 보고하지 않은 완료 항목(델타)만 조합해 댓글 POST
-  log.py MKT-142 --all      # 이미 보고한 항목까지 [x] 전량을 다시 보고
-  log.py MKT-142 --dry-run  # POST 없이 조합된 다이제스트를 stdout으로만 출력
+작업 단위(=브랜치)별로 나뉜다 — CWD 의 워크트리를 보고 자기 단위를 스스로 감지한다.
 
-Reads:  ~/Documents/tasks/<KEY>/{plan,summary,review,result}.md
-        (cruise 하네스가 남긴 산출물. CONTRACT.md v9 스키마)
+Usage:
+  log.py MKT-142                # CWD 워크트리의 단위. 아직 보고 안 한 완료 항목(델타)만 POST
+  log.py MKT-142 --unit auth    # 단위를 직접 지정 (repo 밖에서 부를 때)
+  log.py MKT-142 --all          # 이미 보고한 항목까지 [x] 전량을 다시 보고
+  log.py MKT-142 --dry-run      # POST 없이 조합된 다이제스트를 stdout으로만 출력
+
+Reads:  <tasks_root>/<KEY>/task.md                        (이슈 레벨 — 단위끼리 공유)
+        <tasks_root>/<KEY>/<unit>/{plan,summary,review,result}.md   (작업 단위 레벨)
         PR·커밋 정보는 산출물이 아니라 GitHub(gh)에서 직접 조회한다.
 Writes: Jira 이슈 댓글 1건 (기존 add_comment 재사용)
-        ~/Documents/tasks/<KEY>/.jsync-log.json  (중복 방지 해시 + 보고 완료한 요구사항 목록)
+        <tasks_root>/<KEY>/<unit>/.jsync-log.json  (중복 방지 해시 + 보고 완료한 요구사항 목록)
         stdout 1-liner summary
 """
 import sys
@@ -32,6 +35,62 @@ from md_adf import md_to_adf
 
 ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+-\d+$")
 STATE_FILE = ".jsync-log.json"
+RESERVED_DIRS = ("attachments",)
+
+
+# ---------------------------------------------------------------------------
+# 작업 단위 해석 (v12) — 단위 = 브랜치. plan.md 가 단위마다 따로 있으므로 로그도 단위별로 나뉜다.
+# ---------------------------------------------------------------------------
+
+def _slug(branch: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]+", "-", branch).strip("-").lower()
+
+
+def unit_from_cwd(key: str) -> str | None:
+    """CWD 가 속한 워크트리의 브랜치에서 단위를 도출. context.py 와 같은 규칙.
+
+    repo 밖에서 부르거나 브랜치에 KEY 가 없으면 None (호출측이 디렉토리 스캔으로 폴백)."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                           capture_output=True, text=True, timeout=5)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    branch = r.stdout.strip()
+    if not branch or key not in branch:
+        return None
+    return _slug(branch.replace(key, " ")) or "default"
+
+
+def existing_units(issue_dir: Path) -> list[str]:
+    if not issue_dir.is_dir():
+        return []
+    return sorted(
+        p.name for p in issue_dir.iterdir()
+        if p.is_dir() and p.name not in RESERVED_DIRS and not p.name.endswith(".archive")
+    )
+
+
+def resolve_unit(issue_dir: Path, key: str, explicit: str | None) -> tuple[str | None, str]:
+    """(unit, error). 우선순위: --unit > CWD 워크트리 > 단위가 하나뿐이면 그것."""
+    units = existing_units(issue_dir)
+    if explicit:
+        if explicit not in units:
+            avail = ", ".join(units) or "없음"
+            return None, f"unit '{explicit}' 이 {issue_dir} 에 없습니다 (있는 단위: {avail})"
+        return explicit, ""
+    u = unit_from_cwd(key)
+    if u and u in units:
+        return u, ""
+    if len(units) == 1:
+        return units[0], ""
+    if not units:
+        return None, f"작업 단위 디렉토리가 없습니다: {issue_dir}"
+    return None, (
+        f"단위가 여러 개라 어느 것을 보고할지 알 수 없습니다 ({', '.join(units)}). "
+        "해당 워크트리에서 실행하거나 --unit 으로 지정하세요."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -167,14 +226,18 @@ def req_hash(text: str) -> str:
     return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()
 
 
-def compose(d: Path, seen: set[str] | None) -> tuple[str, list[str], str, list[dict], bool]:
+def compose(issue_dir: Path, unit_dir: Path, seen: set[str] | None,
+            unit_label: str = "") -> tuple[str, list[str], str, list[dict], bool]:
     """Returns (digest_md, present_sections, updated_date, reported_entries, has_reqs).
 
+    issue_dir: 이슈 레벨(task.md). unit_dir: 작업 단위 레벨(plan/summary/review/result).
     seen: 이미 보고한 요구사항 문장 해시 집합. None이면 델타 없이 [x] 전량을 보고한다
     (--all 및 `logged` 키가 없는 구 상태 파일의 최초 마이그레이션).
+    unit_label: 이 이슈에 단위가 둘 이상일 때만 채운다 — 헤더에 붙여 댓글을 구분한다.
     reported_entries: 이번 댓글의 `완료한 작업`에 실린 항목 [{"rid","hash"}, …].
     has_reqs: plan.md `## 요구사항`에서 항목을 하나라도 파싱했는지."""
-    task = read_artifact(d, "task.md")
+    task = read_artifact(issue_dir, "task.md")
+    d = unit_dir
     plan = read_artifact(d, "plan.md")
     summary = read_artifact(d, "summary.md")
     review = read_artifact(d, "review.md")
@@ -266,7 +329,11 @@ def compose(d: Path, seen: set[str] | None) -> tuple[str, list[str], str, list[d
         present.append("상태")
         body_parts.append("**상태**\n" + "\n".join(status_bits))
 
-    head_line = f"🚀 작업내역 — {updated_date}" if updated_date else "🚀 작업내역"
+    head_line = "🚀 작업내역"
+    if updated_date:
+        head_line += f" — {updated_date}"
+    if unit_label:   # 한 이슈가 여러 갈래로 진행 중일 때만. 단위가 하나면 예전과 같은 헤더.
+        head_line += f" · {unit_label}"
     digest = head_line + "\n\n" + "\n\n".join(body_parts)
     return digest, present, updated_date, reported, has_reqs
 
@@ -317,13 +384,23 @@ def save_state(d: Path, h: str, state: dict, reported: list[dict]):
 # ---------------------------------------------------------------------------
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    flags = {a for a in sys.argv[1:] if a.startswith("-")}
+    argv = sys.argv[1:]
+    explicit_unit = None
+    if "--unit" in argv:
+        i = argv.index("--unit")
+        if i + 1 >= len(argv):
+            print("error: --unit requires a value", file=sys.stderr)
+            sys.exit(1)
+        explicit_unit = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    args = [a for a in argv if not a.startswith("-")]
+    flags = {a for a in argv if a.startswith("-")}
     dry_run = "--dry-run" in flags
     report_all = "--all" in flags
 
     if not args:
-        print("error: KEY required. usage: log.py <KEY> [--all] [--dry-run]", file=sys.stderr)
+        print("error: KEY required. usage: log.py <KEY> [--unit <name>] [--all] [--dry-run]",
+              file=sys.stderr)
         sys.exit(1)
     key = args[0]
 
@@ -335,10 +412,18 @@ def main():
         )
         sys.exit(1)
 
-    d = tasks_root() / key
-    if not d.is_dir():
-        print(f"error: no task directory: {d}", file=sys.stderr)
+    issue_dir = tasks_root() / key
+    if not issue_dir.is_dir():
+        print(f"error: no task directory: {issue_dir}", file=sys.stderr)
         sys.exit(1)
+
+    unit, err = resolve_unit(issue_dir, key, explicit_unit)
+    if err:
+        print(f"error: {err}", file=sys.stderr)
+        sys.exit(1)
+    d = issue_dir / unit
+    # 단위가 하나면 헤더에 표기하지 않는다 — 갈래가 없으면 라벨이 소음이다.
+    unit_label = unit if len(existing_units(issue_dir)) > 1 else ""
 
     state = load_state(d)
     # `logged`가 없는 구 상태 파일 마이그레이션 — `[x]` 만으로는 그 항목이 이번 사이클에 완료된
@@ -353,9 +438,9 @@ def main():
         e.get("hash") for e in (state.get("logged") or []) if isinstance(e, dict)
     }
 
-    digest, present, updated_date, reported, has_reqs = compose(d, seen)
+    digest, present, updated_date, reported, has_reqs = compose(issue_dir, d, seen, unit_label)
     if not present:
-        print(f"no artifacts  {key}  (cruise 산출물이 없습니다)")
+        print(f"no artifacts  {key}/{unit}  (cruise 산출물이 없습니다)")
         sys.exit(0)
 
     if dry_run:
@@ -366,7 +451,7 @@ def main():
     if seed_only:
         save_state(d, state.get("last_hash") or "", state, reported)
         print(
-            f"seeded {key}: 완료 {len(reported)}건을 '이미 보고됨'으로 기록 (댓글 없음). "
+            f"seeded {key}/{unit}: 완료 {len(reported)}건을 '이미 보고됨'으로 기록 (댓글 없음). "
             "이전 버전이 남긴 댓글과 중복되지 않도록 첫 실행은 보고를 건너뜁니다. "
             f"전량을 다시 남기려면 --all"
         )
@@ -374,13 +459,13 @@ def main():
 
     # 완료 델타가 0건이면 `해결한 문제`·`상태`만 남은 껍데기 댓글이 된다 — POST하지 않는다.
     if has_reqs and not reported:
-        print(f"no changes  {key}  (마지막 로그 이후 새로 완료된 항목 없음)")
+        print(f"no changes  {key}/{unit}  (마지막 로그 이후 새로 완료된 항목 없음)")
         return
 
     h = content_hash(digest)
     # --all은 전량 재보고가 목적이므로 last_hash 중복 방지도 함께 우회한다.
     if not report_all and state.get("last_hash") == h:
-        print(f"no changes  {key}  (마지막 로그 이후 변경 없음)")
+        print(f"no changes  {key}/{unit}  (마지막 로그 이후 변경 없음)")
         return
 
     try:
@@ -397,7 +482,8 @@ def main():
     except Exception:
         url = ""
     tail = f"  {url}" if url else ""
-    print(f"logged {key}: {', '.join(present)} ({len(present)} sections){tail}")
+    scope = f"{key}/{unit}" if unit_label else key
+    print(f"logged {scope}: {', '.join(present)} ({len(present)} sections){tail}")
 
 
 if __name__ == "__main__":

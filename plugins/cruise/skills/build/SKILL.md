@@ -15,7 +15,7 @@ plan.md의 미체크 요구사항을 구현하고, lint/type/test 검사와 요�
 - **산출물 문장**: `${CLAUDE_PLUGIN_ROOT}/references/wording.md`
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/summary.md` 를 **덮어쓰기**(append 아님) 기록하고 [STOP]한다.
-> `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
+> `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
 > - frontmatter 공통 5필드 + summary 전용 필드(검사 결과 흡수) 완비
 > - `status`: completed | cancelled | failed (**cruise 생애주기 상태** — Jira 상태 아님)
 > - KEY는 context.py 출력. 추출 실패 시 slug(branch) 사용
@@ -46,7 +46,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
 결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `base_source`, `repo`, `has_uncommitted`, `task_path`, `task_md_exists`, `plan_md_exists`, `summary_md_exists`.
-`task_dir` = `task_path` 의 디렉토리. 이후 모든 산출물 경로는 `task_dir` 기준으로만 해석한다.
+`task_dir` = context.py 의 `task_dir` 필드(`<tasks_root>/<KEY>/<unit>`). 이후 모든 산출물 경로는
+`task_dir` 기준으로만 해석한다 — 단, `task.md` 는 `task_path`(이슈 레벨)를 쓴다.
+`unit` 은 브랜치에서 도출된 **작업 단위**다. 한 이슈를 여러 브랜치·워크트리로 나눠 진행하면
+단위마다 plan.md·summary.md·review.md 가 따로 생긴다. 브랜치가 하나면 단위도 하나다.
 
 ---
 

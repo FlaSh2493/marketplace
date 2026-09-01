@@ -11,7 +11,7 @@ task의 결과·교훈·결정을 담는 고신호 요약이다. 소비자(예: 
 CONTRACT.md §5 스키마만 보고 이 파일을 읽는다.
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/result.md` 를 **덮어쓰기**(append 아님)
-> 기록하고 [STOP]한다. `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
+> 기록하고 [STOP]한다. `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
 > - frontmatter 공통 5필드 + result 전용 필드 완비
 > - 본문은 고정 H2 헤딩을 그대로 사용 (소비자 파싱 계약)
 > - 산출물 스키마는 `plugins/cruise/CONTRACT.md` (§5, contract_version 8) 를 따른다

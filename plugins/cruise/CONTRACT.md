@@ -1,9 +1,15 @@
 # Cruise 하네스 산출물 계약 (Harness Artifact Contract)
 
 ```yaml
-contract_version: 11
+contract_version: 12
 ```
 
+> **v12 변경 (breaking):** 저장 구조를 **2계층**으로 바꿨다(§1). 한 이슈를 여러 브랜치·워크트리로
+> 나눠 진행할 수 있으므로 `plan.md` 이하 산출물은 `<KEY>/<unit>/` 아래로 내려가고, 이슈 레벨인
+> `task.md`·`raw.json`·`meta.json`·`attachments/` 만 `<KEY>/` 에 남는다. `unit` 은 브랜치에서
+> 도출되며(§1a), 브랜치가 하나면 단위도 하나라 기존과 동일하게 동작한다. 소비자는
+> `context.py` 의 `task_dir`(단위 레벨)와 `task_path`(이슈 레벨 task.md)를 구분해서 써야 한다.
+>
 > **v11 변경:** `plan.md` 를 **누적 산출물**로 격상했다(§4a). 요구사항 체크박스
 > (`- [ ] R1` / `- [x] R1`)가 진척의 진실 원천이며 **build 스킬이 갱신한다**(본문은 건드리지 않는다).
 > R-ID 는 재발급·재사용·삭제하지 않고(철회는 `(철회: 사유)` 접미로 보존), 변경 사유는
@@ -42,15 +48,59 @@ cruise 자신은 이 파일을 읽지 않는다.
 
 ## 1. 저장 위치 · 키 규칙
 
-- 저장 루트: 기본 `~/Documents/tasks/<KEY>/` — cruise `~/.config/cruise/config.json` 의
+- 저장 루트: 기본 `~/Documents/tasks/<KEY>/<unit>/` (§1a — v12 부터 2계층) — cruise `~/.config/cruise/config.json` 의
   `settings.tasks_root` 로 변경 가능(소비자는 해당 값 기준으로 경로를 해석해야 한다)
 - `KEY` 결정 (cruise `scripts/context.py`):
   - 브랜치명에 `[A-Z]+-\d+` 패턴이 있으면 그 값 (예: `SPT-4152`, `IET-7750`) — `key_source: issue`
   - 없으면 브랜치명을 슬러그화한 값 (예: `develop`, `feat-nextjs-migration`) — `key_source: slug`
   - 인자로 직접 받은 경우 — `key_source: arg` 또는 `user-arg`
-- 한 디렉토리 = 한 task. 디렉토리 안에는 아래 산출물 + Jira 동기화 메타(`meta.json`, `raw.json`) +
+- 이슈 디렉토리 안에는 아래 산출물 + Jira 동기화 메타(`meta.json`, `raw.json`) +
   `attachments/`, `*.archive/`(이전 산출물 백업), `.DS_Store`, 사람이 쓴 임의 파일(`handover.md` 등)이
   **섞여 있을 수 있다.** 소비자는 임의 부분집합을 견뎌야 한다.
+
+---
+
+## 1a. 작업 단위 (unit) — 2계층 구조 (v12)
+
+한 이슈가 항상 한 갈래로 진행되지는 않는다. 워크트리를 여러 개 띄워 같은 이슈를 나눠 구현하면
+plan 도 그만큼 나온다. 그래서 **정체성 키는 `KEY` 가 아니라 `(KEY, unit)`** 이다.
+
+```
+<tasks_root>/<KEY>/            # 이슈 레벨 — 단위끼리 공유
+├── task.md  raw.json  meta.json  attachments/
+├── <unit-a>/                  # 작업 단위 레벨
+│   ├── plan.md  summary.md  review.md  result.md
+│   ├── .jsync-log.json  .log
+│   └── plan.archive/
+└── <unit-b>/
+    └── …
+```
+
+### unit 결정
+
+**단위 = 브랜치다. 쪼갤지 말지를 cruise 가 판단하지 않는다** — 사람이 브랜치를 딴 행위 자체가
+분리 선언이다. 브랜치를 하나만 쓰면 단위 디렉토리도 하나이므로 v11 과 동작이 같다(경로만 한 단계 깊다).
+
+`context.py` 가 브랜치에서 이슈 키를 뺀 나머지를 슬러그화해 도출한다:
+
+| 브랜치 | `key` | `unit` |
+|--------|-------|--------|
+| `IET-8412-auth` | `IET-8412` | `auth` |
+| `feature/IET-8412-auth` | `IET-8412` | `feature-auth` |
+| `IET-8412` | `IET-8412` | `default` |
+| `feat-nextjs` (`key_source: slug`) | `feat-nextjs` | `default` |
+
+### 소비자 규칙
+
+- 산출물 경로는 `context.py` 의 **`task_dir`**(= `<KEY>/<unit>`) 기준으로 해석한다.
+  `task.md` 만 **`task_path`**(= `<KEY>/task.md`) 를 쓴다.
+- `context.py` 는 조회 전용이라 단위 디렉토리를 **만들지 않는다.** 첫 산출물을 쓰는 쪽
+  (`plan` 스킬)이 `mkdir -p` 한다.
+- `units` 필드로 그 이슈에 몇 갈래가 있는지 알 수 있다. 갈래가 둘 이상일 때만 사람 대상 출력에
+  단위를 표기한다 — 하나뿐인데 붙이면 소음이다.
+- git 밖에서 도는 소비자(`log.py` 등)는 CWD 워크트리의 브랜치로 단위를 감지하고, 실패하면
+  단위가 하나일 때만 그것을 쓰며, 여럿이면 **추측하지 말고 에러**로 지정을 요구한다.
+- **v11 이전 flat 디렉토리는 마이그레이션하지 않는다.** 새로 시작하는 task 부터 이 구조를 쓴다.
 
 ---
 

@@ -15,7 +15,7 @@ plan 은 **최초 작성 · Phase 구조 재편 · Jira 명세 반영**을 맡�
 - **산출물 문장**: `${CLAUDE_PLUGIN_ROOT}/references/wording.md`
 
 > **종료 규칙:** 어떤 STEP에서 종료하든 `{task_dir}/plan.md` 를 기록하고 [STOP]한다.
-> `{task_dir}` = `context.py` 의 `task_path` 의 디렉토리 (리터럴 경로를 쓰지 않는다).
+> `{task_dir}` = `context.py` 의 `task_dir` 필드 = `<tasks_root>/<KEY>/<unit>` — **작업 단위** 디렉토리다 (v12). `task.md` 만 한 단계 위 `issue_dir` 에 있다(단위끼리 공유). 리터럴 경로를 쓰지 않는다.
 >
 > - frontmatter 공통 5필드 + 스킬별 필드 완비
 > - `status`: completed | cancelled | failed
@@ -80,7 +80,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/context.py
 ```
 
 결과를 메모리에 보관: `root`, `branch`, `key`, `key_source`, `base_branch`, `task_path`, `task_md_exists`, `plan_md_exists`.
-`task_dir` = `task_path` 의 디렉토리. 이후 모든 산출물 경로는 `task_dir` 기준으로만 해석한다.
+`task_dir` = context.py 의 `task_dir` 필드(`<tasks_root>/<KEY>/<unit>`). 이후 모든 산출물 경로는
+`task_dir` 기준으로만 해석한다 — 단, `task.md` 는 `task_path`(이슈 레벨)를 쓴다.
+`unit` 은 브랜치에서 도출된 **작업 단위**다. 한 이슈를 여러 브랜치·워크트리로 나눠 진행하면
+단위마다 plan.md·summary.md·review.md 가 따로 생긴다. 브랜치가 하나면 단위도 하나다.
 
 ### 인자 해석
 
@@ -255,6 +258,8 @@ task.md는 확보 이후 plan이 수정하지 않는다 (소스 오브 트루스
 ### 신규 모드 — 전체 작성
 
 `templates/plan.md` 형식을 따라 `{task_dir}/plan.md` 를 만든다.
+작업 단위 디렉토리는 이 시점에 없을 수 있으므로(context.py 는 조회 전용이라 만들지 않는다)
+먼저 `mkdir -p "{task_dir}"` 한다.
 
 frontmatter (공통 5필드 + 스킬별):
 
