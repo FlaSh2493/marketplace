@@ -25,7 +25,11 @@ build 스킬로부터 Phase 단위 구현 작업을 위임받는다.
 ## 금지
 
 - plan.md 수정 금지
-- Phase 범위 밖 파일 수정 금지
+- Phase 범위 밖 파일 수정 금지 — **단 이번 구현으로 참조가 끊긴 파일은 예외.** 아래 두 조건을
+  모두 확인한 뒤에만 삭제한다:
+  1. 참조를 끊은 것이 **이번 구현**이다 (우연히 미사용인 파일은 대상 아님)
+  2. 리포 전체에서 참조가 **0** 이다 — `grep -rn "{모듈명}" src/` 등으로 직접 확인
+  둘 중 하나라도 확인되지 않으면 **삭제하지 않고** 반환값 `orphaned` 에 적어 보고한다.
 - 커밋 금지 (commit 스킬 전용)
 - 완료 후 다른 스킬 자동 호출 금지
 
@@ -36,6 +40,11 @@ build 스킬로부터 Phase 단위 구현 작업을 위임받는다.
 {
   "phase": "Phase 1",
   "files_changed": ["src/foo.ts", "src/bar.ts"],
+  "files_deleted": ["src/legacy/use-cursor.ts"],
+  "orphaned": ["src/legacy/helper.ts — 참조 0 확인 못 함"],
   "diff_stat": "..."
 }
 ```
+
+- `files_deleted`: 참조가 끊겨 삭제한 파일 (위 두 조건을 만족한 것)
+- `orphaned`: 끊긴 것으로 보이나 확인이 안 돼 **남긴** 파일. 호출 스킬이 `## 비고` 에 넘긴다
