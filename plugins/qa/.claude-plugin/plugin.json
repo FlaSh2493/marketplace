@@ -1,0 +1,9 @@
+{
+  "name": "qa",
+  "description": "헤드리스 브라우저(agent-browser)로 화면 시나리오를 수행하고, 두 폭 스크린샷·접근성 트리·콘솔 에러를 증거로 붙인 QA 리포트를 낸다.",
+  "version": "0.1.0",
+  "author": {
+    "name": "flash2493",
+    "email": "flash0211@naver.com"
+  }
+}

@@ -22,6 +22,12 @@
       "source": "./plugins/cruise",
       "description": "이슈 단위 개발 사이클 자동화 — 플랜·구현·검사·커밋·머지·PR·리뷰·회고 + Jira 동기화(생성·조회·업데이트·작업 로그).",
       "version": "0.14.0"
+    },
+    {
+      "name": "qa",
+      "source": "./plugins/qa",
+      "description": "헤드리스 브라우저로 화면 시나리오를 수행하고 두 폭 스크린샷·콘솔 에러를 증거로 붙인 QA 리포트를 낸다.",
+      "version": "0.1.0"
     }
   ]
 }
